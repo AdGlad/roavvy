@@ -35,20 +35,16 @@ class AchievementTimeline extends StatelessWidget {
     final theme = Theme.of(context);
 
     // Resolve achievements — skip any not found (defensive).
-    final milestones = _milestoneIds
-        .map(
-          (id) =>
-              kAchievements.where((a) => a.id == id).firstOrNull,
-        )
-        .whereType<Achievement>()
-        .toList();
+    final milestones =
+        _milestoneIds
+            .map((id) => kAchievements.where((a) => a.id == id).firstOrNull)
+            .whereType<Achievement>()
+            .toList();
 
     if (milestones.isEmpty) return const SizedBox.shrink();
 
     // Find index of the first locked milestone (the "next" node).
-    final nextIndex = milestones.indexWhere(
-      (a) => !unlockedIds.contains(a.id),
-    );
+    final nextIndex = milestones.indexWhere((a) => !unlockedIds.contains(a.id));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,33 +158,36 @@ class _TimelineNodeState extends State<_TimelineNode>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final nodeColor = widget.isUnlocked
-        ? RoavvyColours.roavvyGold
-        : widget.isNext
+    final nodeColor =
+        widget.isUnlocked
+            ? RoavvyColours.roavvyGold
+            : widget.isNext
             ? theme.colorScheme.primary
             : theme.colorScheme.outline.withValues(alpha: 0.4);
 
-    final connector = widget.showConnector
-        ? Container(
-            width: 32,
-            height: 2,
-            margin: const EdgeInsets.only(bottom: 28),
-            color: widget.isUnlocked
-                ? RoavvyColours.roavvyGold.withValues(alpha: 0.5)
-                : theme.colorScheme.outline.withValues(alpha: 0.2),
-          )
-        : null;
+    final connector =
+        widget.showConnector
+            ? Container(
+              width: 32,
+              height: 2,
+              margin: const EdgeInsets.only(bottom: 28),
+              color:
+                  widget.isUnlocked
+                      ? RoavvyColours.roavvyGold.withValues(alpha: 0.5)
+                      : theme.colorScheme.outline.withValues(alpha: 0.2),
+            )
+            : null;
 
-    final nodeWidget = widget.isNext
-        ? AnimatedBuilder(
-            animation: _pulseAnim,
-            builder: (_, child) => Transform.scale(
-              scale: _pulseAnim.value,
-              child: child,
-            ),
-            child: _NodeCircle(color: nodeColor, isUnlocked: false),
-          )
-        : _NodeCircle(color: nodeColor, isUnlocked: widget.isUnlocked);
+    final nodeWidget =
+        widget.isNext
+            ? AnimatedBuilder(
+              animation: _pulseAnim,
+              builder:
+                  (_, child) =>
+                      Transform.scale(scale: _pulseAnim.value, child: child),
+              child: _NodeCircle(color: nodeColor, isUnlocked: false),
+            )
+            : _NodeCircle(color: nodeColor, isUnlocked: widget.isUnlocked);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -207,15 +206,18 @@ class _TimelineNodeState extends State<_TimelineNode>
                 maxLines: 2,
                 style: TextStyle(
                   fontSize: 9,
-                  fontWeight: widget.isNext || widget.isUnlocked
-                      ? FontWeight.w600
-                      : FontWeight.normal,
-                  color: widget.isUnlocked
-                      ? RoavvyColours.roavvyGold
-                      : widget.isNext
+                  fontWeight:
+                      widget.isNext || widget.isUnlocked
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                  color:
+                      widget.isUnlocked
+                          ? RoavvyColours.roavvyGold
+                          : widget.isNext
                           ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.6),
+                          : theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.6,
+                          ),
                   height: 1.2,
                 ),
               ),
@@ -225,19 +227,17 @@ class _TimelineNodeState extends State<_TimelineNode>
                 '${widget.achievement.progressTarget}',
                 style: TextStyle(
                   fontSize: 9,
-                  color: widget.isUnlocked
-                      ? RoavvyColours.roavvyGold.withValues(alpha: 0.7)
-                      : theme.colorScheme.primary.withValues(alpha: 0.7),
+                  color:
+                      widget.isUnlocked
+                          ? RoavvyColours.roavvyGold.withValues(alpha: 0.7)
+                          : theme.colorScheme.primary.withValues(alpha: 0.7),
                 ),
               ),
           ],
         ),
         if (connector != null) ...[
           const SizedBox(width: 0),
-          Padding(
-            padding: const EdgeInsets.only(top: 15),
-            child: connector,
-          ),
+          Padding(padding: const EdgeInsets.only(top: 15), child: connector),
         ],
       ],
     );
@@ -259,19 +259,21 @@ class _NodeCircle extends StatelessWidget {
         shape: BoxShape.circle,
         color: isUnlocked ? color : Colors.transparent,
         border: isUnlocked ? null : Border.all(color: color, width: 2),
-        boxShadow: isUnlocked
-            ? [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.4),
-                  blurRadius: 8,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
+        boxShadow:
+            isUnlocked
+                ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ]
+                : null,
       ),
-      child: isUnlocked
-          ? const Icon(Icons.check, size: 14, color: Colors.black87)
-          : null,
+      child:
+          isUnlocked
+              ? const Icon(Icons.check, size: 14, color: Colors.black87)
+              : null,
     );
   }
 }

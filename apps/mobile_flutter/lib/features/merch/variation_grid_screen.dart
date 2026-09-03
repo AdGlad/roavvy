@@ -67,17 +67,16 @@ class _VariationGridScreenState extends State<VariationGridScreen> {
           (f) => f.name == r.family.name,
           orElse: () => DesignFamily.singleHero,
         ),
-        orientation: r.isPortrait
-            ? forge.Orientation.portrait
-            : forge.Orientation.landscape,
+        orientation:
+            r.isPortrait
+                ? forge.Orientation.portrait
+                : forge.Orientation.landscape,
       ),
-      clip: r.mask != GridClipShape.none
-          ? forge.Clip(shapeId: r.mask.name, code: r.maskCode)
-          : null,
-      palette: Palette(
-        garmentColour: r.garmentColour,
-        vintageGrade: r.fade,
-      ),
+      clip:
+          r.mask != GridClipShape.none
+              ? forge.Clip(shapeId: r.mask.name, code: r.maskCode)
+              : null,
+      palette: Palette(garmentColour: r.garmentColour, vintageGrade: r.fade),
       effects: Effects(
         distress: r.distress,
         grain: r.grain,
@@ -115,9 +114,7 @@ class _VariationGridScreenState extends State<VariationGridScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('More Like This'),
-      ),
+      appBar: AppBar(title: const Text('More Like This')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -125,10 +122,7 @@ class _VariationGridScreenState extends State<VariationGridScreen> {
             for (final axis in byAxis.keys) ...[
               Padding(
                 padding: const EdgeInsets.only(top: 12, bottom: 8),
-                child: Text(
-                  axis.label,
-                  style: theme.textTheme.titleSmall,
-                ),
+                child: Text(axis.label, style: theme.textTheme.titleSmall),
               ),
               SizedBox(
                 height: 120,
@@ -159,19 +153,21 @@ class _VariationGridScreenState extends State<VariationGridScreen> {
     final params = widget.anchor.params;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LocalMockupPreviewScreen(
-          selectedCodes: params.countryCodes,
-          allCodes: widget.allCodes,
-          trips: widget.trips,
-          initialTemplate: params.template,
-          initialPreset: MerchPreset(
-            id: 'var_${v.recipe.recipeId.hashCode}',
-            label: 'Variation (${v.axis.label})',
-            config: params.toPresetConfig(),
-          ),
-          transparentBackground: true,
-          initialColour: v.recipe.palette?.garmentColour ?? params.shirtColour,
-        ),
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: params.countryCodes,
+              allCodes: widget.allCodes,
+              trips: widget.trips,
+              initialTemplate: params.template,
+              initialPreset: MerchPreset(
+                id: 'var_${v.recipe.recipeId.hashCode}',
+                label: 'Variation (${v.axis.label})',
+                config: params.toPresetConfig(),
+              ),
+              transparentBackground: true,
+              initialColour:
+                  v.recipe.palette?.garmentColour ?? params.shirtColour,
+            ),
       ),
     );
   }
@@ -220,6 +216,5 @@ class _VariationCard extends StatelessWidget {
     return Color(int.parse('FF$clean', radix: 16));
   }
 
-  static bool _isDark(Color c) =>
-      0.299 * c.r + 0.587 * c.g + 0.114 * c.b < 0.5;
+  static bool _isDark(Color c) => 0.299 * c.r + 0.587 * c.g + 0.114 * c.b < 0.5;
 }

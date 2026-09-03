@@ -24,7 +24,8 @@ class SharedPrefsPreferenceStore implements PreferenceStore {
     if (raw == null) return UserDesignPreferenceProfile.neutral;
     try {
       return UserDesignPreferenceProfile.fromJson(
-          jsonDecode(raw) as Map<String, dynamic>);
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
     } catch (_) {
       return UserDesignPreferenceProfile.neutral;
     }
@@ -46,8 +47,8 @@ class PreferenceProfileNotifier
   PreferenceProfileNotifier(
     this._store, {
     PreferenceLearner learner = const PreferenceLearner(),
-  })  : _learner = learner,
-        super(UserDesignPreferenceProfile.neutral) {
+  }) : _learner = learner,
+       super(UserDesignPreferenceProfile.neutral) {
     unawaited(_load());
   }
 
@@ -69,6 +70,6 @@ class PreferenceProfileNotifier
 /// App-wide preference profile. Read the profile with `ref.watch`, record
 /// signals with `ref.read(preferenceProfileProvider.notifier).record(...)`.
 final preferenceProfileProvider = StateNotifierProvider<
-    PreferenceProfileNotifier, UserDesignPreferenceProfile>(
-  (ref) => PreferenceProfileNotifier(SharedPrefsPreferenceStore()),
-);
+  PreferenceProfileNotifier,
+  UserDesignPreferenceProfile
+>((ref) => PreferenceProfileNotifier(SharedPrefsPreferenceStore()));

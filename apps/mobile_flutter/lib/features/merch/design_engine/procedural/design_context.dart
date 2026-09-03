@@ -70,8 +70,8 @@ class DesignContext {
     }
     String? dominant;
     var best = -1;
-    for (final e in (counts.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key)))) {
+    for (final e
+        in (counts.entries.toList()..sort((a, b) => a.key.compareTo(b.key)))) {
       if (e.value > best) {
         best = e.value;
         dominant = e.key;
@@ -90,9 +90,10 @@ class DesignContext {
       continents: continents,
       dominantContinent: dominant,
       dominantContinentShare: dominantShare,
-      signatureCountries: signatureCountries == null
-          ? const []
-          : _canon(signatureCountries).where(codes.contains).toList(),
+      signatureCountries:
+          signatureCountries == null
+              ? const []
+              : _canon(signatureCountries).where(codes.contains).toList(),
       density: densityFor(codes.length),
       garmentIsDark: garmentIsDark,
       year: year,

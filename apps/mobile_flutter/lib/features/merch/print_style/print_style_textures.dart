@@ -49,8 +49,11 @@ double _valueNoise(double nx, double ny, int cells, int seed) {
   final y0 = fy.floor();
   final tx = _smooth(fx - x0);
   final ty = _smooth(fy - y0);
-  double lat(int cx, int cy) =>
-      _hash2(((cx % cells) + cells) % cells, ((cy % cells) + cells) % cells, seed);
+  double lat(int cx, int cy) => _hash2(
+    ((cx % cells) + cells) % cells,
+    ((cy % cells) + cells) % cells,
+    seed,
+  );
   final v00 = lat(x0, y0);
   final v10 = lat(x0 + 1, y0);
   final v01 = lat(x0, y0 + 1);
@@ -119,7 +122,8 @@ Uint8List generateGrainBytes({required int seed, int size = 256}) {
     for (var x = 0; x < size; x++) {
       final wn = _hash2(x, y, seed); // white noise 0..1
       // Envelope 0.35..1.0: grain is stronger in some patches, faint in others.
-      final env = 0.35 + 0.65 * _fbm(x * inv, ny, 20, 2, 0.6, seed ^ 0x51ed270b);
+      final env =
+          0.35 + 0.65 * _fbm(x * inv, ny, 20, 2, 0.6, seed ^ 0x51ed270b);
       final v = (128 + (wn - 0.5) * 235 * env).round().clamp(0, 255);
       argb[y * size + x] = _packGray(v);
     }
@@ -345,14 +349,18 @@ Uint8List generateTornEdgeBytes({
 
       double erode = 0;
       void consider(
-          double dist, double along, int salt, double shoulder, double fiber) {
+        double dist,
+        double along,
+        int salt,
+        double shoulder,
+        double fiber,
+      ) {
         final bound = tearBound(along, salt);
         double e;
         if (dist < bound) {
           // Outside the paper → fully torn away, except stray fibres clinging
           // just inside the rip line that stay attached (small tongues).
-          if (bound - dist < fiber &&
-              _hash2(x, y, seed ^ 0x7ed9e) < 0.16) {
+          if (bound - dist < fiber && _hash2(x, y, seed ^ 0x7ed9e) < 0.16) {
             e = 0; // fibre survives (paper still present here)
           } else {
             e = 1; // torn out
@@ -465,18 +473,38 @@ class PrintStyleTextures {
       PrintTextureKind.grain => generateGrainBytes(seed: seed, size: size),
       // Coarse worn breakup with fractal detail + contrast → chunky ink loss.
       PrintTextureKind.blotch => generateBlotchBytes(
-          seed: seed, size: size, cells: 5, octaves: 5, contrast: 1.35),
+        seed: seed,
+        size: size,
+        cells: 5,
+        octaves: 5,
+        contrast: 1.35,
+      ),
       PrintTextureKind.scratch => generateScratchBytes(seed: seed, size: size),
       // Fine, high-contrast uneven ink for the rubber-stamp look.
       PrintTextureKind.stampInk => generateBlotchBytes(
-          seed: seed, size: size, cells: 12, octaves: 4, contrast: 1.55),
+        seed: seed,
+        size: size,
+        cells: 12,
+        octaves: 4,
+        contrast: 1.55,
+      ),
       // Dense fine mottle layered over the coarse blotch.
       PrintTextureKind.mottle => generateBlotchBytes(
-          seed: seed, size: size, cells: 22, octaves: 3, contrast: 1.25),
+        seed: seed,
+        size: size,
+        cells: 22,
+        octaves: 3,
+        contrast: 1.25,
+      ),
       PrintTextureKind.crack => generateCrackBytes(seed: seed, size: size),
       // Big, soft, low-contrast cloud for the acid-wash bleach patches.
       PrintTextureKind.wash => generateBlotchBytes(
-          seed: seed, size: size, cells: 4, octaves: 4, contrast: 0.9),
+        seed: seed,
+        size: size,
+        cells: 4,
+        octaves: 4,
+        contrast: 0.9,
+      ),
     };
 
     final image = await _decode(bytes, size);

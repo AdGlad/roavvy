@@ -78,9 +78,6 @@ class JourneyShareExporter {
     await file.writeAsBytes(bytes);
 
     // 9. Share via platform sheet.
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'My Roavvy Journey',
-    );
+    await Share.shareXFiles([XFile(file.path)], subject: 'My Roavvy Journey');
   }
 }

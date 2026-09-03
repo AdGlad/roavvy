@@ -369,65 +369,65 @@ String _catEmoji(AchievementCategory cat) => switch (cat) {
 /// Falls back to the category emoji if the id is unrecognised.
 String _achievementEmoji(String id) => switch (id) {
   // ── Country milestones ──────────────────────────────────────────────────
-  'countries_1'   => '🎫',  // First Stamp
-  'countries_3'   => '📌',  // Triple Stamp
-  'countries_5'   => '🛫',  // Frequent Flyer
-  'countries_10'  => '🧳',  // Seasoned Traveller
-  'countries_15'  => '🌍',  // Well Travelled
-  'countries_20'  => '📗',  // Passport Regular
-  'countries_25'  => '🌐',  // Globetrotter
-  'countries_30'  => '🚀',  // Borderless
-  'countries_40'  => '🌅',  // Horizon Chaser
-  'countries_50'  => '🌎',  // World Explorer
-  'countries_75'  => '🧭',  // Pathfinder
-  'countries_100' => '💯',  // Century Club
-  'countries_125' => '🎩',  // Grand Tourist
-  'countries_150' => '🏃',  // Marathon Traveller
-  'countries_195' => '🌟',  // World Complete
+  'countries_1' => '🎫', // First Stamp
+  'countries_3' => '📌', // Triple Stamp
+  'countries_5' => '🛫', // Frequent Flyer
+  'countries_10' => '🧳', // Seasoned Traveller
+  'countries_15' => '🌍', // Well Travelled
+  'countries_20' => '📗', // Passport Regular
+  'countries_25' => '🌐', // Globetrotter
+  'countries_30' => '🚀', // Borderless
+  'countries_40' => '🌅', // Horizon Chaser
+  'countries_50' => '🌎', // World Explorer
+  'countries_75' => '🧭', // Pathfinder
+  'countries_100' => '💯', // Century Club
+  'countries_125' => '🎩', // Grand Tourist
+  'countries_150' => '🏃', // Marathon Traveller
+  'countries_195' => '🌟', // World Complete
   // ── Continent milestones ────────────────────────────────────────────────
-  'continents_2'  => '⚖️',  // Two Worlds
-  'continents_3'  => '🪨',  // Continental Drift
-  'continents_4'  => '🔷',  // Four Corners
-  'continents_5'  => '🖐️',  // Five Continent Traveller
-  'continents_all'=> '🌍',  // All Six
+  'continents_2' => '⚖️', // Two Worlds
+  'continents_3' => '🪨', // Continental Drift
+  'continents_4' => '🔷', // Four Corners
+  'continents_5' => '🖐️', // Five Continent Traveller
+  'continents_all' => '🌍', // All Six
   // ── Continent deep-dives ────────────────────────────────────────────────
-  'continent_europe_3'        => '🏰',  // Europe Initiate
-  'continent_europe_5'        => '⛪',  // Europe Explorer
-  'continent_europe_10'       => '🎭',  // European Adventurer
-  'continent_asia_3'          => '🏯',  // Asia Initiate
-  'continent_asia_5'          => '🐉',  // Asia Explorer
-  'continent_africa_3'        => '🦁',  // Africa Explorer
-  'continent_north_america_3' => '🦅',  // North America Explorer
-  'continent_south_america_3' => '🦜',  // South America Explorer
-  'continent_oceania_3'       => '🦘',  // Oceania Explorer
+  'continent_europe_3' => '🏰', // Europe Initiate
+  'continent_europe_5' => '⛪', // Europe Explorer
+  'continent_europe_10' => '🎭', // European Adventurer
+  'continent_asia_3' => '🏯', // Asia Initiate
+  'continent_asia_5' => '🐉', // Asia Explorer
+  'continent_africa_3' => '🦁', // Africa Explorer
+  'continent_north_america_3' => '🦅', // North America Explorer
+  'continent_south_america_3' => '🦜', // South America Explorer
+  'continent_oceania_3' => '🦘', // Oceania Explorer
   // ── Regions ─────────────────────────────────────────────────────────────
-  'region_mediterranean'  => '⛵',  // Mediterranean Explorer
-  'region_southeast_asia' => '🛕',  // Southeast Asia Explorer
+  'region_mediterranean' => '⛵', // Mediterranean Explorer
+  'region_southeast_asia' => '🛕', // Southeast Asia Explorer
   // ── Trip milestones ─────────────────────────────────────────────────────
-  'trips_1'  => '✈️',  // First Trip
-  'trips_3'  => '🎒',  // Regular Traveller
-  'trips_5'  => '🛩️',  // Jet Setter
-  'trips_10' => '🛫',  // Miles Ahead
-  'trips_25' => '🌀',  // Frequent Departure
-  'trips_50' => '💫',  // Always Moving
+  'trips_1' => '✈️', // First Trip
+  'trips_3' => '🎒', // Regular Traveller
+  'trips_5' => '🛩️', // Jet Setter
+  'trips_10' => '🛫', // Miles Ahead
+  'trips_25' => '🌀', // Frequent Departure
+  'trips_50' => '💫', // Always Moving
   // ── Passport stamps ─────────────────────────────────────────────────────
-  'passport_10' => '📮',  // 10 Stamps
-  'passport_25' => '📬',  // 25 Stamps
-  'passport_50' => '🗃️',  // Stamp Collector
+  'passport_10' => '📮', // 10 Stamps
+  'passport_25' => '📬', // 25 Stamps
+  'passport_50' => '🗃️', // Stamp Collector
   // ── UNESCO / Heritage ────────────────────────────────────────────────────
-  'whs_1'        => '🏛️',  // First Heritage Site
-  'whs_5'        => '🔍',  // Heritage Explorer
-  'whs_10'       => '🎯',  // Heritage Hunter
-  'whs_25'       => '📚',  // Heritage Enthusiast
-  'whs_50'       => '🎓',  // Heritage Scholar
-  'whs_100'      => '👑',  // World Heritage Legend
-  'whs_natural_1'  => '🌿',  // Natural Wonder
-  'whs_cultural_1' => '🎨',  // Cultural Explorer
-  'whs_mixed_1'    => '⚗️',  // Mixed Heritage
+  'whs_1' => '🏛️', // First Heritage Site
+  'whs_5' => '🔍', // Heritage Explorer
+  'whs_10' => '🎯', // Heritage Hunter
+  'whs_25' => '📚', // Heritage Enthusiast
+  'whs_50' => '🎓', // Heritage Scholar
+  'whs_100' => '👑', // World Heritage Legend
+  'whs_natural_1' => '🌿', // Natural Wonder
+  'whs_cultural_1' => '🎨', // Cultural Explorer
+  'whs_mixed_1' => '⚗️', // Mixed Heritage
   // ── This year ───────────────────────────────────────────────────────────
-  'year_countries_3'  => '🗓️',  // Year Tripper
-  'year_countries_5'  => '📅',  // Year Explorer
-  'year_countries_10' => '🎆',  // Big Year
+  'year_countries_3' => '🗓️', // Year Tripper
+  'year_countries_5' => '📅', // Year Explorer
+  'year_countries_10' => '🎆', // Big Year
   _ => '🌍',
 };
 
@@ -461,37 +461,38 @@ class _AchievementRow extends StatelessWidget {
     return Opacity(
       opacity: isUnlocked ? 1.0 : 0.78,
       child: InkWell(
-        onTap: onTap == null
-            ? null
-            : () {
-                HapticFeedback.lightImpact();
-                onTap!();
-              },
+        onTap:
+            onTap == null
+                ? null
+                : () {
+                  HapticFeedback.lightImpact();
+                  onTap!();
+                },
         borderRadius: BorderRadius.circular(12),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
           decoration: BoxDecoration(
-            color: isUnlocked
-                ? catColor.withValues(alpha: 0.10)
-                : catColor.withValues(alpha: 0.04),
+            color:
+                isUnlocked
+                    ? catColor.withValues(alpha: 0.10)
+                    : catColor.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(12),
             border: Border(
               left: BorderSide(
-                color: isUnlocked
-                    ? catColor
-                    : catColor.withValues(alpha: 0.35),
+                color: isUnlocked ? catColor : catColor.withValues(alpha: 0.35),
                 width: 4,
               ),
             ),
-            boxShadow: isUnlocked && rarity == _Rarity.legendary
-                ? [
-                    BoxShadow(
-                      color: catColor.withValues(alpha: 0.22),
-                      blurRadius: 14,
-                      spreadRadius: 0,
-                    ),
-                  ]
-                : null,
+            boxShadow:
+                isUnlocked && rarity == _Rarity.legendary
+                    ? [
+                      BoxShadow(
+                        color: catColor.withValues(alpha: 0.22),
+                        blurRadius: 14,
+                        spreadRadius: 0,
+                      ),
+                    ]
+                    : null,
           ),
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -505,25 +506,23 @@ class _AchievementRow extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: isUnlocked
-                          ? catColor.withValues(alpha: 0.18)
-                          : catColor.withValues(alpha: 0.07),
+                      color:
+                          isUnlocked
+                              ? catColor.withValues(alpha: 0.18)
+                              : catColor.withValues(alpha: 0.07),
                       shape: BoxShape.circle,
-                      border: isUnlocked
-                          ? Border.all(color: catColor, width: 2)
-                          : Border.all(
-                              color: catColor.withValues(alpha: 0.25),
-                              width: 1.5,
-                            ),
+                      border:
+                          isUnlocked
+                              ? Border.all(color: catColor, width: 2)
+                              : Border.all(
+                                color: catColor.withValues(alpha: 0.25),
+                                width: 1.5,
+                              ),
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      isUnlocked
-                          ? _achievementEmoji(achievement.id)
-                          : catEmoji,
-                      style: TextStyle(
-                        fontSize: isUnlocked ? 24 : 20,
-                      ),
+                      isUnlocked ? _achievementEmoji(achievement.id) : catEmoji,
+                      style: TextStyle(fontSize: isUnlocked ? 24 : 20),
                     ),
                   ),
                   // Checkmark badge for unlocked achievements
@@ -537,10 +536,7 @@ class _AchievementRow extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: catColor,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 1.5,
-                          ),
+                          border: Border.all(color: Colors.white, width: 1.5),
                         ),
                         alignment: Alignment.center,
                         child: const Icon(
@@ -567,9 +563,10 @@ class _AchievementRow extends StatelessWidget {
                             achievement.title,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: isUnlocked
-                                  ? null
-                                  : theme.colorScheme.onSurfaceVariant,
+                              color:
+                                  isUnlocked
+                                      ? null
+                                      : theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -605,7 +602,11 @@ class _AchievementRow extends StatelessWidget {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.check, size: 11, color: Colors.white),
+                                Icon(
+                                  Icons.check,
+                                  size: 11,
+                                  color: Colors.white,
+                                ),
                                 SizedBox(width: 3),
                                 Text(
                                   'UNLOCKED',
@@ -699,8 +700,18 @@ class _AchievementRow extends StatelessWidget {
 
   String _fmtDate(DateTime dt) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }

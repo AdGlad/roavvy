@@ -21,8 +21,8 @@ import 'world_leap_state.dart';
 
 /// Function signature for looking up a country at a given lat/lon.
 /// Returns `({code, name})` or `null` if over water/unrecognised territory.
-typedef CountryLookupFn = ({String code, String name})? Function(
-    double lat, double lon);
+typedef CountryLookupFn =
+    ({String code, String name})? Function(double lat, double lon);
 
 // ── Country data (centroid + name) ────────────────────────────────────────────
 
@@ -149,15 +149,15 @@ class WorldLeapController extends ChangeNotifier {
     required WorldLeapScoringService scoring,
     bool beginnerMode = false,
     CountryLookupFn? countryLookup,
-  })  : _userId = userId,
-        _date = date,
-        _dailyService = dailyService,
-        _repository = repository,
-        _geo = geo,
-        _countryService = countryService,
-        _scoring = scoring,
-        _countryLookup = countryLookup,
-        _beginnerMode = beginnerMode;
+  }) : _userId = userId,
+       _date = date,
+       _dailyService = dailyService,
+       _repository = repository,
+       _geo = geo,
+       _countryService = countryService,
+       _scoring = scoring,
+       _countryLookup = countryLookup,
+       _beginnerMode = beginnerMode;
 
   /// When true, releasing the slingshot freezes the aim for review instead of
   /// firing immediately — [SlingshotWidget] calls [confirmAim] instead of
@@ -286,8 +286,10 @@ class WorldLeapController extends ChangeNotifier {
     if (d == null) return null;
     final origin = currentOrigin;
     return _geo.greatCircleDistanceKm(
-      lat1: origin.lat, lon1: origin.lon,
-      lat2: d.lat, lon2: d.lon,
+      lat1: origin.lat,
+      lon1: origin.lon,
+      lat2: d.lat,
+      lon2: d.lon,
     );
   }
 
@@ -299,8 +301,10 @@ class WorldLeapController extends ChangeNotifier {
     if (d == null) return null;
     final origin = currentOrigin;
     return _geo.initialBearingDeg(
-      lat1: origin.lat, lon1: origin.lon,
-      lat2: d.lat, lon2: d.lon,
+      lat1: origin.lat,
+      lon1: origin.lon,
+      lat2: d.lat,
+      lon2: d.lon,
     );
   }
 
@@ -355,9 +359,8 @@ class WorldLeapController extends ChangeNotifier {
   /// targets.
   ({String code, String name})? _pickTarget(WorldLeapRun run) {
     final visited = run.visitedCountryCodes;
-    final candidates = _countryData.entries
-        .where((e) => !visited.contains(e.key))
-        .toList();
+    final candidates =
+        _countryData.entries.where((e) => !visited.contains(e.key)).toList();
     if (candidates.isEmpty) return null;
 
     final origin = _originForRun(run);
@@ -367,8 +370,10 @@ class WorldLeapController extends ChangeNotifier {
           code: e.key,
           name: e.value.name,
           distanceKm: _geo.greatCircleDistanceKm(
-            lat1: origin.lat, lon1: origin.lon,
-            lat2: e.value.lat, lon2: e.value.lon,
+            lat1: origin.lat,
+            lon1: origin.lon,
+            lat2: e.value.lat,
+            lon2: e.value.lon,
           ),
         ),
     ]..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
@@ -424,20 +429,26 @@ class WorldLeapController extends ChangeNotifier {
       await _repository.saveRunLocal(failed);
     } catch (_) {}
     unawaited(_repository.syncRunToFirestore(failed).catchError((_) {}));
-    _emit(WorldLeapStateFailed(run: failed, reason: WorldLeapFailureReason.timeout));
+    _emit(
+      WorldLeapStateFailed(run: failed, reason: WorldLeapFailureReason.timeout),
+    );
   }
 
   /// Returns true if [landing] is within the current difficulty grade's
   /// tolerance radius of [targetCode]'s centroid — accepted even when the
   /// reverse-geocoded country differs (e.g. landing just over a border).
   bool _isWithinDifficultyTolerance(
-      ({double lat, double lon}) landing, String targetCode) {
+    ({double lat, double lon}) landing,
+    String targetCode,
+  ) {
     final centroid = _countryData[targetCode];
     if (centroid == null) return false;
     final toleranceKm = WorldLeapConfig.difficultyToleranceKm[_difficulty - 1];
     final dist = _geo.greatCircleDistanceKm(
-      lat1: landing.lat, lon1: landing.lon,
-      lat2: centroid.lat, lon2: centroid.lon,
+      lat1: landing.lat,
+      lon1: landing.lon,
+      lat2: centroid.lat,
+      lon2: centroid.lon,
     );
     return dist <= toleranceKm;
   }
@@ -478,8 +489,11 @@ class WorldLeapController extends ChangeNotifier {
       // No existing run — fetch start country and create new run.
       final startCountry = await _dailyService.getStartCountry(_date);
       if (startCountry == null) {
-        _emit(WorldLeapStateError(
-            message: 'No daily configuration found for $_date.'));
+        _emit(
+          WorldLeapStateError(
+            message: 'No daily configuration found for $_date.',
+          ),
+        );
         return;
       }
 
@@ -516,11 +530,13 @@ class WorldLeapController extends ChangeNotifier {
   void startAiming() {
     final current = _state;
     if (current is WorldLeapStateAiming) {
-      _emit(WorldLeapStateAiming(
-        run: current.run,
-        bearingDeg: current.bearingDeg,
-        power: current.power,
-      ));
+      _emit(
+        WorldLeapStateAiming(
+          run: current.run,
+          bearingDeg: current.bearingDeg,
+          power: current.power,
+        ),
+      );
     }
   }
 
@@ -568,11 +584,9 @@ class WorldLeapController extends ChangeNotifier {
     final bearingDeg = current.bearingDeg ?? 0.0;
     final power = (current.power ?? 0.0).clamp(0.0, 1.0);
 
-    _emit(WorldLeapStateLaunching(
-      run: run,
-      bearingDeg: bearingDeg,
-      power: power,
-    ));
+    _emit(
+      WorldLeapStateLaunching(run: run, bearingDeg: bearingDeg, power: power),
+    );
 
     // Compute distance from power, clamped to valid range.
     final rawDistance = power * WorldLeapConfig.maxLaunchDistanceKm;
@@ -621,7 +635,8 @@ class WorldLeapController extends ChangeNotifier {
         await Future.wait([
           _repository.saveRunLocal(failed),
           Future.delayed(
-              const Duration(milliseconds: WorldLeapConfig.launchAnimationMs)),
+            const Duration(milliseconds: WorldLeapConfig.launchAnimationMs),
+          ),
         ]);
       } catch (_) {}
       unawaited(_repository.syncRunToFirestore(failed).catchError((_) {}));
@@ -642,7 +657,8 @@ class WorldLeapController extends ChangeNotifier {
 
     final targetCode = run.targetCountryCode;
     if (targetCode != null) {
-      final bool isHit = destCountry.code == targetCode ||
+      final bool isHit =
+          destCountry.code == targetCode ||
           _isWithinDifficultyTolerance(dest, targetCode);
       if (!isHit) {
         await failWith(WorldLeapFailureReason.wrongCountry);
@@ -683,8 +699,10 @@ class WorldLeapController extends ChangeNotifier {
     );
 
     // Compute next target + reduced time limit for the next shot.
-    final nextTimeLimit = (run.timeLimitSeconds - 1)
-        .clamp(WorldLeapConfig.countdownMinSeconds, WorldLeapConfig.countdownStartSeconds);
+    final nextTimeLimit = (run.timeLimitSeconds - 1).clamp(
+      WorldLeapConfig.countdownMinSeconds,
+      WorldLeapConfig.countdownStartSeconds,
+    );
 
     var updatedRun = run.copyWith(
       launches: [...run.launches, newLaunch],
@@ -705,7 +723,8 @@ class WorldLeapController extends ChangeNotifier {
       await Future.wait([
         _repository.saveRunLocal(updatedRun),
         Future.delayed(
-            const Duration(milliseconds: WorldLeapConfig.launchAnimationMs)),
+          const Duration(milliseconds: WorldLeapConfig.launchAnimationMs),
+        ),
       ]);
     } catch (e) {
       _emit(WorldLeapStateError(message: 'Failed to save run: $e'));

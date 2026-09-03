@@ -63,10 +63,11 @@ class RankerSeededGenerator implements CandidateGenerator {
     // (1) + (4): guaranteed diversity — one persona-biased seed per
     // (set × top-ranked template).
     for (final set in sets) {
-      final ranks = MerchTemplateRanker.rankFor(codeCount: set.codes.length)
-          .where((r) => !r.exclude)
-          .toList()
-        ..sort((a, b) => a.priority.compareTo(b.priority));
+      final ranks =
+          MerchTemplateRanker.rankFor(
+              codeCount: set.codes.length,
+            ).where((r) => !r.exclude).toList()
+            ..sort((a, b) => a.priority.compareTo(b.priority));
       if (ranks.isEmpty) {
         add(_seedFor(profile, set, CardTemplateType.grid));
         continue;

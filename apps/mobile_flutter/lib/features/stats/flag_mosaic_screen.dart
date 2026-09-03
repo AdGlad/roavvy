@@ -44,10 +44,26 @@ class _FlagMosaicScreenState extends ConsumerState<FlagMosaicScreen> {
   };
 
   static const List<double> _greyscaleMatrix = [
-    0.2126, 0.7152, 0.0722, 0, 0,
-    0.2126, 0.7152, 0.0722, 0, 0,
-    0.2126, 0.7152, 0.0722, 0, 0,
-    0,      0,      0,      1, 0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
   ];
 
   static String _flagEmoji(String iso) {
@@ -60,32 +76,33 @@ class _FlagMosaicScreenState extends ConsumerState<FlagMosaicScreen> {
   /// Returns all country codes from [kCountryNames], sorted by display name,
   /// optionally filtered to a single continent.
   List<String> _buildCountryCodes() {
-    final all = kCountryNames.keys.toList()
-      ..sort((a, b) => (kCountryNames[a] ?? a).compareTo(kCountryNames[b] ?? b));
+    final all =
+        kCountryNames.keys.toList()..sort(
+          (a, b) => (kCountryNames[a] ?? a).compareTo(kCountryNames[b] ?? b),
+        );
     if (_continentFilter == null) return all;
-    return all
-        .where((c) => kCountryContinent[c] == _continentFilter)
-        .toList();
+    return all.where((c) => kCountryContinent[c] == _continentFilter).toList();
   }
 
   Future<void> _shareGrid(List<EffectiveVisitedCountry> visits) async {
     if (_sharing) return;
     setState(() => _sharing = true);
     try {
-      final boundary = _repaintKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          _repaintKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) return;
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      final ByteData? bytes =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? bytes = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       if (bytes == null) return;
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/roavvy_flag_wall.png');
       await file.writeAsBytes(bytes.buffer.asUint8List());
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'I\'ve visited ${visits.length} countries! 🌍 #Roavvy',
-      );
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], subject: 'I\'ve visited ${visits.length} countries! 🌍 #Roavvy');
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
@@ -119,119 +136,121 @@ class _FlagMosaicScreenState extends ConsumerState<FlagMosaicScreen> {
       body: RepaintBoundary(
         key: _repaintKey,
         child: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            title: Text('Flag Wall  ·  $visibleVisited / ${codes.length}'),
-            floating: true,
-            snap: true,
-            actions: [
-              if (visits.isNotEmpty)
-                IconButton(
-                  icon: _sharing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.share_outlined),
-                  tooltip: 'Share my flag wall',
-                  onPressed: _sharing ? null : () => _shareGrid(visits),
-                ),
-            ],
-          ),
-
-          // ── Continent filter chips ──────────────────────────────────────
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 40,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _ContinentChip(
-                    label: 'All',
-                    selected: _continentFilter == null,
-                    onTap: () => setState(() => _continentFilter = null),
+          slivers: [
+            SliverAppBar(
+              title: Text('Flag Wall  ·  $visibleVisited / ${codes.length}'),
+              floating: true,
+              snap: true,
+              actions: [
+                if (visits.isNotEmpty)
+                  IconButton(
+                    icon:
+                        _sharing
+                            ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : const Icon(Icons.share_outlined),
+                    tooltip: 'Share my flag wall',
+                    onPressed: _sharing ? null : () => _shareGrid(visits),
                   ),
-                  for (final c in _continents) ...[
-                    const SizedBox(width: 6),
+              ],
+            ),
+
+            // ── Continent filter chips ──────────────────────────────────────
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 40,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  scrollDirection: Axis.horizontal,
+                  children: [
                     _ContinentChip(
-                      label: _continentShort[c] ?? c,
-                      selected: _continentFilter == c,
-                      onTap: () => setState(() => _continentFilter = c),
+                      label: 'All',
+                      selected: _continentFilter == null,
+                      onTap: () => setState(() => _continentFilter = null),
+                    ),
+                    for (final c in _continents) ...[
+                      const SizedBox(width: 6),
+                      _ContinentChip(
+                        label: _continentShort[c] ?? c,
+                        selected: _continentFilter == c,
+                        onTap: () => setState(() => _continentFilter = c),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 6)),
+
+            // ── Flag grid ─────────────────────────────────────────────────
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              sliver: SliverGrid.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  mainAxisSpacing: 2,
+                  crossAxisSpacing: 2,
+                  childAspectRatio: 1,
+                ),
+                itemCount: codes.length,
+                itemBuilder: (context, i) {
+                  final code = codes[i];
+                  final visit = visitedMap[code];
+                  final isVisited = visit != null;
+                  return _FlagTile(
+                    emoji: _flagEmoji(code),
+                    isVisited: isVisited,
+                    onTap:
+                        isVisited
+                            ? () => _showDetail(context, code, visit)
+                            : null,
+                  );
+                },
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+            // ── Legend ────────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('🌍', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Visited',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    ColorFiltered(
+                      colorFilter: const ColorFilter.matrix(_greyscaleMatrix),
+                      child: const Opacity(
+                        opacity: 0.4,
+                        child: Text('🌍', style: TextStyle(fontSize: 14)),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Not yet visited',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 6)),
-
-          // ── Flag grid ─────────────────────────────────────────────────
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            sliver: SliverGrid.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 7,
-                mainAxisSpacing: 2,
-                crossAxisSpacing: 2,
-                childAspectRatio: 1,
-              ),
-              itemCount: codes.length,
-              itemBuilder: (context, i) {
-                final code = codes[i];
-                final visit = visitedMap[code];
-                final isVisited = visit != null;
-                return _FlagTile(
-                  emoji: _flagEmoji(code),
-                  isVisited: isVisited,
-                  onTap: isVisited
-                      ? () => _showDetail(context, code, visit)
-                      : null,
-                );
-              },
-            ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-          // ── Legend ────────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('🌍', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Visited',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  ColorFiltered(
-                    colorFilter: const ColorFilter.matrix(_greyscaleMatrix),
-                    child: const Opacity(
-                      opacity: 0.4,
-                      child: Text('🌍', style: TextStyle(fontSize: 14)),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Not yet visited',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -251,10 +270,26 @@ class _FlagTile extends StatelessWidget {
   final VoidCallback? onTap;
 
   static const List<double> _greyscaleMatrix = [
-    0.2126, 0.7152, 0.0722, 0, 0,
-    0.2126, 0.7152, 0.0722, 0, 0,
-    0.2126, 0.7152, 0.0722, 0, 0,
-    0,      0,      0,      1, 0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0.2126,
+    0.7152,
+    0.0722,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
   ];
 
   @override
@@ -271,10 +306,7 @@ class _FlagTile extends StatelessWidget {
       return flag;
     }
 
-    return GestureDetector(
-      onTap: onTap,
-      child: flag,
-    );
+    return GestureDetector(onTap: onTap, child: flag);
   }
 }
 
@@ -336,8 +368,18 @@ class _VisitDetailSheet extends StatelessWidget {
 
   static String _fmtDate(DateTime dt) {
     const m = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
   }
@@ -410,12 +452,12 @@ class _VisitDetailSheet extends StatelessWidget {
           _StatRow(
             icon: Icons.calendar_today_outlined,
             label: 'First visited',
-            value: visit.firstSeen != null
-                ? _fmtDate(visit.firstSeen!)
-                : 'Manually added',
+            value:
+                visit.firstSeen != null
+                    ? _fmtDate(visit.firstSeen!)
+                    : 'Manually added',
           ),
-          if (visit.lastSeen != null &&
-              visit.lastSeen != visit.firstSeen) ...[
+          if (visit.lastSeen != null && visit.lastSeen != visit.firstSeen) ...[
             const SizedBox(height: 10),
             _StatRow(
               icon: Icons.update_outlined,

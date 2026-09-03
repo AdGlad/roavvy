@@ -155,9 +155,15 @@ class OptimizationLoop {
         } catch (_) {
           thumbnail = null; // a render failure must not abort the loop
         }
-        final score = pixelScorers.isEmpty
-            ? candidate.score
-            : _aggregate(candidate.params, profile, pixelScorers, thumbnail);
+        final score =
+            pixelScorers.isEmpty
+                ? candidate.score
+                : _aggregate(
+                  candidate.params,
+                  profile,
+                  pixelScorers,
+                  thumbnail,
+                );
         ranked.add(
           DesignCandidate(
             params: candidate.params,
@@ -188,7 +194,10 @@ class OptimizationLoop {
 
       // ── Breed next generation: elites + mutate + crossover + diversity. ─────
       final elites =
-          generationResults.take(budget.eliteCount).map((c) => c.params).toList();
+          generationResults
+              .take(budget.eliteCount)
+              .map((c) => c.params)
+              .toList();
       final next = <DesignParams>{...elites}; // Set dedupes by contentHash
 
       for (final elite in elites) {
@@ -246,8 +255,9 @@ class OptimizationLoop {
     var weightSum = 0.0;
     for (final scorer in scorers) {
       final weight = scorer.weight <= 0 ? 1.0 : scorer.weight;
-      final value =
-          scorer.score(params, profile, thumbnail: thumbnail).clamp(0.0, 1.0);
+      final value = scorer
+          .score(params, profile, thumbnail: thumbnail)
+          .clamp(0.0, 1.0);
       weighted += weight * value;
       weightSum += weight;
     }
@@ -276,8 +286,8 @@ class OptimizationLoop {
         byHash[key] = candidate;
       }
     }
-    final merged = byHash.values.toList()
-      ..sort((a, b) => b.total.compareTo(a.total));
+    final merged =
+        byHash.values.toList()..sort((a, b) => b.total.compareTo(a.total));
     return merged.take(_bestPoolCap).toList();
   }
 

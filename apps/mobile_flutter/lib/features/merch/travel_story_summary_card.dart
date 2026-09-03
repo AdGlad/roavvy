@@ -27,8 +27,7 @@ class TravelStorySummaryCard extends StatelessWidget {
         key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary == null) return null;
     final image = await boundary.toImage(pixelRatio: 3.0);
-    final byteData =
-        await image.toByteData(format: ui.ImageByteFormat.png);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData?.buffer.asUint8List();
   }
 
@@ -41,10 +40,9 @@ class TravelStorySummaryCard extends StatelessWidget {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/roavvy_travel_story_$year.png');
     await file.writeAsBytes(pngBytes);
-    await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'image/png')],
-      text: 'My $year travel story — built with Roavvy 🌍',
-    );
+    await Share.shareXFiles([
+      XFile(file.path, mimeType: 'image/png'),
+    ], text: 'My $year travel story — built with Roavvy 🌍');
   }
 
   @override
@@ -65,10 +63,7 @@ class TravelStorySummaryCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            data.identity.emoji,
-            style: const TextStyle(fontSize: 72),
-          ),
+          Text(data.identity.emoji, style: const TextStyle(fontSize: 72)),
           const SizedBox(height: 12),
           Text(
             data.identity.displayName,
@@ -125,10 +120,7 @@ class _FlagStrip extends StatelessWidget {
       spacing: 4,
       runSpacing: 4,
       children: List.generate(math.min(codes.length, 16), (i) {
-        return Text(
-          _flagEmoji(codes[i]),
-          style: const TextStyle(fontSize: 20),
-        );
+        return Text(_flagEmoji(codes[i]), style: const TextStyle(fontSize: 20));
       }),
     );
   }

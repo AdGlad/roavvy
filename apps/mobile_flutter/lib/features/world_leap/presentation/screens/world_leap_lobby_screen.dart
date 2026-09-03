@@ -26,7 +26,9 @@ class _WorldLeapLobbyScreenState extends State<WorldLeapLobbyScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoShowTutorial());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeAutoShowTutorial(),
+    );
   }
 
   Future<void> _maybeAutoShowTutorial() async {
@@ -48,8 +50,8 @@ class _WorldLeapLobbyScreenState extends State<WorldLeapLobbyScreen> {
     );
 
     final howToPlayButton = TextButton.icon(
-      onPressed: () =>
-          showWorldLeapTutorial(context, beginnerMode: _beginnerMode),
+      onPressed:
+          () => showWorldLeapTutorial(context, beginnerMode: _beginnerMode),
       icon: const Icon(Icons.help_outline, color: Colors.white54, size: 18),
       label: const Text(
         'How to Play',
@@ -60,12 +62,13 @@ class _WorldLeapLobbyScreenState extends State<WorldLeapLobbyScreen> {
     final playButton = SizedBox(
       width: double.infinity,
       child: FilledButton(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => WorldLeapScreen(beginnerMode: _beginnerMode),
-            fullscreenDialog: true,
-          ),
-        ),
+        onPressed:
+            () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => WorldLeapScreen(beginnerMode: _beginnerMode),
+                fullscreenDialog: true,
+              ),
+            ),
         style: FilledButton.styleFrom(
           backgroundColor: Colors.amber,
           foregroundColor: Colors.black,
@@ -88,17 +91,20 @@ class _WorldLeapLobbyScreenState extends State<WorldLeapLobbyScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0F1A),
       body: SafeArea(
-        child: isLandscape
-            ? _LandscapeLayout(
-                today: today,
-                modeToggle: modeToggle,
-                playButton: playButton,
-                howToPlayButton: howToPlayButton)
-            : _PortraitLayout(
-                today: today,
-                modeToggle: modeToggle,
-                playButton: playButton,
-                howToPlayButton: howToPlayButton),
+        child:
+            isLandscape
+                ? _LandscapeLayout(
+                  today: today,
+                  modeToggle: modeToggle,
+                  playButton: playButton,
+                  howToPlayButton: howToPlayButton,
+                )
+                : _PortraitLayout(
+                  today: today,
+                  modeToggle: modeToggle,
+                  playButton: playButton,
+                  howToPlayButton: howToPlayButton,
+                ),
       ),
     );
   }
@@ -183,9 +189,10 @@ class _ModeOption extends StatelessWidget {
             Text(
               subtitle,
               style: TextStyle(
-                color: selected
-                    ? Colors.black.withValues(alpha: 0.7)
-                    : Colors.white54,
+                color:
+                    selected
+                        ? Colors.black.withValues(alpha: 0.7)
+                        : Colors.white54,
                 fontSize: 10,
               ),
             ),

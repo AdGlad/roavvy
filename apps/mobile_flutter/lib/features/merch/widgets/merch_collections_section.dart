@@ -71,7 +71,8 @@ class MerchCollectionsSection extends ConsumerWidget {
               childAspectRatio: 1.0,
             ),
             itemCount: collections.length,
-            itemBuilder: (ctx, i) => _CollectionCard(collection: collections[i]),
+            itemBuilder:
+                (ctx, i) => _CollectionCard(collection: collections[i]),
           ),
         ],
       ),
@@ -101,10 +102,11 @@ class MerchCollectionsSection extends ConsumerWidget {
 
     // 2. This-year travels
     final thisYear = DateTime.now().year;
-    final yearCodes = allVisits
-        .where((v) => v.firstSeen?.year == thisYear)
-        .map((v) => v.countryCode)
-        .toList();
+    final yearCodes =
+        allVisits
+            .where((v) => v.firstSeen?.year == thisYear)
+            .map((v) => v.countryCode)
+            .toList();
     if (yearCodes.isNotEmpty) {
       collections.add(
         _Collection(
@@ -127,9 +129,7 @@ class MerchCollectionsSection extends ConsumerWidget {
       byContinent.putIfAbsent(continent, () => []).add(v.countryCode);
     }
     final eligibleContinents =
-        byContinent.entries
-            .where((e) => e.value.length >= 3)
-            .toList()
+        byContinent.entries.where((e) => e.value.length >= 3).toList()
           ..sort((a, b) => b.value.length.compareTo(a.value.length));
 
     for (final entry in eligibleContinents.take(2)) {
@@ -153,9 +153,10 @@ class MerchCollectionsSection extends ConsumerWidget {
       final sorted = [...unlockedRows]
         ..sort((a, b) => b.unlockedAt.compareTo(a.unlockedAt));
       for (final row in sorted) {
-        final a = kAchievements
-            .where((a) => a.id == row.achievementId && a.merch != null)
-            .firstOrNull;
+        final a =
+            kAchievements
+                .where((a) => a.id == row.achievementId && a.merch != null)
+                .firstOrNull;
         if (a == null) continue;
         final codes = _codesForAchievement(a, allVisits);
         if (codes.isEmpty) continue;
@@ -201,7 +202,9 @@ class MerchCollectionsSection extends ConsumerWidget {
       codeCount: count,
       achievement: achievement,
     );
-    return ranks.firstWhere((r) => !r.exclude, orElse: () => ranks.first).template;
+    return ranks
+        .firstWhere((r) => !r.exclude, orElse: () => ranks.first)
+        .template;
   }
 
   String _continentEmoji(String continent) => switch (continent) {
@@ -251,18 +254,19 @@ class _CollectionCard extends StatelessWidget {
       color: cs.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder:
-                (_) => ShopCollectionOptionScreen(
-                  label: collection.label,
-                  codes: collection.codes,
-                  allCodes: collection.allCodes,
-                  trips: collection.trips,
-                  featuredTemplate: collection.template,
-                ),
-          ),
-        ),
+        onTap:
+            () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder:
+                    (_) => ShopCollectionOptionScreen(
+                      label: collection.label,
+                      codes: collection.codes,
+                      allCodes: collection.allCodes,
+                      trips: collection.trips,
+                      featuredTemplate: collection.template,
+                    ),
+              ),
+            ),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),

@@ -27,20 +27,24 @@ class ScoreRowData {
 /// Returns the score rows that should be displayed for [breakdown].
 /// Package-private for testing.
 List<ScoreRowData> buildScoreRows(
-    WorldLeapScoreBreakdown breakdown, String toCountryName) {
+  WorldLeapScoreBreakdown breakdown,
+  String toCountryName,
+) {
   return [
     ScoreRowData(label: 'Base: $toCountryName', value: breakdown.baseCountry),
     ScoreRowData(label: 'Distance bonus', value: breakdown.distanceBonus),
     if (breakdown.hasLongShotBonus)
       ScoreRowData(
-          label: 'Long-shot bonus!',
-          value: breakdown.longShotBonus,
-          isBonus: true),
+        label: 'Long-shot bonus!',
+        value: breakdown.longShotBonus,
+        isBonus: true,
+      ),
     if (breakdown.hasHeritageBonus)
       ScoreRowData(
-        label: breakdown.heritageSiteName != null
-            ? '${breakdown.heritageSiteName} nearby'
-            : 'Heritage bonus',
+        label:
+            breakdown.heritageSiteName != null
+                ? '${breakdown.heritageSiteName} nearby'
+                : 'Heritage bonus',
         value: breakdown.heritageBonus,
         isBonus: true,
       ),
@@ -99,10 +103,7 @@ class _WorldLeapScorePanelState extends State<WorldLeapScorePanel>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
 
     _animController.forward();
 
@@ -157,7 +158,11 @@ class _WorldLeapScorePanelState extends State<WorldLeapScorePanel>
                       textAlign: TextAlign.center,
                     ),
                     const Spacer(),
-                    const Icon(Icons.touch_app, color: Colors.white38, size: 18),
+                    const Icon(
+                      Icons.touch_app,
+                      color: Colors.white38,
+                      size: 18,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -168,16 +173,18 @@ class _WorldLeapScorePanelState extends State<WorldLeapScorePanel>
                 ...rows.asMap().entries.map((entry) {
                   final index = entry.key;
                   final row = entry.value;
-                  final delayMs = index * WorldLeapConfig.scorePanelRowStaggerMs;
+                  final delayMs =
+                      index * WorldLeapConfig.scorePanelRowStaggerMs;
                   return _StaggeredRow(
                     delayMs: delayMs,
                     child: _ScoreRow(
                       label: row.label,
                       value: row.value,
                       isTotal: row.isTotal,
-                      color: row.isBonus
-                          ? Colors.amber
-                          : row.isTotal
+                      color:
+                          row.isBonus
+                              ? Colors.amber
+                              : row.isTotal
                               ? Colors.white
                               : Colors.white70,
                     ),
@@ -307,8 +314,7 @@ class _ScoreRow extends StatelessWidget {
               label,
               style: TextStyle(
                 color: color ?? Colors.white70,
-                fontWeight:
-                    isTotal ? FontWeight.bold : FontWeight.normal,
+                fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
                 fontSize: 14,
               ),
             ),

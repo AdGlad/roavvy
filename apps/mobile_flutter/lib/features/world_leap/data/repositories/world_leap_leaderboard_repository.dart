@@ -22,12 +22,12 @@ class LeaderboardEntry {
   });
 
   Map<String, dynamic> toJson() => {
-        'userId': userId,
-        'displayName': displayName,
-        'totalScore': totalScore,
-        'countryCount': countryCount,
-        'completedAt': completedAt.toIso8601String(),
-      };
+    'userId': userId,
+    'displayName': displayName,
+    'totalScore': totalScore,
+    'countryCount': countryCount,
+    'completedAt': completedAt.toIso8601String(),
+  };
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
       LeaderboardEntry(
@@ -45,7 +45,7 @@ class WorldLeapLeaderboardRepository {
   final FirebaseFirestore _firestore;
 
   WorldLeapLeaderboardRepository(FirebaseFirestore firestore)
-      : _firestore = firestore;
+    : _firestore = firestore;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -63,9 +63,10 @@ class WorldLeapLeaderboardRepository {
 
   /// Upserts this user's entry for [date].
   Future<void> upsertEntry(String date, LeaderboardEntry entry) async {
-    await _collection
-        .doc(_docId(date, entry.userId))
-        .set({'date': date, ...entry.toJson()});
+    await _collection.doc(_docId(date, entry.userId)).set({
+      'date': date,
+      ...entry.toJson(),
+    });
   }
 
   /// Returns the top [limit] entries for [date], ordered by totalScore descending.
@@ -85,9 +86,10 @@ class WorldLeapLeaderboardRepository {
     int limit = 20,
   }) {
     return _topQuery(date, limit).snapshots().map(
-          (snapshot) => snapshot.docs
+      (snapshot) =>
+          snapshot.docs
               .map((doc) => LeaderboardEntry.fromJson(doc.data()))
               .toList(),
-        );
+    );
   }
 }

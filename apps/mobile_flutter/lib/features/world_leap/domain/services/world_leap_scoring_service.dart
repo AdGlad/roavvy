@@ -42,8 +42,7 @@ class WorldLeapScoringService {
 
     final heritage = _heritage.bonusAt(landingLat, landingLon);
 
-    final continentBonus =
-        isNewContinent ? WorldLeapConfig.continentBonus : 0;
+    final continentBonus = isNewContinent ? WorldLeapConfig.continentBonus : 0;
 
     final speedBonus = timeRemaining > 0 ? timeRemaining * pointsPerSecond : 0;
 

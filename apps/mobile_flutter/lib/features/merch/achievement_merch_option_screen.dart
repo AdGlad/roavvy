@@ -77,9 +77,7 @@ class _AchievementMerchOptionScreenState
           title: const Text('Your travel shirt ideas'),
           elevation: 0,
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -132,10 +130,8 @@ class _AchievementMerchOptionScreenState
     // Featured entry goes first, followed by all regular entries.
     final featuredOption =
         allItems.whereType<MerchOptionFeaturedEntry>().firstOrNull?.option;
-    final regularOptions = allItems
-        .whereType<MerchOptionEntry>()
-        .map((e) => e.option)
-        .toList();
+    final regularOptions =
+        allItems.whereType<MerchOptionEntry>().map((e) => e.option).toList();
     final carouselOptions = [
       if (featuredOption != null) featuredOption,
       ...regularOptions,
@@ -203,11 +199,12 @@ class _ExclusiveDesignsSectionAchievement extends StatelessWidget {
   final List<TripRecord> allTrips;
 
   MerchUnlockContext _buildCtx() {
-    final continentCount = allVisits
-        .map((v) => kCountryContinent[v.countryCode])
-        .whereType<String>()
-        .toSet()
-        .length;
+    final continentCount =
+        allVisits
+            .map((v) => kCountryContinent[v.countryCode])
+            .whereType<String>()
+            .toSet()
+            .length;
     return MerchUnlockContext(
       countryCount: allVisits.length,
       continentCount: continentCount,
@@ -219,11 +216,12 @@ class _ExclusiveDesignsSectionAchievement extends StatelessWidget {
     final ctx = _buildCtx();
     const nearMissThreshold = 15;
 
-    final toShow = kMerchExclusiveDesigns.where((d) {
-      if (d.isUnlocked(ctx)) return true;
-      final rem = d.remaining(ctx);
-      return rem > 0 && rem <= nearMissThreshold;
-    }).toList();
+    final toShow =
+        kMerchExclusiveDesigns.where((d) {
+          if (d.isUnlocked(ctx)) return true;
+          final rem = d.remaining(ctx);
+          return rem > 0 && rem <= nearMissThreshold;
+        }).toList();
 
     if (toShow.isEmpty) return const SizedBox(height: 40);
 
@@ -236,13 +234,17 @@ class _ExclusiveDesignsSectionAchievement extends StatelessWidget {
         children: [
           Divider(
             height: 1,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.12),
           ),
           const SizedBox(height: 12),
           Text(
             'EXCLUSIVE DESIGNS',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.38),
               letterSpacing: 1.2,
             ),
           ),
@@ -251,8 +253,9 @@ class _ExclusiveDesignsSectionAchievement extends StatelessWidget {
             (d) => MerchLockedDesignCard(
               design: d,
               ctx: ctx,
-              onUnlockedTap: d.isUnlocked(ctx)
-                  ? () => Navigator.of(context).push(
+              onUnlockedTap:
+                  d.isUnlocked(ctx)
+                      ? () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder:
                               (_) => LocalMockupPreviewScreen(
@@ -274,7 +277,7 @@ class _ExclusiveDesignsSectionAchievement extends StatelessWidget {
                               ),
                         ),
                       )
-                  : null,
+                      : null,
             ),
           ),
         ],
@@ -326,7 +329,9 @@ class _CelebrationHeader extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.54),
                     fontSize: 12,
                   ),
                   maxLines: 2,
@@ -336,7 +341,9 @@ class _CelebrationHeader extends StatelessWidget {
                 Text(
                   identity.tagline,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.38),
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
                   ),

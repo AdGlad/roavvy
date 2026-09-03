@@ -67,14 +67,15 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
       if (!mounted || rows.isEmpty) return;
       _celebrationPlayer
           .play(AssetSource('audio/celebration.mp3'))
-          .catchError((e) => developer.log('Stats: celebration sound failed: $e'));
+          .catchError(
+            (e) => developer.log('Stats: celebration sound failed: $e'),
+          );
     });
 
-    Animation<double> interval(double start, double end) =>
-        CurvedAnimation(
-          parent: _staggerCtrl,
-          curve: Interval(start, end, curve: Curves.easeOut),
-        );
+    Animation<double> interval(double start, double end) => CurvedAnimation(
+      parent: _staggerCtrl,
+      curve: Interval(start, end, curve: Curves.easeOut),
+    );
 
     _heroAnim = interval(0.00, 0.30);
     _gridAnim = interval(0.10, 0.40);
@@ -103,10 +104,11 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
       opacity: anim,
       child: AnimatedBuilder(
         animation: anim,
-        builder: (_, c) => Transform.translate(
-          offset: Offset(0, 20 * (1 - anim.value)),
-          child: c,
-        ),
+        builder:
+            (_, c) => Transform.translate(
+              offset: Offset(0, 20 * (1 - anim.value)),
+              child: c,
+            ),
         child: child,
       ),
     );

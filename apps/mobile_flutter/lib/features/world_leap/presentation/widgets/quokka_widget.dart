@@ -18,13 +18,13 @@ enum QuokkaDisplayMode { idle, bouncing, flying, celebrating, sad }
 /// Returns the display mode for the quokka based on current game state.
 /// Package-private for testing.
 QuokkaDisplayMode quokkaDisplayMode(WorldLeapState state) => switch (state) {
-      WorldLeapStateAiming() => QuokkaDisplayMode.bouncing,
-      WorldLeapStateLaunching() => QuokkaDisplayMode.flying,
-      WorldLeapStateLanded() => QuokkaDisplayMode.celebrating,
-      WorldLeapStateComplete() => QuokkaDisplayMode.celebrating,
-      WorldLeapStateFailed() => QuokkaDisplayMode.sad,
-      _ => QuokkaDisplayMode.idle,
-    };
+  WorldLeapStateAiming() => QuokkaDisplayMode.bouncing,
+  WorldLeapStateLaunching() => QuokkaDisplayMode.flying,
+  WorldLeapStateLanded() => QuokkaDisplayMode.celebrating,
+  WorldLeapStateComplete() => QuokkaDisplayMode.celebrating,
+  WorldLeapStateFailed() => QuokkaDisplayMode.sad,
+  _ => QuokkaDisplayMode.idle,
+};
 
 // ── Widget ───────────────────────────────────────────────────────────────────
 
@@ -34,11 +34,7 @@ class QuokkaWidget extends StatefulWidget {
   /// Size of the quokka image. Defaults to 120.
   final double size;
 
-  const QuokkaWidget({
-    super.key,
-    required this.controller,
-    this.size = 120.0,
-  });
+  const QuokkaWidget({super.key, required this.controller, this.size = 120.0});
 
   @override
   State<QuokkaWidget> createState() => _QuokkaWidgetState();
@@ -81,20 +77,21 @@ class _QuokkaWidgetState extends State<QuokkaWidget>
       duration: const Duration(milliseconds: 600),
     );
     _celebrateScaleAnim = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(
-          parent: _celebrateController, curve: Curves.elasticOut),
+      CurvedAnimation(parent: _celebrateController, curve: Curves.elasticOut),
     );
 
     _sadController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _sadOffsetAnim = Tween<double>(begin: 0, end: 16).animate(
-      CurvedAnimation(parent: _sadController, curve: Curves.easeIn),
-    );
+    _sadOffsetAnim = Tween<double>(
+      begin: 0,
+      end: 16,
+    ).animate(CurvedAnimation(parent: _sadController, curve: Curves.easeIn));
 
-    _confettiController =
-        ConfettiController(duration: const Duration(seconds: 2));
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 2),
+    );
 
     // Apply the current state immediately — the controller may already have
     // a non-idle state (e.g. if restored from a completed run) before this
@@ -190,8 +187,7 @@ class _QuokkaWidgetState extends State<QuokkaWidget>
             // Flip horizontally during Launching state to show quokka flying
             final isLaunching =
                 widget.controller.state is WorldLeapStateLaunching;
-            final isFailed =
-                widget.controller.state is WorldLeapStateFailed;
+            final isFailed = widget.controller.state is WorldLeapStateFailed;
 
             return Transform.translate(
               offset: Offset(0, totalOffset),

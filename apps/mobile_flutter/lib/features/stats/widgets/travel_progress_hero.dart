@@ -101,21 +101,24 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
       return 'Every achievement unlocked — you\'re unstoppable!';
     }
     final noun = switch (nearest.category) {
-      AchievementCategory.countries => nearestRemaining == 1
-          ? '1 more country'
-          : '$nearestRemaining more countries',
-      AchievementCategory.continents => nearestRemaining == 1
-          ? '1 more continent'
-          : '$nearestRemaining more continents',
-      AchievementCategory.trips => nearestRemaining == 1
-          ? '1 more trip'
-          : '$nearestRemaining more trips',
-      AchievementCategory.thisYear => nearestRemaining == 1
-          ? '1 more country this year'
-          : '$nearestRemaining more countries this year',
-      AchievementCategory.heritageSites => nearestRemaining == 1
-          ? '1 more UNESCO site'
-          : '$nearestRemaining more UNESCO sites',
+      AchievementCategory.countries =>
+        nearestRemaining == 1
+            ? '1 more country'
+            : '$nearestRemaining more countries',
+      AchievementCategory.continents =>
+        nearestRemaining == 1
+            ? '1 more continent'
+            : '$nearestRemaining more continents',
+      AchievementCategory.trips =>
+        nearestRemaining == 1 ? '1 more trip' : '$nearestRemaining more trips',
+      AchievementCategory.thisYear =>
+        nearestRemaining == 1
+            ? '1 more country this year'
+            : '$nearestRemaining more countries this year',
+      AchievementCategory.heritageSites =>
+        nearestRemaining == 1
+            ? '1 more UNESCO site'
+            : '$nearestRemaining more UNESCO sites',
     };
     return '$noun to unlock "${nearest.title}"';
   }
@@ -124,11 +127,11 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
 
   /// Order and metadata for the six concentric rings (outer → inner).
   static const List<(String, Color, int)> _rings = [
-    ('Africa',        Color(0xFFFF8C42), 54),
-    ('Asia',          Color(0xFFE74C3C), 48),
-    ('Europe',        Color(0xFF3498DB), 44),
+    ('Africa', Color(0xFFFF8C42), 54),
+    ('Asia', Color(0xFFE74C3C), 48),
+    ('Europe', Color(0xFF3498DB), 44),
     ('North America', Color(0xFF27AE60), 23),
-    ('Oceania',       Color(0xFF16A085), 14),
+    ('Oceania', Color(0xFF16A085), 14),
     ('South America', Color(0xFF8E44AD), 12),
   ];
 
@@ -214,11 +217,15 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
                 animation: _ringAnim,
                 builder: (_, __) {
                   final continentCounts = _continentCounts();
-                  final fractions = _rings.map((r) {
-                    final (name, _, total) = r;
-                    final visited = continentCounts[name] ?? 0;
-                    return (visited / total * _ringAnim.value).clamp(0.0, 1.0);
-                  }).toList();
+                  final fractions =
+                      _rings.map((r) {
+                        final (name, _, total) = r;
+                        final visited = continentCounts[name] ?? 0;
+                        return (visited / total * _ringAnim.value).clamp(
+                          0.0,
+                          1.0,
+                        );
+                      }).toList();
 
                   return SizedBox(
                     width: 220,
@@ -243,13 +250,15 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
                               tween: Tween(begin: 0, end: count.toDouble()),
                               duration: const Duration(milliseconds: 900),
                               curve: Curves.easeOut,
-                              builder: (_, v, __) => Text(
-                                '${v.round()}',
-                                style: theme.textTheme.headlineLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.0,
-                                ),
-                              ),
+                              builder:
+                                  (_, v, __) => Text(
+                                    '${v.round()}',
+                                    style: theme.textTheme.headlineLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          height: 1.0,
+                                        ),
+                                  ),
                             ),
                             Text(
                               count == 1 ? 'country' : 'countries',
@@ -273,16 +282,17 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
                 runSpacing: 6,
                 children: [
                   for (final (name, color, total) in _rings)
-                    Builder(builder: (context) {
-                      final visited =
-                          _continentCounts()[name] ?? 0;
-                      return _RingLegendItem(
-                        label: _shortContinent(name),
-                        value: '$visited/$total',
-                        color: color,
-                        complete: visited >= total,
-                      );
-                    }),
+                    Builder(
+                      builder: (context) {
+                        final visited = _continentCounts()[name] ?? 0;
+                        return _RingLegendItem(
+                          label: _shortContinent(name),
+                          value: '$visited/$total',
+                          color: color,
+                          complete: visited >= total,
+                        );
+                      },
+                    ),
                 ],
               ),
 
@@ -323,8 +333,9 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.tertiary
-                            .withValues(alpha: 0.12),
+                        color: theme.colorScheme.tertiary.withValues(
+                          alpha: 0.12,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -347,8 +358,9 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
                     motivation,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.65),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.65,
+                      ),
                       fontStyle: FontStyle.italic,
                     ),
                   ),

@@ -171,8 +171,7 @@ class _CountryRegionMapScreenState
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final scaffoldBg =
-        isDark ? _kOceanBackground : theme.colorScheme.surface;
+    final scaffoldBg = isDark ? _kOceanBackground : theme.colorScheme.surface;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
@@ -196,9 +195,7 @@ class _CountryRegionMapScreenState
         future: _visitsFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           final visitedCodes = snapshot.data!.map((v) => v.regionCode).toSet();
@@ -242,17 +239,21 @@ class _CountryRegionMapScreenState
 
           // Accurate 1:10m country outlines — overlay on top of angular region
           // polygon edges to give clean coastlines for island nations.
-          final coastlinePolygons = ref.read(polygonsProvider)
-              .where((p) => p.isoCode == widget.countryCode)
-              .map((p) => Polygon(
-                    points: [
-                      for (final (lat, lng) in p.vertices) LatLng(lat, lng),
-                    ],
-                    color: Colors.transparent,
-                    borderColor: scaffoldBg,
-                    borderStrokeWidth: 1.5,
-                  ))
-              .toList();
+          final coastlinePolygons =
+              ref
+                  .read(polygonsProvider)
+                  .where((p) => p.isoCode == widget.countryCode)
+                  .map(
+                    (p) => Polygon(
+                      points: [
+                        for (final (lat, lng) in p.vertices) LatLng(lat, lng),
+                      ],
+                      color: Colors.transparent,
+                      borderColor: scaffoldBg,
+                      borderStrokeWidth: 1.5,
+                    ),
+                  )
+                  .toList();
 
           return FlutterMap(
             mapController: _mapController,
@@ -280,10 +281,7 @@ class _CountryRegionMapScreenState
                 ),
               ),
               if (coastlinePolygons.isNotEmpty)
-                PolygonLayer(
-                  polygonCulling: true,
-                  polygons: coastlinePolygons,
-                ),
+                PolygonLayer(polygonCulling: true, polygons: coastlinePolygons),
               if (_selectedCode != null && _selectedLatLng != null)
                 MarkerLayer(
                   markers: [_buildLabel(_selectedCode!, _selectedLatLng!)],

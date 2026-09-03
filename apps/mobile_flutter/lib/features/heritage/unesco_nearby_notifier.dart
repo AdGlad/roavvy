@@ -98,11 +98,7 @@ class UnescoNearbyNotifier extends AsyncNotifier<UnescoNearbyState> {
       visitedIds,
     );
 
-    return UnescoNearbyState(
-      radiusKm: radiusKm,
-      sites: sites,
-      position: pos,
-    );
+    return UnescoNearbyState(radiusKm: radiusKm, sites: sites, position: pos);
   }
 
   /// Updates the search radius and re-filters sites without re-fetching location.

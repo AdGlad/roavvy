@@ -65,7 +65,9 @@ class LevelUpSheet extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: RoavvyColours.roavvyGold.withValues(alpha: 0.4),
+                          color: RoavvyColours.roavvyGold.withValues(
+                            alpha: 0.4,
+                          ),
                           blurRadius: 20,
                           spreadRadius: 4,
                         ),

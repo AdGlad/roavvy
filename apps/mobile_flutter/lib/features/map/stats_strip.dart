@@ -70,10 +70,7 @@ class _StatRow extends StatelessWidget {
     final textColor = isDark ? Colors.white : const Color(0xFF0B2438);
     // Soft counter-shadow keeps the bare text legible over any map colour.
     final shadows = [
-      Shadow(
-        color: isDark ? Colors.black87 : Colors.white,
-        blurRadius: 4,
-      ),
+      Shadow(color: isDark ? Colors.black87 : Colors.white, blurRadius: 4),
     ];
 
     final row = Padding(

@@ -43,7 +43,9 @@ class _ParticleBurstState extends State<_ParticleBurst>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
     _ctrl.forward();
   }
 
@@ -59,9 +61,10 @@ class _ParticleBurstState extends State<_ParticleBurst>
       child: IgnorePointer(
         child: AnimatedBuilder(
           animation: _ctrl,
-          builder: (_, __) => CustomPaint(
-            painter: _ParticlePainter(t: _ctrl.value, colors: _colors),
-          ),
+          builder:
+              (_, __) => CustomPaint(
+                painter: _ParticlePainter(t: _ctrl.value, colors: _colors),
+              ),
         ),
       ),
     );
@@ -108,7 +111,11 @@ class _FloatingScoreLabel extends StatefulWidget {
   final int points;
   final int stars; // 1–3
 
-  const _FloatingScoreLabel({super.key, required this.points, required this.stars});
+  const _FloatingScoreLabel({
+    super.key,
+    required this.points,
+    required this.stars,
+  });
 
   @override
   State<_FloatingScoreLabel> createState() => _FloatingScoreLabelState();
@@ -127,8 +134,14 @@ class _FloatingScoreLabelState extends State<_FloatingScoreLabel>
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     );
-    _slide = Tween<Offset>(begin: Offset.zero, end: const Offset(0, -0.8)).animate(
-      CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 1.0, curve: Curves.easeOut)),
+    _slide = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(0, -0.8),
+    ).animate(
+      CurvedAnimation(
+        parent: _ctrl,
+        curve: const Interval(0.0, 1.0, curve: Curves.easeOut),
+      ),
     );
     // Fade in fast, hold, then fade out
     _fade = TweenSequence<double>([
@@ -146,10 +159,10 @@ class _FloatingScoreLabelState extends State<_FloatingScoreLabel>
   }
 
   String get _label => switch (widget.stars) {
-        3 => 'BULLSEYE!',
-        2 => 'GREAT SHOT!',
-        _ => 'NICE!',
-      };
+    3 => 'BULLSEYE!',
+    2 => 'GREAT SHOT!',
+    _ => 'NICE!',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -224,14 +237,18 @@ class _ComboBannerState extends State<_ComboBanner>
     );
     _slide = TweenSequence<Offset>([
       TweenSequenceItem(
-        tween: Tween(begin: const Offset(0, -1), end: Offset.zero)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween(
+          begin: const Offset(0, -1),
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 20,
       ),
       TweenSequenceItem(tween: ConstantTween(Offset.zero), weight: 60),
       TweenSequenceItem(
-        tween: Tween(begin: Offset.zero, end: const Offset(0, -1))
-            .chain(CurveTween(curve: Curves.easeIn)),
+        tween: Tween(
+          begin: Offset.zero,
+          end: const Offset(0, -1),
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 20,
       ),
     ]).animate(_ctrl);
@@ -309,8 +326,10 @@ class _ZoomButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(8),
-          border:
-              Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
         child: Icon(icon, color: Colors.white, size: 22),
       ),
@@ -401,7 +420,11 @@ class _DifficultyButton extends StatelessWidget {
             children: [
               const Text(
                 'D',
-                style: TextStyle(color: Colors.white54, fontSize: 9, height: 1.1),
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 9,
+                  height: 1.1,
+                ),
               ),
               Text(
                 '$difficulty',
@@ -437,14 +460,16 @@ class _CameraToggleButton extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: isActive
-              ? Colors.white.withValues(alpha: 0.2)
-              : Colors.black.withValues(alpha: 0.65),
+          color:
+              isActive
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : Colors.black.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isActive
-                ? Colors.white.withValues(alpha: 0.7)
-                : Colors.white.withValues(alpha: 0.3),
+            color:
+                isActive
+                    ? Colors.white.withValues(alpha: 0.7)
+                    : Colors.white.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -458,10 +483,10 @@ class _CameraToggleButton extends StatelessWidget {
   }
 
   IconData _iconFor(WorldLeapCameraMode m) => switch (m) {
-        WorldLeapCameraMode.stationary => Icons.location_on_outlined,
-        WorldLeapCameraMode.birdseye => Icons.satellite_alt_outlined,
-        WorldLeapCameraMode.pov => Icons.flight,
-      };
+    WorldLeapCameraMode.stationary => Icons.location_on_outlined,
+    WorldLeapCameraMode.birdseye => Icons.satellite_alt_outlined,
+    WorldLeapCameraMode.pov => Icons.flight,
+  };
 }
 
 // ── Beginner-mode toggle button ────────────────────────────────────────────────
@@ -485,21 +510,24 @@ class _BeginnerModeToggleButton extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: beginnerMode
-              ? Colors.amber.withValues(alpha: 0.9)
-              : Colors.black.withValues(alpha: 0.65),
+          color:
+              beginnerMode
+                  ? Colors.amber.withValues(alpha: 0.9)
+                  : Colors.black.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: beginnerMode
-                ? Colors.amber
-                : Colors.white.withValues(alpha: 0.3),
+            color:
+                beginnerMode
+                    ? Colors.amber
+                    : Colors.white.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
         child: Tooltip(
-          message: beginnerMode
-              ? 'Beginner mode — tap for Classic (fires on release)'
-              : 'Classic mode — tap for Beginner (adjust aim before firing)',
+          message:
+              beginnerMode
+                  ? 'Beginner mode — tap for Classic (fires on release)'
+                  : 'Classic mode — tap for Beginner (adjust aim before firing)',
           child: Icon(
             beginnerMode ? Icons.school_rounded : Icons.bolt_rounded,
             color: beginnerMode ? Colors.black : Colors.white60,
@@ -533,7 +561,9 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
   WorldLeapState? _prevState;
 
   final _slingshotActive = ValueNotifier<bool>(false);
-  final _cameraMode = ValueNotifier<WorldLeapCameraMode>(WorldLeapCameraMode.birdseye);
+  final _cameraMode = ValueNotifier<WorldLeapCameraMode>(
+    WorldLeapCameraMode.birdseye,
+  );
 
   @override
   void initState() {
@@ -544,24 +574,28 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
     );
     _shakeAnimation = TweenSequence<Offset>([
       TweenSequenceItem(
-          tween: Tween(begin: Offset.zero, end: const Offset(8, 4)), weight: 1),
+        tween: Tween(begin: Offset.zero, end: const Offset(8, 4)),
+        weight: 1,
+      ),
       TweenSequenceItem(
-          tween: Tween(
-              begin: const Offset(8, 4), end: const Offset(-8, -3)),
-          weight: 2),
+        tween: Tween(begin: const Offset(8, 4), end: const Offset(-8, -3)),
+        weight: 2,
+      ),
       TweenSequenceItem(
-          tween: Tween(
-              begin: const Offset(-8, -3), end: const Offset(6, -5)),
-          weight: 2),
+        tween: Tween(begin: const Offset(-8, -3), end: const Offset(6, -5)),
+        weight: 2,
+      ),
       TweenSequenceItem(
-          tween: Tween(
-              begin: const Offset(6, -5), end: const Offset(-4, 3)),
-          weight: 2),
+        tween: Tween(begin: const Offset(6, -5), end: const Offset(-4, 3)),
+        weight: 2,
+      ),
       TweenSequenceItem(
-          tween: Tween(begin: const Offset(-4, 3), end: Offset.zero),
-          weight: 3),
+        tween: Tween(begin: const Offset(-4, 3), end: Offset.zero),
+        weight: 3,
+      ),
     ]).animate(
-        CurvedAnimation(parent: _shakeController, curve: Curves.easeOut));
+      CurvedAnimation(parent: _shakeController, curve: Curves.easeOut),
+    );
     // Orientation is now managed globally — no lock/unlock needed here.
   }
 
@@ -575,27 +609,30 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
 
   @override
   Widget build(BuildContext context) {
-    final asyncController =
-        ref.watch(worldLeapControllerProvider(widget.beginnerMode));
+    final asyncController = ref.watch(
+      worldLeapControllerProvider(widget.beginnerMode),
+    );
 
     return asyncController.when(
-      loading: () => const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Colors.white)),
-      ),
-      error: (e, _) => Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'Could not start World Leap:\n$e',
-              style: const TextStyle(color: Colors.white70),
-              textAlign: TextAlign.center,
+      loading:
+          () => const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(child: CircularProgressIndicator(color: Colors.white)),
+          ),
+      error:
+          (e, _) => Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Could not start World Leap:\n$e',
+                  style: const TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
           ),
-        ),
-      ),
       data: (controller) {
         return Scaffold(
           backgroundColor: Colors.black,
@@ -633,9 +670,10 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
               if (currentState is WorldLeapStateFailed ||
                   currentState is WorldLeapStateComplete ||
                   currentState is WorldLeapStateLocked) {
-                final run = currentState is WorldLeapStateFailed
-                    ? currentState.run
-                    : currentState is WorldLeapStateComplete
+                final run =
+                    currentState is WorldLeapStateFailed
+                        ? currentState.run
+                        : currentState is WorldLeapStateComplete
                         ? currentState.run
                         : (currentState as WorldLeapStateLocked).run;
                 return WorldLeapResultScreen(
@@ -654,26 +692,28 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
               }
 
               // Active game
-              final isLandscape = MediaQuery.orientationOf(context) ==
-                  Orientation.landscape;
+              final isLandscape =
+                  MediaQuery.orientationOf(context) == Orientation.landscape;
               return AnimatedBuilder(
                 animation: _shakeAnimation,
-                builder: (context, child) => Transform.translate(
-                  offset: _shakeAnimation.value,
-                  child: child,
-                ),
+                builder:
+                    (context, child) => Transform.translate(
+                      offset: _shakeAnimation.value,
+                      child: child,
+                    ),
                 child: Stack(
                   children: [
                     // Background map
                     ValueListenableBuilder<WorldLeapCameraMode>(
                       valueListenable: _cameraMode,
-                      builder: (context, mode, _) => WorldLeapMapWidget(
-                        key: _mapKey,
-                        controller: controller,
-                        geo: _geo,
-                        slingshotActive: _slingshotActive,
-                        cameraMode: mode,
-                      ),
+                      builder:
+                          (context, mode, _) => WorldLeapMapWidget(
+                            key: _mapKey,
+                            controller: controller,
+                            geo: _geo,
+                            slingshotActive: _slingshotActive,
+                            cameraMode: mode,
+                          ),
                     ),
 
                     // Slingshot gesture layer — only activates when touch
@@ -681,9 +721,10 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                     SlingshotWidget(
                       controller: controller,
                       beginnerMode: controller.beginnerMode,
-                      hitTestFn: (pos) =>
-                          _mapKey.currentState?.isInCurrentCountry(pos) ??
-                          false,
+                      hitTestFn:
+                          (pos) =>
+                              _mapKey.currentState?.isInCurrentCountry(pos) ??
+                              false,
                       onActiveChanged: (v) => _slingshotActive.value = v,
                     ),
 
@@ -695,38 +736,43 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                       left: isLandscape ? 16 : null,
                       child: ValueListenableBuilder<WorldLeapCameraMode>(
                         valueListenable: _cameraMode,
-                        builder: (context, mode, _) => Column(
-                          children: [
-                            _ZoomButton(
-                              icon: Icons.add,
-                              onTap: () => _mapKey.currentState?.zoomIn(),
+                        builder:
+                            (context, mode, _) => Column(
+                              children: [
+                                _ZoomButton(
+                                  icon: Icons.add,
+                                  onTap: () => _mapKey.currentState?.zoomIn(),
+                                ),
+                                const SizedBox(height: 8),
+                                _ZoomButton(
+                                  icon: Icons.remove,
+                                  onTap: () => _mapKey.currentState?.zoomOut(),
+                                ),
+                                const SizedBox(height: 8),
+                                _CameraToggleButton(
+                                  mode: mode,
+                                  onTap: () => _cameraMode.value = mode.next,
+                                ),
+                                const SizedBox(height: 8),
+                                // Changeable any time between shots — not just
+                                // in the lobby.
+                                _BeginnerModeToggleButton(
+                                  beginnerMode: controller.beginnerMode,
+                                  onTap:
+                                      () => controller.setBeginnerMode(
+                                        !controller.beginnerMode,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                _DifficultyButton(
+                                  difficulty: controller.difficulty,
+                                  onTap:
+                                      () => controller.setDifficulty(
+                                        (controller.difficulty % 3) + 1,
+                                      ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            _ZoomButton(
-                              icon: Icons.remove,
-                              onTap: () => _mapKey.currentState?.zoomOut(),
-                            ),
-                            const SizedBox(height: 8),
-                            _CameraToggleButton(
-                              mode: mode,
-                              onTap: () => _cameraMode.value = mode.next,
-                            ),
-                            const SizedBox(height: 8),
-                            // Changeable any time between shots — not just
-                            // in the lobby.
-                            _BeginnerModeToggleButton(
-                              beginnerMode: controller.beginnerMode,
-                              onTap: () => controller
-                                  .setBeginnerMode(!controller.beginnerMode),
-                            ),
-                            const SizedBox(height: 8),
-                            _DifficultyButton(
-                              difficulty: controller.difficulty,
-                              onTap: () => controller
-                                  .setDifficulty((controller.difficulty % 3) + 1),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
 
@@ -772,23 +818,34 @@ class _WorldLeapScreenState extends ConsumerState<WorldLeapScreen>
                     // Particle burst on landing
                     if (currentState is WorldLeapStateLanded)
                       _ParticleBurst(
-                        key: ValueKey('particles_${currentState.lastLaunch.scoreBreakdown.comboStreak}'),
+                        key: ValueKey(
+                          'particles_${currentState.lastLaunch.scoreBreakdown.comboStreak}',
+                        ),
                       ),
 
                     // Floating score burst — fresh widget per landing via key
                     if (currentState is WorldLeapStateLanded)
                       _FloatingScoreLabel(
-                        key: ValueKey('score_${currentState.lastLaunch.scoreBreakdown.comboStreak}'),
+                        key: ValueKey(
+                          'score_${currentState.lastLaunch.scoreBreakdown.comboStreak}',
+                        ),
                         points: currentState.lastLaunch.scoreBreakdown.total,
                         stars: currentState.lastLaunch.scoreBreakdown.stars,
                       ),
 
                     // Combo milestone banner — only when multiplier > 1
                     if (currentState is WorldLeapStateLanded &&
-                        currentState.lastLaunch.scoreBreakdown.comboMultiplier > 1.0)
+                        currentState.lastLaunch.scoreBreakdown.comboMultiplier >
+                            1.0)
                       _ComboBanner(
-                        key: ValueKey('combo_${currentState.lastLaunch.scoreBreakdown.comboStreak}'),
-                        multiplier: currentState.lastLaunch.scoreBreakdown.comboMultiplier,
+                        key: ValueKey(
+                          'combo_${currentState.lastLaunch.scoreBreakdown.comboStreak}',
+                        ),
+                        multiplier:
+                            currentState
+                                .lastLaunch
+                                .scoreBreakdown
+                                .comboMultiplier,
                       ),
                   ],
                 ),

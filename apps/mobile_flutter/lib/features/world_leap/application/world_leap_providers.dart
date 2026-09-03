@@ -25,8 +25,10 @@ String worldLeapTodayDate() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 /// Parameterised by [beginnerMode] (chosen in the lobby before play starts)
 /// so the controller is constructed with the right firing behaviour from
 /// the outset — see [WorldLeapController.beginnerMode].
-final worldLeapControllerProvider = FutureProvider.autoDispose
-    .family<WorldLeapController, bool>((ref, beginnerMode) async {
+final worldLeapControllerProvider = FutureProvider.autoDispose.family<
+  WorldLeapController,
+  bool
+>((ref, beginnerMode) async {
   final prefs = await SharedPreferences.getInstance();
   final firestore = FirebaseFirestore.instance;
   final geo = WorldLeapGeoService();

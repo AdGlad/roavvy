@@ -18,9 +18,7 @@ class NativeMapsLauncher {
   /// Returns `true` if the URL was successfully launched.
   static Future<bool> open(double lat, double lng, String label) async {
     if (Platform.isIOS) {
-      return _launch(
-        'https://maps.apple.com/?daddr=$lat,$lng&dirflg=d',
-      );
+      return _launch('https://maps.apple.com/?daddr=$lat,$lng&dirflg=d');
     }
 
     // Android: try Google Maps navigation intent first.

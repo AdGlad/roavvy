@@ -115,9 +115,7 @@ class _MerchOrderConfirmationScreenState
   /// stays in the cart for later.
   void _saveToCart() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Saved to your cart — check out any time.'),
-      ),
+      const SnackBar(content: Text('Saved to your cart — check out any time.')),
     );
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
@@ -126,9 +124,10 @@ class _MerchOrderConfirmationScreenState
     final bytes = await _captureMockup() ?? widget.artworkBytes;
     if (!mounted) return;
     final box = context.findRenderObject() as RenderBox?;
-    final origin = (box != null && box.hasSize)
-        ? box.localToGlobal(Offset.zero) & box.size
-        : null;
+    final origin =
+        (box != null && box.hasSize)
+            ? box.localToGlobal(Offset.zero) & box.size
+            : null;
     final ok = await MerchShareExporter.share(
       bytes,
       title: 'My Roavvy Design',
@@ -170,10 +169,11 @@ class _MerchOrderConfirmationScreenState
     widget.onCheckoutLaunched?.call();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => _CheckoutProcessingScreen(
-          checkoutUrl: widget.checkoutUrl,
-          merchConfigId: widget.merchConfigId,
-        ),
+        builder:
+            (_) => _CheckoutProcessingScreen(
+              checkoutUrl: widget.checkoutUrl,
+              merchConfigId: widget.merchConfigId,
+            ),
       ),
     );
   }
@@ -362,16 +362,18 @@ class _MockupSectionState extends State<_MockupSection> {
 
     if (widget.frontMockupUrl != null) {
       pages.add(
-        _zoomable(Image.network(
-          widget.frontMockupUrl!,
-          fit: BoxFit.contain,
-          loadingBuilder:
-              (_, child, progress) =>
-                  progress == null
-                      ? child
-                      : const Center(child: CircularProgressIndicator()),
-          errorBuilder: (_, __, ___) => _localFallback(front: true),
-        )),
+        _zoomable(
+          Image.network(
+            widget.frontMockupUrl!,
+            fit: BoxFit.contain,
+            loadingBuilder:
+                (_, child, progress) =>
+                    progress == null
+                        ? child
+                        : const Center(child: CircularProgressIndicator()),
+            errorBuilder: (_, __, ___) => _localFallback(front: true),
+          ),
+        ),
       );
     } else {
       pages.add(_zoomable(_localFallback(front: true)));
@@ -379,16 +381,18 @@ class _MockupSectionState extends State<_MockupSection> {
 
     if (widget.backMockupUrl != null) {
       pages.add(
-        _zoomable(Image.network(
-          widget.backMockupUrl!,
-          fit: BoxFit.contain,
-          loadingBuilder:
-              (_, child, progress) =>
-                  progress == null
-                      ? child
-                      : const Center(child: CircularProgressIndicator()),
-          errorBuilder: (_, __, ___) => _localFallback(front: false),
-        )),
+        _zoomable(
+          Image.network(
+            widget.backMockupUrl!,
+            fit: BoxFit.contain,
+            loadingBuilder:
+                (_, child, progress) =>
+                    progress == null
+                        ? child
+                        : const Center(child: CircularProgressIndicator()),
+            errorBuilder: (_, __, ___) => _localFallback(front: false),
+          ),
+        ),
       );
     }
 
@@ -559,13 +563,15 @@ class MerchCustomProductWarning extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark
-            ? Colors.amber.shade900.withValues(alpha: 0.20)
-            : Colors.amber.shade50,
+        color:
+            isDark
+                ? Colors.amber.shade900.withValues(alpha: 0.20)
+                : Colors.amber.shade50,
         border: Border.all(
-          color: isDark
-              ? Colors.amber.shade700.withValues(alpha: 0.60)
-              : Colors.amber.shade600,
+          color:
+              isDark
+                  ? Colors.amber.shade700.withValues(alpha: 0.60)
+                  : Colors.amber.shade600,
         ),
         borderRadius: BorderRadius.circular(10),
       ),
@@ -638,7 +644,14 @@ class _CheckoutProcessingScreen extends ConsumerStatefulWidget {
       _CheckoutProcessingScreenState();
 }
 
-enum _CheckoutState { launching, returned, verifying, success, unconfirmed, failed }
+enum _CheckoutState {
+  launching,
+  returned,
+  verifying,
+  success,
+  unconfirmed,
+  failed,
+}
 
 class _CheckoutProcessingScreenState
     extends ConsumerState<_CheckoutProcessingScreen> {
@@ -660,7 +673,10 @@ class _CheckoutProcessingScreenState
     // and opening the app (navigating to the map via the app_links listener).
     final base = Uri.parse(widget.checkoutUrl);
     final uri = base.replace(
-      queryParameters: {...base.queryParameters, 'return_to': 'roavvy://return'},
+      queryParameters: {
+        ...base.queryParameters,
+        'return_to': 'roavvy://return',
+      },
     );
     if (!mounted) return;
     final launched = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
@@ -668,7 +684,9 @@ class _CheckoutProcessingScreenState
     // launchUrl returns once SFSafariViewController is presented — this is NOT
     // proof of payment. Show a neutral "did you complete your purchase?" prompt
     // rather than claiming success (M194).
-    setState(() => _state = launched ? _CheckoutState.returned : _CheckoutState.failed);
+    setState(
+      () => _state = launched ? _CheckoutState.returned : _CheckoutState.failed,
+    );
   }
 
   /// User asserts they paid — begin polling Firestore for real confirmation.
@@ -792,7 +810,11 @@ class _CheckoutProcessingScreenState
                 ),
                 _CheckoutState.success => _CenterColumn(
                   children: [
-                    const Icon(Icons.check_circle_outline_rounded, size: 56, color: Color(0xFFFFD700)),
+                    const Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 56,
+                      color: Color(0xFFFFD700),
+                    ),
                     const SizedBox(height: 20),
                     Text(
                       'Order placed!',
@@ -852,9 +874,16 @@ class _CheckoutProcessingScreenState
                 ),
                 _CheckoutState.failed => _CenterColumn(
                   children: [
-                    Icon(Icons.error_outline_rounded, size: 48, color: theme.colorScheme.error),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 48,
+                      color: theme.colorScheme.error,
+                    ),
                     const SizedBox(height: 20),
-                    Text('Could not open checkout', style: theme.textTheme.titleMedium),
+                    Text(
+                      'Could not open checkout',
+                      style: theme.textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 16),
                     FilledButton(
                       onPressed: () {
@@ -886,10 +915,8 @@ class _CenterColumn extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: children,
-  );
+  Widget build(BuildContext context) =>
+      Column(mainAxisAlignment: MainAxisAlignment.center, children: children);
 }
 
 // ── Swipe-to-confirm widget (M168) ────────────────────────────────────────────
@@ -917,8 +944,10 @@ class _SwipeToConfirmState extends State<_SwipeToConfirm> {
     if (_completed) return;
     final maxDrag = trackWidth - _thumbSize;
     if (maxDrag <= 0) return;
-    final newOffset = (_dragFraction * maxDrag + details.delta.dx)
-        .clamp(0.0, maxDrag);
+    final newOffset = (_dragFraction * maxDrag + details.delta.dx).clamp(
+      0.0,
+      maxDrag,
+    );
     final newFraction = newOffset / maxDrag;
     setState(() => _dragFraction = newFraction);
     if (newFraction >= 0.85) _complete();
@@ -965,7 +994,9 @@ class _SwipeToConfirmState extends State<_SwipeToConfirm> {
                   duration: const Duration(milliseconds: 80),
                   width: thumbOffset + _thumbSize,
                   decoration: BoxDecoration(
-                    color: kGold.withValues(alpha: (_dragFraction * 0.25).clamp(0, 0.25)),
+                    color: kGold.withValues(
+                      alpha: (_dragFraction * 0.25).clamp(0, 0.25),
+                    ),
                     borderRadius: BorderRadius.circular(_trackHeight / 2),
                   ),
                 ),

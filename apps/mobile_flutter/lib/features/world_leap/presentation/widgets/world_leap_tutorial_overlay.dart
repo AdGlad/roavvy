@@ -49,7 +49,10 @@ class WorldLeapTutorialDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final reduceMotion =
         MediaQuery.disableAnimationsOf(context) ||
-        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures
+        WidgetsBinding
+            .instance
+            .platformDispatcher
+            .accessibilityFeatures
             .reduceMotion;
 
     return Dialog(
@@ -86,11 +89,12 @@ class WorldLeapTutorialDialog extends StatelessWidget {
               const SizedBox(height: 12),
               _Step(
                 number: 2,
-                text: beginnerMode
-                    ? 'Release to lock in your aim. Re-aim as many times as '
-                          'you like, then tap FIRE when ready.'
-                    : 'Release to fire immediately — letting go launches '
-                          'your shot right away.',
+                text:
+                    beginnerMode
+                        ? 'Release to lock in your aim. Re-aim as many times as '
+                            'you like, then tap FIRE when ready.'
+                        : 'Release to fire immediately — letting go launches '
+                            'your shot right away.',
               ),
               const SizedBox(height: 12),
               const _Step(
@@ -115,10 +119,7 @@ class WorldLeapTutorialDialog extends StatelessWidget {
                   ),
                   child: const Text(
                     'Got it',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ),
               ),
@@ -204,7 +205,8 @@ class _TutorialIllustrationState extends State<_TutorialIllustration>
       duration: const Duration(milliseconds: 2800),
     );
     if (widget.reduceMotion) {
-      _ctrl.value = 0.2; // static mid-pull frame — depicts the mechanic, no motion
+      _ctrl.value =
+          0.2; // static mid-pull frame — depicts the mechanic, no motion
     } else {
       _ctrl.repeat();
     }
@@ -223,12 +225,13 @@ class _TutorialIllustrationState extends State<_TutorialIllustration>
       width: double.infinity,
       child: AnimatedBuilder(
         animation: _ctrl,
-        builder: (context, _) => CustomPaint(
-          painter: _TutorialSlingshotPainter(
-            t: _ctrl.value,
-            beginnerMode: widget.beginnerMode,
-          ),
-        ),
+        builder:
+            (context, _) => CustomPaint(
+              painter: _TutorialSlingshotPainter(
+                t: _ctrl.value,
+                beginnerMode: widget.beginnerMode,
+              ),
+            ),
       ),
     );
   }

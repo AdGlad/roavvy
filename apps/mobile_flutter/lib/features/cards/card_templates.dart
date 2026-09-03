@@ -761,8 +761,7 @@ class _GridFlagsCardState extends State<GridFlagsCard> {
               outlinePath: _outlinePath,
               regionMap: _regionMap,
               regionSolidFill: widget.regionSolidFill,
-              regionFlagCode:
-                  regionFlagCode(widget.clipShape, widget.clipCode),
+              regionFlagCode: regionFlagCode(widget.clipShape, widget.clipCode),
               rowCount: widget.rowCount,
               seed: widget.seed ?? 0,
               showTitle: widget.showTitle,
@@ -802,11 +801,13 @@ Path clipPathForTesting(
   ui.Path? outlinePath,
   double topOffset = 0.0,
   double bottomOffset = 0.0,
-}) =>
-    _clipPathFor(size, shape,
-        outlinePath: outlinePath,
-        topOffset: topOffset,
-        bottomOffset: bottomOffset);
+}) => _clipPathFor(
+  size,
+  shape,
+  outlinePath: outlinePath,
+  topOffset: topOffset,
+  bottomOffset: bottomOffset,
+);
 
 /// Returns the clip [Path] for [shape] on a canvas of [size].
 ///
@@ -833,8 +834,9 @@ Path _clipPathFor(
       return Path()..addRect(Offset.zero & size);
     case GridClipShape.heart:
       // Generate heart within the grid zone dimensions, then shift down.
-      return MaskCalculator.heartPath(Size(size.width, gridH))
-          .shift(Offset(0, topOffset));
+      return MaskCalculator.heartPath(
+        Size(size.width, gridH),
+      ).shift(Offset(0, topOffset));
     case GridClipShape.plantSilhouette:
     case GridClipShape.animalSilhouette:
     case GridClipShape.landmarkSilhouette:
@@ -853,21 +855,27 @@ Path _clipPathFor(
           final scale = scaleX < scaleY ? scaleX : scaleY;
           final dx = inset + (availW - b.width * scale) / 2 - b.left * scale;
           final dy =
-              topOffset + inset + (availH - b.height * scale) / 2 - b.top * scale;
+              topOffset +
+              inset +
+              (availH - b.height * scale) / 2 -
+              b.top * scale;
           final matrix = Float64List(16);
-          matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
-          matrix[12] = dx; matrix[13] = dy;
+          matrix[0] = scale;
+          matrix[5] = scale;
+          matrix[10] = 1;
+          matrix[15] = 1;
+          matrix[12] = dx;
+          matrix[13] = dy;
           return outlinePath.transform(matrix);
         }
       }
       // Fallback to circle when path not yet loaded.
-      return Path()
-        ..addOval(
-          Rect.fromCircle(
-            center: gridRect.center,
-            radius: math.min(size.width, gridH) * 0.46,
-          ),
-        );
+      return Path()..addOval(
+        Rect.fromCircle(
+          center: gridRect.center,
+          radius: math.min(size.width, gridH) * 0.46,
+        ),
+      );
     case GridClipShape.countryOutline:
     case GridClipShape.continentOutline:
       if (outlinePath != null) {
@@ -885,29 +893,34 @@ Path _clipPathFor(
           final scale = scaleX < scaleY ? scaleX : scaleY;
           final dx = inset + (availW - b.width * scale) / 2 - b.left * scale;
           final dy =
-              topOffset + inset + (availH - b.height * scale) / 2 - b.top * scale;
+              topOffset +
+              inset +
+              (availH - b.height * scale) / 2 -
+              b.top * scale;
           final matrix = Float64List(16);
-          matrix[0] = scale; matrix[5] = scale; matrix[10] = 1; matrix[15] = 1;
-          matrix[12] = dx; matrix[13] = dy;
+          matrix[0] = scale;
+          matrix[5] = scale;
+          matrix[10] = 1;
+          matrix[15] = 1;
+          matrix[12] = dx;
+          matrix[13] = dy;
           return outlinePath.transform(matrix);
         }
       }
       // Fallback to circle when path not yet loaded.
-      return Path()
-        ..addOval(
-          Rect.fromCircle(
-            center: gridRect.center,
-            radius: math.min(size.width, gridH) * 0.46,
-          ),
-        );
+      return Path()..addOval(
+        Rect.fromCircle(
+          center: gridRect.center,
+          radius: math.min(size.width, gridH) * 0.46,
+        ),
+      );
     case GridClipShape.circle:
-      return Path()
-        ..addOval(
-          Rect.fromCircle(
-            center: gridRect.center,
-            radius: math.min(size.width, gridH) * 0.46,
-          ),
-        );
+      return Path()..addOval(
+        Rect.fromCircle(
+          center: gridRect.center,
+          radius: math.min(size.width, gridH) * 0.46,
+        ),
+      );
   }
 }
 
@@ -1040,7 +1053,9 @@ class _GridPainter extends CustomPainter {
     // reads as a design defect on a printed shirt.
     final effectiveTextColor =
         textColor ??
-        (transparentBackground ? Colors.white : CardTextRenderer.defaultTextColor);
+        (transparentBackground
+            ? Colors.white
+            : CardTextRenderer.defaultTextColor);
     if (showTitle) {
       CardTextRenderer.drawTitle(
         canvas,
@@ -1094,15 +1109,16 @@ class _GridPainter extends CustomPainter {
 
     // 2a. Apply clip shape (M170/M171). For 'none', no clip is applied.
     // Pass grid zone offsets so shapes are positioned where flags are rendered.
-    final clipPath = clipShape != GridClipShape.none
-        ? _clipPathFor(
-            size,
-            clipShape,
-            outlinePath: outlinePath,
-            topOffset: _topH,
-            bottomOffset: _botH,
-          )
-        : null;
+    final clipPath =
+        clipShape != GridClipShape.none
+            ? _clipPathFor(
+              size,
+              clipShape,
+              outlinePath: outlinePath,
+              topOffset: _topH,
+              bottomOffset: _botH,
+            )
+            : null;
     if (clipPath != null) {
       canvas.save();
       canvas.clipPath(clipPath, doAntiAlias: true);
@@ -1128,7 +1144,12 @@ class _GridPainter extends CustomPainter {
       // 2b. Feathered edge for the clip shape.
       // Restrict to the grid zone so that dstIn doesn't erase the title and
       // branding zones which are painted outside the clip region.
-      final gridZone = Rect.fromLTWH(0, _topH, size.width, size.height - _topH - _botH);
+      final gridZone = Rect.fromLTWH(
+        0,
+        _topH,
+        size.width,
+        size.height - _topH - _botH,
+      );
       canvas.save();
       canvas.clipRect(gridZone);
       MaskCalculator.applyFeatheredEdge(canvas, size, clipPath);
@@ -1145,8 +1166,10 @@ class _GridPainter extends CustomPainter {
   void _paintRegionMap(Canvas canvas, Size size) {
     final map = regionMap!;
     const padding = 4.0;
-    final gridZoneH =
-        (size.height - _topH - _botH - padding * 2).clamp(1.0, double.infinity);
+    final gridZoneH = (size.height - _topH - _botH - padding * 2).clamp(
+      1.0,
+      double.infinity,
+    );
     final gridW = size.width;
     if (map.w <= 0 || map.h <= 0) return;
 
@@ -1158,7 +1181,9 @@ class _GridPainter extends CustomPainter {
 
     final ink =
         textColor ??
-        (transparentBackground ? Colors.white : CardTextRenderer.defaultTextColor);
+        (transparentBackground
+            ? Colors.white
+            : CardTextRenderer.defaultTextColor);
 
     canvas.save();
     canvas.translate(ox, oy);
@@ -1221,11 +1246,12 @@ class _GridPainter extends CustomPainter {
     }
 
     // Thin border for EVERY country (visited + unvisited → unvisited outlined).
-    final thinPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = thin
-      ..strokeJoin = StrokeJoin.round
-      ..color = ink.withValues(alpha: 0.4);
+    final thinPaint =
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = thin
+          ..strokeJoin = StrokeJoin.round
+          ..color = ink.withValues(alpha: 0.4);
     for (final path in map.countries.values) {
       canvas.drawPath(path, thinPaint);
     }
@@ -1252,8 +1278,12 @@ class _GridPainter extends CustomPainter {
     final tileW = rowH * imgAr;
     if (tileW <= 0) return;
     final cols = math.max(1, (bounds.width / tileW).ceil());
-    final src =
-        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+    final src = Rect.fromLTWH(
+      0,
+      0,
+      image.width.toDouble(),
+      image.height.toDouble(),
+    );
     final paint = Paint()..filterQuality = FilterQuality.medium;
     for (var r = 0; r < rows; r++) {
       for (var c = 0; c < cols; c++) {
@@ -1282,12 +1312,7 @@ class _GridPainter extends CustomPainter {
     canvas.drawImageRect(
       image,
       Rect.fromLTWH(0, 0, iw, ih),
-      Rect.fromLTWH(
-        bounds.center.dx - w / 2,
-        bounds.center.dy - h / 2,
-        w,
-        h,
-      ),
+      Rect.fromLTWH(bounds.center.dx - w / 2, bounds.center.dy - h / 2, w, h),
       Paint()..filterQuality = FilterQuality.medium,
     );
   }
@@ -1308,8 +1333,12 @@ class _GridPainter extends CustomPainter {
     final rng = math.Random(
       seed ^ bounds.left.toInt() ^ (bounds.top.toInt() << 8) ^ (rows * 131),
     );
-    final src =
-        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+    final src = Rect.fromLTWH(
+      0,
+      0,
+      image.width.toDouble(),
+      image.height.toDouble(),
+    );
     final paint = Paint()..filterQuality = FilterQuality.medium;
     for (var r = -1; r <= rows; r++) {
       for (var c = -1; c <= cols; c++) {
@@ -2479,11 +2508,12 @@ class _TypographyPainter extends CustomPainter {
   /// label line.
   void _drawStatementHero(Canvas canvas, Size size) {
     final count = codes.length;
-    final continents = codes
-        .map((c) => kCountryContinent[c])
-        .whereType<String>()
-        .toSet()
-        .length;
+    final continents =
+        codes
+            .map((c) => kCountryContinent[c])
+            .whereType<String>()
+            .toSet()
+            .length;
     final hero = textColor ?? Colors.white;
 
     // Big number — the hero.
@@ -2603,7 +2633,10 @@ class _TypographyPainter extends CustomPainter {
       // statement (KB "type-led statement"), and lift the faint tier. Clamp so
       // long names still fit the column.
       final opacity = isLarge ? 1.0 : 0.82;
-      final baseFont = (rowH * 0.42).clamp(size.width * 0.04, size.width * 0.075);
+      final baseFont = (rowH * 0.42).clamp(
+        size.width * 0.04,
+        size.width * 0.075,
+      );
       final fontSize = isLarge ? baseFont : baseFont * 0.85;
 
       final x = pad + col * (colWidth + pad);

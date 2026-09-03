@@ -51,8 +51,8 @@ class WorldLeapRunRepository implements IWorldLeapRunRepository {
   WorldLeapRunRepository({
     required FirebaseFirestore firestore,
     required SharedPreferences prefs,
-  })  : _firestore = firestore,
-        _prefs = prefs;
+  }) : _firestore = firestore,
+       _prefs = prefs;
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -70,7 +70,8 @@ class WorldLeapRunRepository implements IWorldLeapRunRepository {
     if (cached != null) {
       try {
         final run = WorldLeapRun.fromJson(
-            jsonDecode(cached) as Map<String, dynamic>);
+          jsonDecode(cached) as Map<String, dynamic>,
+        );
         if (run.userId == userId && run.date == date) {
           return run;
         }
@@ -88,7 +89,9 @@ class WorldLeapRunRepository implements IWorldLeapRunRepository {
   @override
   Future<void> saveRunLocal(WorldLeapRun run) async {
     await _prefs.setString(
-        WorldLeapConfig.localRunKey, jsonEncode(run.toJson()));
+      WorldLeapConfig.localRunKey,
+      jsonEncode(run.toJson()),
+    );
   }
 
   @override

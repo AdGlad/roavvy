@@ -150,12 +150,14 @@ class _MainShellState extends ConsumerState<MainShell> {
     // Always reschedule — the timer may have been paused while backgrounded.
     _scheduleMidnightRefresh();
     // Re-fetch Remote Config so the purchase killswitch propagates within ~60 s.
-    unawaited(RemoteConfigService.refresh().then((_) {
-      if (mounted) {
-        ref.invalidate(purchasingEnabledProvider);
-        ref.invalidate(purchasingEnabledForTemplateProvider);
-      }
-    }));
+    unawaited(
+      RemoteConfigService.refresh().then((_) {
+        if (mounted) {
+          ref.invalidate(purchasingEnabledProvider);
+          ref.invalidate(purchasingEnabledForTemplateProvider);
+        }
+      }),
+    );
   }
 
   /// Invalidates daily challenge providers so they re-fetch with today's date.
@@ -305,8 +307,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     onNavigateToScanFull:
                         () => _goToScan(autoStart: true, forceFullScan: true),
                     onNavigateToScanPartial:
-                        () =>
-                            _goToScan(autoStart: true, forceFullScan: false),
+                        () => _goToScan(autoStart: true, forceFullScan: false),
                   ),
                   // Journal — kept for possible reinstatement:
                   // 1 => JournalScreen(onNavigateToScan: () => _goToScan(autoStart: true, forceFullScan: true)),
@@ -355,10 +356,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   vertical: 8,
                 ),
               ),
-              child: const Text(
-                'Cancel scan',
-                style: TextStyle(fontSize: 13),
-              ),
+              child: const Text('Cancel scan', style: TextStyle(fontSize: 13)),
             ),
           ),
       ],
@@ -370,13 +368,10 @@ class _MainShellState extends ConsumerState<MainShell> {
         body: Row(
           children: [
             NavigationRail(
-              backgroundColor:
-                  Theme.of(context).colorScheme.surfaceContainer,
-              indicatorColor:
-                  Theme.of(context).colorScheme.primaryContainer,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+              indicatorColor: Theme.of(context).colorScheme.primaryContainer,
               selectedIndex: _selectedIndex,
-              onDestinationSelected: (i) =>
-                  setState(() => _selectedIndex = i),
+              onDestinationSelected: (i) => setState(() => _selectedIndex = i),
               labelType: NavigationRailLabelType.all,
               destinations: [
                 const NavigationRailDestination(

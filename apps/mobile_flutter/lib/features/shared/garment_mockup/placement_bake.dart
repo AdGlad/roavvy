@@ -1,7 +1,21 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/painting.dart' show Rect, Size;
+
 import 'mockup_transform.dart';
+
+/// The true width/height of a printable area.
+///
+/// [printAreaNorm] is expressed as fractions of the garment PHOTOGRAPH, so its
+/// shape depends on the photo's own proportions — which differ between the
+/// front and back shirts. Reading the aspect off the fractions alone is how a
+/// design comes to preview at one shape and print at another.
+double printAreaAspect(Rect printAreaNorm, Size garmentPixelSize) {
+  final w = printAreaNorm.width * garmentPixelSize.width;
+  final h = printAreaNorm.height * garmentPixelSize.height;
+  return h <= 0 ? 1.0 : w / h;
+}
 
 /// Bakes an arranged [MockupTransform] into a print file.
 ///

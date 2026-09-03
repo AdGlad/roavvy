@@ -61,10 +61,7 @@ class _UnescoNearbyExplorerScreenState
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('UNESCO Nearby'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('UNESCO Nearby'), centerTitle: true),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorBody(onRetry: _retry),
@@ -83,27 +80,27 @@ class _UnescoNearbyExplorerScreenState
                 onChanged: _onSliderChanged,
                 siteCount: state.sites.length,
               ),
-              Divider(
-                  height: 1,
-                  color: cs.onSurface.withValues(alpha: 0.08)),
+              Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.08)),
               // ── Site list ──────────────────────────────────────────────
               Expanded(
-                child: state.sites.isEmpty
-                    ? _EmptyBody(radiusKm: state.radiusKm)
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 24),
-                        itemCount: state.sites.length,
-                        itemBuilder: (context, i) {
-                          final result = state.sites[i];
-                          return UnescoNearbySiteCard(
-                            result: result,
-                            onTap: () => showUnescoNearbySiteSheet(
-                              context,
-                              result,
-                            ),
-                          );
-                        },
-                      ),
+                child:
+                    state.sites.isEmpty
+                        ? _EmptyBody(radiusKm: state.radiusKm)
+                        : ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          itemCount: state.sites.length,
+                          itemBuilder: (context, i) {
+                            final result = state.sites[i];
+                            return UnescoNearbySiteCard(
+                              result: result,
+                              onTap:
+                                  () => showUnescoNearbySiteSheet(
+                                    context,
+                                    result,
+                                  ),
+                            );
+                          },
+                        ),
               ),
             ],
           );
@@ -133,13 +130,13 @@ class _RadiusSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final radiusLabel = value < 10
-        ? '${value.round()} km'
-        : value < 100
+    final radiusLabel =
+        value < 10
+            ? '${value.round()} km'
+            : value < 100
             ? '${value.round()} km'
             : '${value.round()} km';
-    final countLabel =
-        siteCount == 1 ? '1 site' : '$siteCount sites';
+    final countLabel = siteCount == 1 ? '1 site' : '$siteCount sites';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
@@ -169,10 +166,8 @@ class _RadiusSlider extends StatelessWidget {
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
               trackHeight: 3,
-              thumbShape:
-                  const RoundSliderThumbShape(enabledThumbRadius: 8),
-              overlayShape:
-                  const RoundSliderOverlayShape(overlayRadius: 18),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
             ),
             child: Slider(
               value: value,
@@ -215,11 +210,10 @@ class _EmptyBody extends StatelessWidget {
             Text(
               'Try increasing the radius using the slider above.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.55),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.55),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -245,10 +239,9 @@ class _PermissionDeniedBody extends StatelessWidget {
             Icon(
               Icons.location_off_outlined,
               size: 48,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.4),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             Text(
@@ -261,11 +254,10 @@ class _PermissionDeniedBody extends StatelessWidget {
               'Enable location permission in Settings to discover '
               'UNESCO World Heritage Sites near you.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.55),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.55),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -293,10 +285,9 @@ class _ErrorBody extends StatelessWidget {
             Icon(
               Icons.signal_wifi_statusbar_connected_no_internet_4_outlined,
               size: 48,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.4),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             Text(
@@ -308,11 +299,10 @@ class _ErrorBody extends StatelessWidget {
             Text(
               'Check that location services are enabled and try again.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.55),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.55),
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),

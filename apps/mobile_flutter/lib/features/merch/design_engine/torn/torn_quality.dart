@@ -41,9 +41,10 @@ class TornQualityMetrics {
     final interior = interiorClean; // 1.0 unless the body is breached
     final concentration = edgeConcentration; // 1.0 unless a centre hole appears
     // Reward a visible-but-not-destructive amount of tearing (~2%..30%).
-    final amount = removedFraction < 0.01
-        ? removedFraction / 0.01
-        : removedFraction > 0.34
+    final amount =
+        removedFraction < 0.01
+            ? removedFraction / 0.01
+            : removedFraction > 0.34
             ? (1.0 - (removedFraction - 0.34) / 0.34).clamp(0.0, 1.0)
             : 1.0;
     // Reward finger separation, saturating around a dozen transitions.
@@ -91,20 +92,21 @@ TornQualityMetrics measureTornQuality(TornMask mask, TornRecipe recipe) {
   final hoistRemoved = _edgeRemoved(mask, _Edge.left);
   final topRemoved = _edgeRemoved(mask, _Edge.top);
   final bottomRemoved = _edgeRemoved(mask, _Edge.bottom);
-  final heaviest = <_Edge, int>{
-    _Edge.right: flyRemoved,
-    _Edge.left: hoistRemoved,
-    _Edge.top: topRemoved,
-    _Edge.bottom: bottomRemoved,
-  }.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+  final heaviest =
+      <_Edge, int>{
+        _Edge.right: flyRemoved,
+        _Edge.left: hoistRemoved,
+        _Edge.top: topRemoved,
+        _Edge.bottom: bottomRemoved,
+      }.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
 
   return TornQualityMetrics(
     interiorClean: interiorClean,
     edgeConcentration: edgeConcentration,
     removedFraction: removed / total,
     fingerTransitions: _transitions(mask, heaviest),
-    asymmetry: (flyRemoved - hoistRemoved).abs() /
-        (flyRemoved + hoistRemoved + 1),
+    asymmetry:
+        (flyRemoved - hoistRemoved).abs() / (flyRemoved + hoistRemoved + 1),
   );
 }
 

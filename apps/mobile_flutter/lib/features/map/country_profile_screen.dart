@@ -7,7 +7,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:photo_manager/photo_manager.dart' hide LatLng;
-import 'package:country_lookup/country_lookup.dart' show CountryPolygon, loadPolygons;
+import 'package:country_lookup/country_lookup.dart'
+    show CountryPolygon, loadPolygons;
 import 'package:region_lookup/region_lookup.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
@@ -46,14 +47,14 @@ const List<Color> _kRegionPastelPalette = [
 // ── Colour helpers ────────────────────────────────────────────────────────────
 
 Color _continentColor(String? continent) => switch (continent) {
-      'Europe' => const Color(0xFF2563EB),
-      'Asia' => const Color(0xFF7C3AED),
-      'North America' => const Color(0xFF059669),
-      'South America' => const Color(0xFFD97706),
-      'Africa' => const Color(0xFFDC2626),
-      'Oceania' => const Color(0xFF0891B2),
-      _ => const Color(0xFF374151),
-    };
+  'Europe' => const Color(0xFF2563EB),
+  'Asia' => const Color(0xFF7C3AED),
+  'North America' => const Color(0xFF059669),
+  'South America' => const Color(0xFFD97706),
+  'Africa' => const Color(0xFFDC2626),
+  'Oceania' => const Color(0xFF0891B2),
+  _ => const Color(0xFF374151),
+};
 
 String _flagEmoji(String isoCode) {
   if (isoCode.length != 2) return '';
@@ -75,11 +76,7 @@ Future<Uint8List?> _fetchThumb(String assetId) async {
 /// [visit] is non-null. Unvisited countries continue to use the lightweight
 /// bottom sheet (ADR-009 revised).
 class CountryProfileScreen extends ConsumerStatefulWidget {
-  const CountryProfileScreen({
-    super.key,
-    required this.isoCode,
-    this.visit,
-  });
+  const CountryProfileScreen({super.key, required this.isoCode, this.visit});
 
   final String isoCode;
   final EffectiveVisitedCountry? visit;
@@ -121,12 +118,14 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
           ),
     );
     if (confirmed == true && mounted) {
-      await ref.read(visitRepositoryProvider).saveRemoved(
-        UserRemovedCountry(
-          countryCode: widget.isoCode,
-          removedAt: DateTime.now().toUtc(),
-        ),
-      );
+      await ref
+          .read(visitRepositoryProvider)
+          .saveRemoved(
+            UserRemovedCountry(
+              countryCode: widget.isoCode,
+              removedAt: DateTime.now().toUtc(),
+            ),
+          );
       if (mounted) {
         ref.invalidate(effectiveVisitsProvider);
         nav.pop();
@@ -135,10 +134,7 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
   }
 
   static EffectiveVisitedCountry _emptyVisit(String isoCode) =>
-      EffectiveVisitedCountry(
-        countryCode: isoCode,
-        hasPhotoEvidence: false,
-      );
+      EffectiveVisitedCountry(countryCode: isoCode, hasPhotoEvidence: false);
 
   @override
   Widget build(BuildContext context) {
@@ -169,33 +165,33 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
             ),
             pinned: true,
             stretch: true,
-            backgroundColor:
-                accentColor,
+            backgroundColor: accentColor,
             flexibleSpace: FlexibleSpaceBar(
               collapseMode: CollapseMode.parallax,
-              background: heroAssetId != null
-                  ? HeroImageView(
-                      assetId: heroAssetId,
-                      fallbackColor: accentColor,
-                      height: math.min(
-                        240.0,
-                        MediaQuery.of(context).size.height * 0.35,
-                      ),
-                      useFullResolution: false,
-                    )
-                  : Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            accentColor,
-                            accentColor.withValues(alpha: 0.7),
-                          ],
+              background:
+                  heroAssetId != null
+                      ? HeroImageView(
+                        assetId: heroAssetId,
+                        fallbackColor: accentColor,
+                        height: math.min(
+                          240.0,
+                          MediaQuery.of(context).size.height * 0.35,
                         ),
+                        useFullResolution: false,
+                      )
+                      : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              accentColor,
+                              accentColor.withValues(alpha: 0.7),
+                            ],
+                          ),
+                        ),
+                        child: const _WorldGridPainterWidget(),
                       ),
-                      child: const _WorldGridPainterWidget(),
-                    ),
               title: Text(
                 '$flag  $countryName',
                 style: const TextStyle(
@@ -213,7 +209,8 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
               if (detailAsync.hasValue)
                 IconButton(
                   icon: const Icon(Icons.ios_share, color: Colors.white),
-                  onPressed: () => _share(detailAsync.value!, countryName, flag),
+                  onPressed:
+                      () => _share(detailAsync.value!, countryName, flag),
                 ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white),
@@ -226,7 +223,10 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
                         value: 'remove',
                         child: Row(
                           children: [
-                            Icon(Icons.remove_circle_outline, color: Colors.red),
+                            Icon(
+                              Icons.remove_circle_outline,
+                              color: Colors.red,
+                            ),
                             SizedBox(width: 12),
                             Text(
                               'Remove country',
@@ -246,25 +246,29 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
               opacity: _contentVisible ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 400),
               child: detailAsync.when(
-                loading: () => const SizedBox(
-                  height: 200,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Could not load: $e'),
-                ),
-                data: (detail) => _Body(
-                  isoCode: isoCode,
-                  countryName: countryName,
-                  visit: widget.visit ?? _emptyVisit(isoCode),
-                  detail: detail,
-                  accentColor: accentColor,
-                  continent: continent,
-                  onTripChanged: _reload,
-                  celebrated: _unescoCelebrated,
-                  onCelebrated: () => setState(() => _unescoCelebrated = true),
-                ),
+                loading:
+                    () => const SizedBox(
+                      height: 200,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                error:
+                    (e, _) => Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text('Could not load: $e'),
+                    ),
+                data:
+                    (detail) => _Body(
+                      isoCode: isoCode,
+                      countryName: countryName,
+                      visit: widget.visit ?? _emptyVisit(isoCode),
+                      detail: detail,
+                      accentColor: accentColor,
+                      continent: continent,
+                      onTripChanged: _reload,
+                      celebrated: _unescoCelebrated,
+                      onCelebrated:
+                          () => setState(() => _unescoCelebrated = true),
+                    ),
               ),
             ),
           ),
@@ -273,25 +277,20 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
     );
   }
 
-  void _share(
-    CountryDetailState detail,
-    String countryName,
-    String flag,
-  ) {
+  void _share(CountryDetailState detail, String countryName, String flag) {
     final s = detail.stats;
-    final tripLine =
-        '${s.tripCount} ${s.tripCount == 1 ? 'trip' : 'trips'}';
+    final tripLine = '${s.tripCount} ${s.tripCount == 1 ? 'trip' : 'trips'}';
     final daysLine = s.totalDays > 0 ? '  ·  ${s.totalDays} days' : '';
-    final photosLine =
-        s.totalPhotos > 0 ? '  ·  ${s.totalPhotos} photos' : '';
-    final regionsLine = s.visitedRegions > 0
-        ? '\n${s.visitedRegions} regions explored'
-        : '';
-    final unescoLine = s.visitedHeritageSites > 0
-        ? '\n${s.visitedHeritageSites} of ${s.totalHeritageSites} UNESCO World Heritage Sites visited'
-        : '';
+    final photosLine = s.totalPhotos > 0 ? '  ·  ${s.totalPhotos} photos' : '';
+    final regionsLine =
+        s.visitedRegions > 0 ? '\n${s.visitedRegions} regions explored' : '';
+    final unescoLine =
+        s.visitedHeritageSites > 0
+            ? '\n${s.visitedHeritageSites} of ${s.totalHeritageSites} UNESCO World Heritage Sites visited'
+            : '';
 
-    final text = '$flag $countryName — My Roavvy Story\n\n'
+    final text =
+        '$flag $countryName — My Roavvy Story\n\n'
         '$tripLine$daysLine$photosLine'
         '$regionsLine'
         '$unescoLine'
@@ -368,10 +367,7 @@ class _Body extends StatelessWidget {
           ),
         // Photo strip
         if (detail.photoAssetIds.isNotEmpty)
-          _PhotoStrip(
-            assetIds: detail.photoAssetIds,
-            isoCode: isoCode,
-          ),
+          _PhotoStrip(assetIds: detail.photoAssetIds, isoCode: isoCode),
         // Trip timeline
         _VisitTimeline(
           isoCode: isoCode,
@@ -410,14 +406,11 @@ class _Header extends StatelessWidget {
         children: [
           if (continent != null)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: accentColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: accentColor.withValues(alpha: 0.4),
-                ),
+                border: Border.all(color: accentColor.withValues(alpha: 0.4)),
               ),
               child: Text(
                 continent!,
@@ -428,17 +421,15 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-          if (continent != null && yearText != null)
-            const SizedBox(width: 10),
+          if (continent != null && yearText != null) const SizedBox(width: 10),
           if (yearText != null)
             Text(
               yearText,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.55),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.55),
+              ),
             ),
         ],
       ),
@@ -475,15 +466,13 @@ class _NarrativeCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: accentColor.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: accentColor.withValues(alpha: 0.18),
-              ),
+              border: Border.all(color: accentColor.withValues(alpha: 0.18)),
             ),
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    height: 1.5,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(height: 1.5),
             ),
           ),
         ),
@@ -514,33 +503,34 @@ class _StatsStrip extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: IntrinsicHeight(
         child: Row(
-          children: tiles.asMap().entries.map((entry) {
-            final i = entry.key;
-            final (value, label, isDash) = entry.value;
-            return Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _StatTile(
-                      value: value,
-                      label: label,
-                      isDash: isDash,
-                      accentColor: accentColor,
-                      delay: Duration(milliseconds: i * 80),
-                    ),
+          children:
+              tiles.asMap().entries.map((entry) {
+                final i = entry.key;
+                final (value, label, isDash) = entry.value;
+                return Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _StatTile(
+                          value: value,
+                          label: label,
+                          isDash: isDash,
+                          accentColor: accentColor,
+                          delay: Duration(milliseconds: i * 80),
+                        ),
+                      ),
+                      if (i < tiles.length - 1)
+                        VerticalDivider(
+                          width: 1,
+                          thickness: 1,
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withValues(alpha: 0.5),
+                        ),
+                    ],
                   ),
-                  if (i < tiles.length - 1)
-                    VerticalDivider(
-                      width: 1,
-                      thickness: 1,
-                      color: Theme.of(context)
-                          .dividerColor
-                          .withValues(alpha: 0.5),
-                    ),
-                ],
-              ),
-            );
-          }).toList(),
+                );
+              }).toList(),
         ),
       ),
     );
@@ -566,24 +556,26 @@ class _StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayNum = FittedBox(
       fit: BoxFit.scaleDown,
-      child: isDash
-          ? const Text(
-              '—',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
-            )
-          : TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: value.toDouble()),
-              duration: const Duration(milliseconds: 800) + delay,
-              curve: Curves.easeOut,
-              builder: (_, v, __) => Text(
-                v.round().toString(),
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: accentColor,
-                ),
+      child:
+          isDash
+              ? const Text(
+                '—',
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+              )
+              : TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: value.toDouble()),
+                duration: const Duration(milliseconds: 800) + delay,
+                curve: Curves.easeOut,
+                builder:
+                    (_, v, __) => Text(
+                      v.round().toString(),
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: accentColor,
+                      ),
+                    ),
               ),
-            ),
     );
 
     return Column(
@@ -594,12 +586,11 @@ class _StatTile extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.55),
-                letterSpacing: 0.3,
-              ),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.55),
+            letterSpacing: 0.3,
+          ),
         ),
       ],
     );
@@ -642,9 +633,8 @@ class _InlineRegionMapState extends State<_InlineRegionMap> {
     _allPolygons = regionPolygonsForCountry(widget.isoCode);
     // Load accurate 1:10m country outlines to overlay on top of angular region
     // polygons, giving clean coastlines for island nations (e.g. Seychelles).
-    _coastlinePolygons = loadPolygons()
-        .where((p) => p.isoCode == widget.isoCode)
-        .toList();
+    _coastlinePolygons =
+        loadPolygons().where((p) => p.isoCode == widget.isoCode).toList();
   }
 
   @override
@@ -712,20 +702,24 @@ class _InlineRegionMapState extends State<_InlineRegionMap> {
       if (widget.visitedRegionCodes.contains(p.regionCode)) {
         final idx = sortedIndex[p.regionCode] ?? 0;
         final fill = _kRegionPastelPalette[idx % _kRegionPastelPalette.length];
-        visitedPolygons.add(Polygon<String>(
-          points: points,
-          color: fill.withValues(alpha: 0.85),
-          borderColor: fill,
-          borderStrokeWidth: 0.3,
-          hitValue: p.regionCode,
-        ));
+        visitedPolygons.add(
+          Polygon<String>(
+            points: points,
+            color: fill.withValues(alpha: 0.85),
+            borderColor: fill,
+            borderStrokeWidth: 0.3,
+            hitValue: p.regionCode,
+          ),
+        );
       } else {
-        unvisitedPolygons.add(Polygon(
-          points: points,
-          color: _kUnvisitedFill.withValues(alpha: 0.9),
-          borderColor: _kUnvisitedFill,
-          borderStrokeWidth: 0.3,
-        ));
+        unvisitedPolygons.add(
+          Polygon(
+            points: points,
+            color: _kUnvisitedFill.withValues(alpha: 0.9),
+            borderColor: _kUnvisitedFill,
+            borderStrokeWidth: 0.3,
+          ),
+        );
       }
     }
 
@@ -785,9 +779,7 @@ class _InlineRegionMapState extends State<_InlineRegionMap> {
                     ),
                   if (_selectedCode != null && _selectedLatLng != null)
                     MarkerLayer(
-                      markers: [
-                        _buildLabel(_selectedCode!, _selectedLatLng!),
-                      ],
+                      markers: [_buildLabel(_selectedCode!, _selectedLatLng!)],
                     ),
                 ],
               ),
@@ -800,18 +792,21 @@ class _InlineRegionMapState extends State<_InlineRegionMap> {
               children: [
                 Text(
                   '${widget.visitedRegions} of ${widget.totalRegions} regions visited',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          CountryRegionMapScreen(countryCode: widget.isoCode),
-                    ),
-                  ),
+                  onPressed:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder:
+                              (_) => CountryRegionMapScreen(
+                                countryCode: widget.isoCode,
+                              ),
+                        ),
+                      ),
                   child: const Text('Full map →'),
                 ),
               ],
@@ -837,9 +832,10 @@ class _WorldGridPainterWidget extends StatelessWidget {
 class _WorldGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
-      ..strokeWidth = 0.5;
+    final paint =
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.12)
+          ..strokeWidth = 0.5;
     const lines = 8;
     for (var i = 0; i <= lines; i++) {
       final x = size.width * i / lines;
@@ -884,23 +880,23 @@ class _HeritageSitesSectionState extends State<_HeritageSitesSection> {
   static const _coral = Color(0xFFFF6B6B);
 
   Color _categoryColor(String category) => switch (category.toLowerCase()) {
-        'natural' => _mint,
-        'mixed' => _coral,
-        _ => _gold,
-      };
+    'natural' => _mint,
+    'mixed' => _coral,
+    _ => _gold,
+  };
 
   String _categoryIcon(String category) => switch (category.toLowerCase()) {
-        'natural' => '🌿',
-        'mixed' => '✨',
-        _ => '🏛',
-      };
+    'natural' => '🌿',
+    'mixed' => '✨',
+    _ => '🏛',
+  };
 
   @override
   Widget build(BuildContext context) {
     final total = widget.allSitesInCountry.length;
     final visited = widget.visitedSites.length;
-    final allVisited = widget.visitedSites.isNotEmpty &&
-        widget.unvisitedSites.isEmpty;
+    final allVisited =
+        widget.visitedSites.isNotEmpty && widget.unvisitedSites.isEmpty;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -912,19 +908,18 @@ class _HeritageSitesSectionState extends State<_HeritageSitesSection> {
             children: [
               Text(
                 'UNESCO World Heritage Sites',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               const Spacer(),
               Text(
                 '$visited of $total visited',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.55),
-                    ),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.55),
+                ),
               ),
             ],
           ),
@@ -970,8 +965,8 @@ class _HeritageSitesSectionState extends State<_HeritageSitesSection> {
                       isVisited: false,
                       categoryColor: _categoryColor(site.category),
                       categoryIcon: _categoryIcon(site.category),
-                      onTap: () =>
-                          showHeritageDetailSheetForSite(context, site),
+                      onTap:
+                          () => showHeritageDetailSheetForSite(context, site),
                     ),
                 ],
               ),
@@ -1003,13 +998,12 @@ class _ProgressDots extends StatelessWidget {
             margin: const EdgeInsets.only(right: 4),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isVisited
-                  ? const Color(0xFFF2C94C)
-                  : Colors.transparent,
+              color: isVisited ? const Color(0xFFF2C94C) : Colors.transparent,
               border: Border.all(
-                color: isVisited
-                    ? const Color(0xFFF2C94C)
-                    : Theme.of(context).dividerColor,
+                color:
+                    isVisited
+                        ? const Color(0xFFF2C94C)
+                        : Theme.of(context).dividerColor,
                 width: 1.5,
               ),
             ),
@@ -1019,11 +1013,10 @@ class _ProgressDots extends StatelessWidget {
           Text(
             '+$extra',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.5),
-                ),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
           ),
       ],
     );
@@ -1054,9 +1047,9 @@ class _AllVisitedBanner extends StatelessWidget {
             child: Text(
               "You've visited every UNESCO site in $countryName!",
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFFB8860B),
-                  ),
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFB8860B),
+              ),
             ),
           ),
         ],
@@ -1090,9 +1083,10 @@ class _HeritageSiteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = isVisited
-        ? const Color(0xFFF2C94C)
-        : Theme.of(context).dividerColor.withValues(alpha: 0.5);
+    final borderColor =
+        isVisited
+            ? const Color(0xFFF2C94C)
+            : Theme.of(context).dividerColor.withValues(alpha: 0.5);
     final cardOpacity = isVisited ? 1.0 : 0.45;
 
     return Opacity(
@@ -1107,15 +1101,16 @@ class _HeritageSiteCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: borderColor, width: isVisited ? 1.8 : 1),
             color: Theme.of(context).cardColor,
-            boxShadow: isVisited
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFFF2C94C).withValues(alpha: 0.18),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
+            boxShadow:
+                isVisited
+                    ? [
+                      BoxShadow(
+                        color: const Color(0xFFF2C94C).withValues(alpha: 0.18),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                    : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1129,11 +1124,10 @@ class _HeritageSiteCard extends StatelessWidget {
                     Text(
                       year.toString(),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.45),
-                          ),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.45),
+                      ),
                     ),
                 ],
               ),
@@ -1143,9 +1137,9 @@ class _HeritageSiteCard extends StatelessWidget {
                 child: Text(
                   name,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1168,20 +1162,19 @@ class _HeritageSiteCard extends StatelessWidget {
                     Icon(
                       Icons.circle,
                       size: 8,
-                      color: confidence == 'strong'
-                          ? const Color(0xFF2ED8B6)
-                          : const Color(0xFFF2C94C),
+                      color:
+                          confidence == 'strong'
+                              ? const Color(0xFF2ED8B6)
+                              : const Color(0xFFF2C94C),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '${distanceKm!.toStringAsFixed(1)} km',
-                      style:
-                          Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.6),
-                              ),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
                   ],
                 ),
@@ -1190,11 +1183,10 @@ class _HeritageSiteCard extends StatelessWidget {
                 Text(
                   'Not yet visited',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.4),
-                      ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
                 ),
               ],
             ],
@@ -1228,18 +1220,19 @@ class _PhotoStrip extends StatelessWidget {
               children: [
                 Text(
                   'Photos from here',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          PhotoGalleryScreen(assetIds: assetIds),
-                    ),
-                  ),
+                  onPressed:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder:
+                              (_) => PhotoGalleryScreen(assetIds: assetIds),
+                        ),
+                      ),
                   child: Text('View all (${assetIds.length})'),
                 ),
               ],
@@ -1292,10 +1285,13 @@ class _PhotoTileState extends State<_PhotoTile> {
             if (!snap.hasData || snap.data == null) {
               return Container(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: const Center(child: SizedBox(
-                  width: 16, height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )),
+                child: const Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
               );
             }
             return Image.memory(snap.data!, fit: BoxFit.cover);
@@ -1324,8 +1320,18 @@ class _VisitTimeline extends ConsumerWidget {
   final VoidCallback onTripChanged;
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   static String _fmt(DateTime d) => '${d.day} ${_months[d.month - 1]}';
@@ -1355,19 +1361,18 @@ class _VisitTimeline extends ConsumerWidget {
           children: [
             Text(
               'Your Visits',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
               'No trip data — add a trip manually.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.5),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
             ),
             const SizedBox(height: 8),
             TextButton.icon(
@@ -1380,14 +1385,10 @@ class _VisitTimeline extends ConsumerWidget {
       );
     }
 
-    final mostRecentId = trips
-        .reduce((a, b) =>
-            a.endedOn.isAfter(b.endedOn) ? a : b)
-        .id;
-    final firstId = trips
-        .reduce((a, b) =>
-            a.startedOn.isBefore(b.startedOn) ? a : b)
-        .id;
+    final mostRecentId =
+        trips.reduce((a, b) => a.endedOn.isAfter(b.endedOn) ? a : b).id;
+    final firstId =
+        trips.reduce((a, b) => a.startedOn.isBefore(b.startedOn) ? a : b).id;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -1396,9 +1397,9 @@ class _VisitTimeline extends ConsumerWidget {
         children: [
           Text(
             'Your Visits',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
           ...trips.asMap().entries.map((entry) {
@@ -1447,9 +1448,7 @@ class _VisitTimeline extends ConsumerWidget {
                             children: [
                               Text(
                                 _dateRange(trip),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
+                                style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(fontWeight: FontWeight.w600),
                               ),
                               const SizedBox(width: 8),
@@ -1465,25 +1464,22 @@ class _VisitTimeline extends ConsumerWidget {
                             children: [
                               Text(
                                 '${_duration(trip)}  ·  ${trip.photoCount} photos',
-                                style:
-                                    Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.55),
-                                        ),
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.55),
+                                ),
                               ),
                               const Spacer(),
                               GestureDetector(
                                 onTap: () => _openEditTrip(context, ref, trip),
-                                onLongPress: () =>
-                                    _confirmDelete(context, ref, trip),
+                                onLongPress:
+                                    () => _confirmDelete(context, ref, trip),
                                 child: Icon(
                                   Icons.edit_outlined,
                                   size: 16,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
+                                  color: Theme.of(context).colorScheme.onSurface
                                       .withValues(alpha: 0.4),
                                 ),
                               ),
@@ -1537,19 +1533,20 @@ class _VisitTimeline extends ConsumerWidget {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete this trip?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Delete this trip?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
     if (confirmed == true) {
       await ref.read(tripRepositoryProvider).delete(trip.id);

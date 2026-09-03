@@ -125,7 +125,9 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
           (_, controller) => Container(
             decoration: BoxDecoration(
               color: hCs.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             clipBehavior: Clip.hardEdge,
             child: CustomScrollView(
@@ -178,7 +180,9 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                                     Text(
                                       region,
                                       style: TextStyle(
-                                        color: hCs.onSurface.withValues(alpha: 0.54),
+                                        color: hCs.onSurface.withValues(
+                                          alpha: 0.54,
+                                        ),
                                         fontSize: 13,
                                       ),
                                     ),
@@ -192,7 +196,10 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                         ),
 
                         const SizedBox(height: 20),
-                        Divider(color: hCs.onSurface.withValues(alpha: 0.12), height: 1),
+                        Divider(
+                          color: hCs.onSurface.withValues(alpha: 0.12),
+                          height: 1,
+                        ),
                         const SizedBox(height: 20),
 
                         // Description
@@ -206,7 +213,10 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          Divider(color: hCs.onSurface.withValues(alpha: 0.12), height: 1),
+                          Divider(
+                            color: hCs.onSurface.withValues(alpha: 0.12),
+                            height: 1,
+                          ),
                           const SizedBox(height: 20),
                         ],
 
@@ -229,7 +239,10 @@ class _HeritageDetailSheetState extends State<_HeritageDetailSheet> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          Divider(color: hCs.onSurface.withValues(alpha: 0.12), height: 1),
+                          Divider(
+                            color: hCs.onSurface.withValues(alpha: 0.12),
+                            height: 1,
+                          ),
                           const SizedBox(height: 20),
                         ],
 
@@ -365,7 +378,9 @@ class _HeroImage extends StatelessWidget {
                   color: Theme.of(ctx).colorScheme.surfaceContainer,
                   child: Icon(
                     Icons.landscape_outlined,
-                    color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.24),
+                    color: Theme.of(
+                      ctx,
+                    ).colorScheme.onSurface.withValues(alpha: 0.24),
                     size: 48,
                   ),
                 ),
@@ -476,7 +491,10 @@ class _HeaderNoImage extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 'UNESCO World Heritage',
-                style: TextStyle(color: cs.onSurface.withValues(alpha: 0.54), fontSize: 12),
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.54),
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(width: 8),
               _CategoryBadge(label: categoryLabel, color: categoryColor),
@@ -592,7 +610,9 @@ class _StatCell extends StatelessWidget {
         Text(
           label.toUpperCase(),
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.38),
             fontSize: 10,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.8,

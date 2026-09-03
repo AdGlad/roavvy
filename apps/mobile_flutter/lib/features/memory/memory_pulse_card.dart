@@ -156,9 +156,12 @@ class _DotsIndicator extends StatelessWidget {
           height: 6,
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
-            color: i == current
-                ? Theme.of(context).colorScheme.onSurface
-                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.40),
+            color:
+                i == current
+                    ? Theme.of(context).colorScheme.onSurface
+                    : Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.40),
             borderRadius: BorderRadius.circular(3),
           ),
         );
@@ -264,7 +267,9 @@ class _CardBody extends StatelessWidget {
                       child: Icon(
                         Icons.close,
                         size: 16,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.54),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.54,
+                        ),
                       ),
                     ),
                   ],

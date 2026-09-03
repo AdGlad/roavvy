@@ -299,7 +299,9 @@ class _ScanSummaryScreenState extends ConsumerState<ScanSummaryScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.24),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -406,11 +408,9 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
   }
 
   Future<void> _openTravelStory() async {
-    final allVisits =
-        ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
+    final allVisits = ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
     final allTrips = ref.read(tripListProvider).valueOrNull ?? const [];
-    final rows =
-        await ref.read(achievementRepositoryProvider).loadAllRows();
+    final rows = await ref.read(achievementRepositoryProvider).loadAllRows();
     final unlocked = {for (final r in rows) r.achievementId: r.unlockedAt};
     if (!mounted) return;
     final storyData = TravelStoryData.build(

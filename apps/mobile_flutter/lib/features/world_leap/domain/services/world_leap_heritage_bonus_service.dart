@@ -16,10 +16,10 @@ class WhsSite {
   const WhsSite({required this.name, required this.lat, required this.lon});
 
   factory WhsSite.fromJson(Map<String, dynamic> json) => WhsSite(
-        name: json['name'] as String,
-        lat: (json['latitude'] as num).toDouble(),
-        lon: (json['longitude'] as num).toDouble(),
-      );
+    name: json['name'] as String,
+    lat: (json['latitude'] as num).toDouble(),
+    lon: (json['longitude'] as num).toDouble(),
+  );
 }
 
 /// Result of a heritage bonus lookup.
@@ -37,11 +37,13 @@ class WorldLeapHeritageBonusService {
 
   /// Loads [WorldLeapConfig.unescoAsset] and returns a ready service.
   static Future<WorldLeapHeritageBonusService> load(
-      WorldLeapGeoService geo) async {
+    WorldLeapGeoService geo,
+  ) async {
     final raw = await rootBundle.loadString(WorldLeapConfig.unescoAsset);
-    final list = (jsonDecode(raw) as List<dynamic>)
-        .map((e) => WhsSite.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final list =
+        (jsonDecode(raw) as List<dynamic>)
+            .map((e) => WhsSite.fromJson(e as Map<String, dynamic>))
+            .toList();
     return WorldLeapHeritageBonusService(list, geo);
   }
 
@@ -54,7 +56,11 @@ class WorldLeapHeritageBonusService {
 
     for (final site in _sites) {
       final d = _geo.greatCircleDistanceKm(
-          lat1: lat, lon1: lon, lat2: site.lat, lon2: site.lon);
+        lat1: lat,
+        lon1: lon,
+        lat2: site.lat,
+        lon2: site.lon,
+      );
       if (d < bestDist) {
         bestDist = d;
         bestSite = site;
@@ -66,10 +72,16 @@ class WorldLeapHeritageBonusService {
     }
 
     if (bestDist <= WorldLeapConfig.heritageTier3RadiusKm) {
-      return (bonus: WorldLeapConfig.heritageTier3Bonus, siteName: bestSite.name);
+      return (
+        bonus: WorldLeapConfig.heritageTier3Bonus,
+        siteName: bestSite.name,
+      );
     }
     if (bestDist <= WorldLeapConfig.heritageTier2RadiusKm) {
-      return (bonus: WorldLeapConfig.heritageTier2Bonus, siteName: bestSite.name);
+      return (
+        bonus: WorldLeapConfig.heritageTier2Bonus,
+        siteName: bestSite.name,
+      );
     }
     return (bonus: WorldLeapConfig.heritageTier1Bonus, siteName: bestSite.name);
   }

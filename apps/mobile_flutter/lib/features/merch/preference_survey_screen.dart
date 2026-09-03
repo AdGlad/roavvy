@@ -38,8 +38,11 @@ class _PreferenceSurveyScreenState
   void _next() {
     if (_page < 2) {
       setState(() => _page++);
-      _controller.animateToPage(_page,
-          duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _controller.animateToPage(
+        _page,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     } else {
       _finish();
     }
@@ -48,8 +51,11 @@ class _PreferenceSurveyScreenState
   void _back() {
     if (_page > 0) {
       setState(() => _page--);
-      _controller.animateToPage(_page,
-          duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _controller.animateToPage(
+        _page,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -77,9 +83,10 @@ class _PreferenceSurveyScreenState
 
     // Convert to mobile profile and persist.
     final existing = ref.read(preferenceProfileProvider);
-    final updated =
-        UserDesignPreferenceProfile.fromDesignPreferences(forgePrefs,
-            existing: existing);
+    final updated = UserDesignPreferenceProfile.fromDesignPreferences(
+      forgePrefs,
+      existing: existing,
+    );
     // Persist the updated profile. The preference provider will load it on
     // next read.
     SharedPrefsPreferenceStore().save(updated);
@@ -100,12 +107,14 @@ class _PreferenceSurveyScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Design Preferences'),
-        leading: _page > 0
-            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: _back)
-            : null,
-        actions: [
-          TextButton(onPressed: _skip, child: const Text('Skip')),
-        ],
+        leading:
+            _page > 0
+                ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: _back,
+                )
+                : null,
+        actions: [TextButton(onPressed: _skip, child: const Text('Skip'))],
       ),
       body: SafeArea(
         child: Column(
@@ -122,9 +131,10 @@ class _PreferenceSurveyScreenState
                         height: 4,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(2),
-                          color: i <= _page
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.surfaceContainerHighest,
+                          color:
+                              i <= _page
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.surfaceContainerHighest,
                         ),
                       ),
                     ),
@@ -139,23 +149,25 @@ class _PreferenceSurveyScreenState
                 children: [
                   _StyleStep(
                     selected: _selectedStyles,
-                    onToggle: (c) => setState(() {
-                      if (_selectedStyles.contains(c)) {
-                        _selectedStyles.remove(c);
-                      } else {
-                        _selectedStyles.add(c);
-                      }
-                    }),
+                    onToggle:
+                        (c) => setState(() {
+                          if (_selectedStyles.contains(c)) {
+                            _selectedStyles.remove(c);
+                          } else {
+                            _selectedStyles.add(c);
+                          }
+                        }),
                   ),
                   _ShapeStep(
                     selected: _selectedShapes,
-                    onToggle: (s) => setState(() {
-                      if (_selectedShapes.contains(s)) {
-                        _selectedShapes.remove(s);
-                      } else {
-                        _selectedShapes.add(s);
-                      }
-                    }),
+                    onToggle:
+                        (s) => setState(() {
+                          if (_selectedShapes.contains(s)) {
+                            _selectedShapes.remove(s);
+                          } else {
+                            _selectedShapes.add(s);
+                          }
+                        }),
                   ),
                   _GarmentStep(
                     darkGarment: _darkGarment,
@@ -221,13 +233,13 @@ class _StyleStep extends StatelessWidget {
   }
 
   String _clusterHint(StyleCluster c) => switch (c) {
-        StyleCluster.clean => 'Minimalist, premium',
-        StyleCluster.vintage => 'Retro, worn-in',
-        StyleCluster.bold => 'Street, grunge',
-        StyleCluster.relaxed => 'Beach, surf, outdoor',
-        StyleCluster.artistic => 'Maximal, creative',
-        StyleCluster.typographic => 'Type-forward',
-      };
+    StyleCluster.clean => 'Minimalist, premium',
+    StyleCluster.vintage => 'Retro, worn-in',
+    StyleCluster.bold => 'Street, grunge',
+    StyleCluster.relaxed => 'Beach, surf, outdoor',
+    StyleCluster.artistic => 'Maximal, creative',
+    StyleCluster.typographic => 'Type-forward',
+  };
 }
 
 class _ShapeStep extends StatelessWidget {
@@ -341,9 +353,10 @@ class _SelectableCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: selected
-          ? theme.colorScheme.primaryContainer
-          : theme.colorScheme.surfaceContainerHighest,
+      color:
+          selected
+              ? theme.colorScheme.primaryContainer
+              : theme.colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -352,9 +365,7 @@ class _SelectableCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected
-                  ? theme.colorScheme.primary
-                  : Colors.transparent,
+              color: selected ? theme.colorScheme.primary : Colors.transparent,
               width: 2,
             ),
           ),
@@ -362,14 +373,18 @@ class _SelectableCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(label,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                  )),
+              Text(
+                label,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(subtitle,
-                  style: theme.textTheme.bodySmall,
-                  textAlign: TextAlign.center),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),

@@ -117,8 +117,8 @@ class SlingshotWidgetState extends State<SlingshotWidget>
       vsync: this,
       duration: const Duration(milliseconds: 250),
     )..addListener(() {
-        setState(() {});
-      });
+      setState(() {});
+    });
     _snapController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() {
@@ -258,80 +258,91 @@ class SlingshotWidgetState extends State<SlingshotWidget>
 
     final targetBearing = widget.controller.targetBearingDeg;
 
-    return LayoutBuilder(builder: (context, constraints) {
-      final maxPixels = widget.maxDragPixels ??
-          constraints.maxHeight * WorldLeapConfig.maxPullFraction;
-      final anchor = Offset(constraints.maxWidth / 2, constraints.maxHeight / 2);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxPixels =
+            widget.maxDragPixels ??
+            constraints.maxHeight * WorldLeapConfig.maxPullFraction;
+        final anchor = Offset(
+          constraints.maxWidth / 2,
+          constraints.maxHeight / 2,
+        );
 
-      // Check if current aim is "on target" (within ±20° of target bearing).
-      final effectiveDelta = _effectiveDragDelta;
-      bool onTarget = false;
-      if (effectiveDelta != null && targetBearing != null) {
-        final aimBearing = computeBearing(effectiveDelta.dx, effectiveDelta.dy);
-        final diff = ((aimBearing - targetBearing) + 360) % 360;
-        onTarget = diff <= 20 || diff >= 340;
-      }
+        // Check if current aim is "on target" (within ±20° of target bearing).
+        final effectiveDelta = _effectiveDragDelta;
+        bool onTarget = false;
+        if (effectiveDelta != null && targetBearing != null) {
+          final aimBearing = computeBearing(
+            effectiveDelta.dx,
+            effectiveDelta.dy,
+          );
+          final diff = ((aimBearing - targetBearing) + 360) % 360;
+          onTarget = diff <= 20 || diff >= 340;
+        }
 
-      return Listener(
-        // translucent: pointer events also reach the map beneath, so the map
-        // can pan when the slingshot is not actively tracking.
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (event) {
-          if (_trackingPointer != null) return; // already tracking
-          final hitTest = widget.hitTestFn;
-          if (hitTest != null && !hitTest(event.localPosition)) return;
-          _trackingPointer = event.pointer;
-          _startTracking(event.localPosition);
-        },
-        onPointerMove: (event) {
-          if (event.pointer != _trackingPointer) return;
-          _updateTracking(event.localPosition, maxPixels);
-        },
-        onPointerUp: (event) {
-          if (event.pointer != _trackingPointer) return;
-          _endTracking(launch: true);
-        },
-        onPointerCancel: (event) {
-          if (event.pointer != _trackingPointer) return;
-          _endTracking(launch: false);
-        },
-        child: Stack(
-          children: [
-            CustomPaint(
-              size: Size(constraints.maxWidth, constraints.maxHeight),
-              painter: _SlingshotPainter(
-                anchor: anchor,
-                dragDelta: effectiveDelta,
-                maxDragPixels: maxPixels,
-                onTarget: onTarget,
+        return Listener(
+          // translucent: pointer events also reach the map beneath, so the map
+          // can pan when the slingshot is not actively tracking.
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (event) {
+            if (_trackingPointer != null) return; // already tracking
+            final hitTest = widget.hitTestFn;
+            if (hitTest != null && !hitTest(event.localPosition)) return;
+            _trackingPointer = event.pointer;
+            _startTracking(event.localPosition);
+          },
+          onPointerMove: (event) {
+            if (event.pointer != _trackingPointer) return;
+            _updateTracking(event.localPosition, maxPixels);
+          },
+          onPointerUp: (event) {
+            if (event.pointer != _trackingPointer) return;
+            _endTracking(launch: true);
+          },
+          onPointerCancel: (event) {
+            if (event.pointer != _trackingPointer) return;
+            _endTracking(launch: false);
+          },
+          child: Stack(
+            children: [
+              CustomPaint(
+                size: Size(constraints.maxWidth, constraints.maxHeight),
+                painter: _SlingshotPainter(
+                  anchor: anchor,
+                  dragDelta: effectiveDelta,
+                  maxDragPixels: maxPixels,
+                  onTarget: onTarget,
+                ),
               ),
-            ),
-            // "ON TARGET" flash label
-            if (onTarget && effectiveDelta != null)
-              Positioned(
-                left: anchor.dx - 50,
-                top: anchor.dy - 70,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    '🎯 ON TARGET',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+              // "ON TARGET" flash label
+              if (onTarget && effectiveDelta != null)
+                Positioned(
+                  left: anchor.dx - 50,
+                  top: anchor.dy - 70,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      '🎯 ON TARGET',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
-      );
-    });
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -399,9 +410,10 @@ class _SlingshotPainter extends CustomPainter {
       maxDragPixels: maxDragPixels,
     );
     // Gold dots when on target, white otherwise.
-    final dotColor = onTarget
-        ? const Color(0xFFFFD700).withValues(alpha: 0.9)
-        : Colors.white.withValues(alpha: 0.75);
+    final dotColor =
+        onTarget
+            ? const Color(0xFFFFD700).withValues(alpha: 0.9)
+            : Colors.white.withValues(alpha: 0.75);
     final dotPaint = Paint()..color = dotColor;
     for (int i = 0; i < dots.length; i++) {
       // Gradually increase dot size toward destination when on target.
@@ -410,10 +422,15 @@ class _SlingshotPainter extends CustomPainter {
     }
 
     // 4. Power arc
-    final arcPaint = Paint()
-      ..color = Color.lerp(Colors.green, Colors.red, power)!.withValues(alpha: 0.7)
-      ..strokeWidth = 4.0
-      ..style = PaintingStyle.stroke;
+    final arcPaint =
+        Paint()
+          ..color = Color.lerp(
+            Colors.green,
+            Colors.red,
+            power,
+          )!.withValues(alpha: 0.7)
+          ..strokeWidth = 4.0
+          ..style = PaintingStyle.stroke;
     canvas.drawArc(
       Rect.fromCircle(center: anchor, radius: 28),
       -math.pi / 2,
@@ -433,20 +450,19 @@ class _SlingshotPainter extends CustomPainter {
       const Radius.circular(4),
     );
     // Background track
-    canvas.drawRRect(
-      barRect,
-      Paint()..color = const Color(0x55FFFFFF),
-    );
+    canvas.drawRRect(barRect, Paint()..color = const Color(0x55FFFFFF));
     // Fill from bottom upward
     final fillHeight = barHeight * power;
     final fillRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(barLeft, barTop + barHeight - fillHeight, barWidth, fillHeight),
+      Rect.fromLTWH(
+        barLeft,
+        barTop + barHeight - fillHeight,
+        barWidth,
+        fillHeight,
+      ),
       const Radius.circular(4),
     );
-    canvas.drawRRect(
-      fillRect,
-      Paint()..color = bandColor,
-    );
+    canvas.drawRRect(fillRect, Paint()..color = bandColor);
   }
 
   @override

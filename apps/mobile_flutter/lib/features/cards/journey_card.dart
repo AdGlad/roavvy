@@ -124,23 +124,29 @@ class _JourneyCardState extends State<JourneyCard> {
       final range = widget.yearRange;
       final sorted = [...widget.trips]
         ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
-      final filtered = range == null
-          ? sorted
-          : sorted
-              .where((t) =>
-                  t.startedOn.year >= range.$1 && t.startedOn.year <= range.$2)
-              .toList();
+      final filtered =
+          range == null
+              ? sorted
+              : sorted
+                  .where(
+                    (t) =>
+                        t.startedOn.year >= range.$1 &&
+                        t.startedOn.year <= range.$2,
+                  )
+                  .toList();
       // Cap the number of stops so a very long history still fits; keep the
       // MOST RECENT [_maxStops] (drop the oldest) rather than truncating the
       // recent years, which read as "cut off at 20xx".
-      final capped = filtered.length > _maxStops
-          ? filtered.sublist(filtered.length - _maxStops)
-          : filtered;
+      final capped =
+          filtered.length > _maxStops
+              ? filtered.sublist(filtered.length - _maxStops)
+              : filtered;
       return [
         for (final t in capped)
           _Stop(
             code: t.countryCode.toLowerCase(),
-            label: kCountryNames[t.countryCode.toUpperCase()] ??
+            label:
+                kCountryNames[t.countryCode.toUpperCase()] ??
                 t.countryCode.toUpperCase(),
             sub: '${t.startedOn.year}',
           ),
@@ -159,10 +165,14 @@ class _JourneyCardState extends State<JourneyCard> {
     if (_preloadStarted) return;
     _preloadStarted = true;
     final codes = {for (final s in _stops()) s.code};
-    final pending = codes
-        .where((c) =>
-            FlagTileRenderer.hasSvg(c) && _cache.get(c, _flagWidth) == null)
-        .toList();
+    final pending =
+        codes
+            .where(
+              (c) =>
+                  FlagTileRenderer.hasSvg(c) &&
+                  _cache.get(c, _flagWidth) == null,
+            )
+            .toList();
     if (pending.isEmpty) {
       _fireLoaded();
       return;
@@ -191,9 +201,10 @@ class _JourneyCardState extends State<JourneyCard> {
         child: CustomPaint(
           painter: _JourneyPainter(
             stops: _stops(),
-            countryCount: widget.style == JourneyStyle.trips
-                ? {for (final s in _stops()) s.code}.length
-                : widget.countryCodes.length,
+            countryCount:
+                widget.style == JourneyStyle.trips
+                    ? {for (final s in _stops()) s.code}.length
+                    : widget.countryCodes.length,
             title: widget.title ?? 'MY JOURNEY',
             subtitleOverride: widget.subtitleOverride,
             dateLabel: widget.dateLabel,
@@ -243,16 +254,23 @@ class _JourneyPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0 || size.height <= 0) return;
 
-    final stripColor = transparentBackground
-        ? Colors.transparent
-        : CardTextRenderer.defaultStripColor;
-    final ink = textColor ??
+    final stripColor =
+        transparentBackground
+            ? Colors.transparent
+            : CardTextRenderer.defaultStripColor;
+    final ink =
+        textColor ??
         (transparentBackground
             ? Colors.white
             : CardTextRenderer.defaultTextColor);
 
-    CardTextRenderer.drawTitle(canvas, size, title,
-        textColor: ink, stripColor: stripColor);
+    CardTextRenderer.drawTitle(
+      canvas,
+      size,
+      title,
+      textColor: ink,
+      stripColor: stripColor,
+    );
     CardTextRenderer.drawBranding(
       canvas,
       size,
@@ -290,11 +308,14 @@ class _JourneyPainter extends CustomPainter {
     final showName = cellH >= 42;
     final showYear = hasSub && cellH >= 26;
     final labelLines = (showName ? 1 : 0) + (showYear ? 1 : 0);
-    final labelH = labelLines == 0
-        ? 0.0
-        : (cellH * (labelLines == 2 ? 0.34 : 0.20)).clamp(8.0, 34.0);
-    final radius =
-        (math.min(cellW, cellH - labelH) * 0.5 * 0.74).clamp(4.0, 90.0);
+    final labelH =
+        labelLines == 0
+            ? 0.0
+            : (cellH * (labelLines == 2 ? 0.34 : 0.20)).clamp(8.0, 34.0);
+    final radius = (math.min(cellW, cellH - labelH) * 0.5 * 0.74).clamp(
+      4.0,
+      90.0,
+    );
     final ring = math.max(1.2, radius * 0.10);
 
     final centers = <Offset>[];
@@ -310,25 +331,33 @@ class _JourneyPainter extends CustomPainter {
     // 1. Dotted winding route + origin/destination pins.
     if (n >= 2) {
       final route = _smoothPathThrough(centers);
-      final routePaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(1.2, radius * 0.09)
-        ..strokeCap = StrokeCap.round
-        ..color = ink.withValues(alpha: 0.55);
+      final routePaint =
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = math.max(1.2, radius * 0.09)
+            ..strokeCap = StrokeCap.round
+            ..color = ink.withValues(alpha: 0.55);
       final dash = math.max(3.0, radius * 0.14);
       _drawDashedPath(canvas, route, routePaint, dash: dash, gap: dash * 0.9);
 
       final pinR = math.max(3.0, radius * 0.28);
-      final pinPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(1.2, radius * 0.08)
-        ..color = ink.withValues(alpha: 0.7);
+      final pinPaint =
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = math.max(1.2, radius * 0.08)
+            ..color = ink.withValues(alpha: 0.7);
       final startDir = _dir(centers[1], centers[0]);
       final endDir = _dir(centers[n - 2], centers[n - 1]);
       canvas.drawCircle(
-          centers.first + startDir * (radius + ring + pinR + 3), pinR, pinPaint);
+        centers.first + startDir * (radius + ring + pinR + 3),
+        pinR,
+        pinPaint,
+      );
       canvas.drawCircle(
-          centers.last + endDir * (radius + ring + pinR + 3), pinR, pinPaint);
+        centers.last + endDir * (radius + ring + pinR + 3),
+        pinR,
+        pinPaint,
+      );
     }
 
     // 2. Flag stops + labels, in route order.
@@ -341,8 +370,9 @@ class _JourneyPainter extends CustomPainter {
         center,
         radius + ring,
         Paint()
-          ..color = (transparentBackground ? Colors.white : ink)
-              .withValues(alpha: 0.12),
+          ..color = (transparentBackground ? Colors.white : ink).withValues(
+            alpha: 0.12,
+          ),
       );
 
       final image = cache.get(stop.code, flagWidth);
@@ -393,8 +423,16 @@ class _JourneyPainter extends CustomPainter {
   }
 
   /// Draws a centred single-line label at (cx, top); returns the y below it.
-  double _drawLabel(Canvas canvas, String text, double cx, double top,
-      double maxW, double fontSize, FontWeight weight, Color color) {
+  double _drawLabel(
+    Canvas canvas,
+    String text,
+    double cx,
+    double top,
+    double maxW,
+    double fontSize,
+    FontWeight weight,
+    Color color,
+  ) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
@@ -449,17 +487,26 @@ class _JourneyPainter extends CustomPainter {
       final p1 = pts[i];
       final p2 = pts[i + 1];
       final p3 = pts[i + 2 >= pts.length ? pts.length - 1 : i + 2];
-      final c1 =
-          Offset(p1.dx + (p2.dx - p0.dx) / 6, p1.dy + (p2.dy - p0.dy) / 6);
-      final c2 =
-          Offset(p2.dx - (p3.dx - p1.dx) / 6, p2.dy - (p3.dy - p1.dy) / 6);
+      final c1 = Offset(
+        p1.dx + (p2.dx - p0.dx) / 6,
+        p1.dy + (p2.dy - p0.dy) / 6,
+      );
+      final c2 = Offset(
+        p2.dx - (p3.dx - p1.dx) / 6,
+        p2.dy - (p3.dy - p1.dy) / 6,
+      );
       path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
     }
     return path;
   }
 
-  static void _drawDashedPath(Canvas canvas, Path path, Paint paint,
-      {required double dash, required double gap}) {
+  static void _drawDashedPath(
+    Canvas canvas,
+    Path path,
+    Paint paint, {
+    required double dash,
+    required double gap,
+  }) {
     for (final metric in path.computeMetrics()) {
       var dist = 0.0;
       while (dist < metric.length) {

@@ -88,9 +88,7 @@ class MerchCartScreen extends ConsumerWidget {
                           ? () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder:
-                                  (_) => CartItemCheckoutScreen(
-                                    item: items[i],
-                                  ),
+                                  (_) => CartItemCheckoutScreen(item: items[i]),
                             ),
                           )
                           : null,
@@ -142,9 +140,7 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
       if (uid != null) {
         MerchCartRepository(FirebaseFirestore.instance)
             .markCheckoutAbandoned(uid, widget.item.id)
-            .catchError(
-              (e) => debugPrint('[cart] markCheckoutAbandoned: $e'),
-            );
+            .catchError((e) => debugPrint('[cart] markCheckoutAbandoned: $e'));
       }
     }
   }
@@ -181,7 +177,10 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
     }
     final base = Uri.parse(url);
     final uri = base.replace(
-      queryParameters: {...base.queryParameters, 'return_to': 'roavvy://return'},
+      queryParameters: {
+        ...base.queryParameters,
+        'return_to': 'roavvy://return',
+      },
     );
     if (!mounted) return;
     final launched = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
@@ -218,9 +217,7 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
         .doc(widget.item.id);
 
     for (int attempt = 0; attempt < _pollMaxAttempts; attempt++) {
-      await Future<void>.delayed(
-        const Duration(seconds: _pollIntervalSeconds),
-      );
+      await Future<void>.delayed(const Duration(seconds: _pollIntervalSeconds));
       if (!mounted) return;
       try {
         final snap = await docRef.get();
@@ -228,17 +225,17 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
           _checkoutLaunched = false;
           _pollingInProgress = false;
           if (!mounted) return;
-          final product = widget.item.isTshirt
-              ? MerchProduct.tshirt
-              : MerchProduct.poster;
+          final product =
+              widget.item.isTshirt ? MerchProduct.tshirt : MerchProduct.poster;
           await Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => MerchPostPurchaseScreen(
-                product: product,
-                countryCount: widget.item.selectedCountryCodes.length,
-                frontMockupUrl: widget.item.frontMockupUrl,
-                designTitle: widget.item.title,
-              ),
+              builder:
+                  (_) => MerchPostPurchaseScreen(
+                    product: product,
+                    countryCount: widget.item.selectedCountryCodes.length,
+                    frontMockupUrl: widget.item.frontMockupUrl,
+                    designTitle: widget.item.title,
+                  ),
             ),
           );
           return;
@@ -257,22 +254,23 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text("We're processing your order"),
-        content: const Text(
-          "If you completed payment, you'll receive a confirmation email "
-          'shortly. Your order will appear in your order history once confirmed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            child: const Text('Back to map'),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text("We're processing your order"),
+            content: const Text(
+              "If you completed payment, you'll receive a confirmation email "
+              'shortly. Your order will appear in your order history once confirmed.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                child: const Text('Back to map'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -472,9 +470,10 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
                       const SizedBox(width: 12),
                       Expanded(
                         child: FilledButton(
-                          onPressed: (_confirmed && canCheckout)
-                              ? _launchCheckout
-                              : null,
+                          onPressed:
+                              (_confirmed && canCheckout)
+                                  ? _launchCheckout
+                                  : null,
                           child: const Text('Proceed to Checkout'),
                         ),
                       ),

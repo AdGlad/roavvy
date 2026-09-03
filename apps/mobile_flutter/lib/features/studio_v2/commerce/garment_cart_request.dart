@@ -111,14 +111,20 @@ GarmentCartRequest buildGarmentCartRequest(
         () async => bakePlacement(
           (await service.renderArtwork(hero)).pngBytes,
           backPlacement,
-          printAreaAspect: _printAspect(BundledGarments.backPrintArea),
+          printAreaAspect: printAreaAspect(
+            BundledGarments.backPrintArea,
+            BundledGarments.tintBaseBackSize,
+          ),
         ),
     renderFrontArtwork:
         hasFrontPrint
             ? () async => bakePlacement(
               (await service.renderArtwork(frontFace)).pngBytes,
               frontPlacement,
-              printAreaAspect: _printAspect(c.frontPrintRect()),
+              printAreaAspect: printAreaAspect(
+                c.frontPrintRect(),
+                BundledGarments.tintBaseFrontSize,
+              ),
             )
             : null,
     garmentColourHex: hero.palette?.garmentColour,
@@ -139,12 +145,3 @@ GarmentCartRequest buildGarmentCartRequest(
     title: c.currentTitle.isEmpty ? null : c.currentTitle,
   );
 }
-
-/// The printable area's width/height, used to shape the baked print file so a
-/// placement means the same thing on the shirt and in the file.
-double _printAspect(Rect r) =>
-    r.height <= 0 ? 1.0 : (r.width * _garmentAspect) / r.height;
-
-/// Print areas are expressed as fractions of the garment photograph, which is
-/// itself portrait — so a square-looking region is not a square rect.
-const double _garmentAspect = 3 / 4;

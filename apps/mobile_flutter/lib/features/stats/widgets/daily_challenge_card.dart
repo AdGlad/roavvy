@@ -42,8 +42,7 @@ class DailyChallengeCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              if (isWarm)
-                _StreakBadge(streak: agg.currentStreak, isHot: isHot),
+              if (isWarm) _StreakBadge(streak: agg.currentStreak, isHot: isHot),
             ],
           ),
           const SizedBox(height: 10),
@@ -84,8 +83,7 @@ class DailyChallengeCard extends StatelessWidget {
                             ? '—'
                             : '${(solveRate * 100).round()}%',
                     icon: Icons.check_circle_outline,
-                    iconColor:
-                        solveRate == 1.0 ? Colors.amber : Colors.green,
+                    iconColor: solveRate == 1.0 ? Colors.amber : Colors.green,
                   ),
                 ),
                 _VerticalDivider(),

@@ -133,23 +133,24 @@ class _TravelStoryScreenState extends State<TravelStoryScreen> {
     final d = widget.data;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LocalMockupPreviewScreen(
-          selectedCodes: d.merchOption.codes,
-          allCodes: d.countryCodes,
-          trips: d.merchOption.trips,
-          initialTemplate: d.merchOption.template,
-          initialPreset: MerchPreset(
-            id: 'travel_story',
-            label: 'Travel Story',
-            config: MerchPresetConfig(
-              layout: d.merchOption.template,
-              source: MerchCountrySource.allTime,
-              jitter: 0.4,
-              density: MerchDensity.balanced,
-              stampMode: MerchStampMode.entryExit,
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: d.merchOption.codes,
+              allCodes: d.countryCodes,
+              trips: d.merchOption.trips,
+              initialTemplate: d.merchOption.template,
+              initialPreset: MerchPreset(
+                id: 'travel_story',
+                label: 'Travel Story',
+                config: MerchPresetConfig(
+                  layout: d.merchOption.template,
+                  source: MerchCountrySource.allTime,
+                  jitter: 0.4,
+                  density: MerchDensity.balanced,
+                  stampMode: MerchStampMode.entryExit,
+                ),
+              ),
             ),
-          ),
-        ),
       ),
     );
   }
@@ -170,19 +171,13 @@ class _TravelStoryScreenState extends State<TravelStoryScreen> {
       backgroundColor: const Color(0xFF0D1117),
       body: Stack(
         children: [
-          PageView(
-            controller: _controller,
-            children: _pages,
-          ),
+          PageView(controller: _controller, children: _pages),
           // Page indicator dots at bottom
           Positioned(
             left: 0,
             right: 0,
             bottom: 40,
-            child: _DotIndicator(
-              count: _pages.length,
-              controller: _controller,
-            ),
+            child: _DotIndicator(count: _pages.length, controller: _controller),
           ),
           // Close button top-right
           Positioned(
@@ -269,10 +264,7 @@ class _StoryPageState extends State<_StoryPage>
           bottom: false,
           child: FadeTransition(
             opacity: _fade,
-            child: SlideTransition(
-              position: _slide,
-              child: widget.child,
-            ),
+            child: SlideTransition(position: _slide, child: widget.child),
           ),
         ),
       ),
@@ -662,10 +654,11 @@ class _FlagStrip extends StatelessWidget {
         padding: EdgeInsets.zero,
         itemCount: math.min(codes.length, 20),
         separatorBuilder: (_, __) => const SizedBox(width: 4),
-        itemBuilder: (_, i) => Text(
-          _flagEmoji(codes[i]),
-          style: const TextStyle(fontSize: 24),
-        ),
+        itemBuilder:
+            (_, i) => Text(
+              _flagEmoji(codes[i]),
+              style: const TextStyle(fontSize: 24),
+            ),
       ),
     );
   }
@@ -700,9 +693,8 @@ class _DotIndicatorState extends State<_DotIndicator> {
 
   @override
   Widget build(BuildContext context) {
-    final page = widget.controller.hasClients
-        ? (widget.controller.page ?? 0)
-        : 0.0;
+    final page =
+        widget.controller.hasClients ? (widget.controller.page ?? 0) : 0.0;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

@@ -179,9 +179,7 @@ class _CountryRegionGlobeScreenState
         future: _visitedCodesFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
           final visitedCodes = snapshot.data!;
 

@@ -162,13 +162,18 @@ class _PulseMerchOptionScreenState
             : 'Your travels';
     final heroTrip =
         widget.hero.tripId != null
-            ? widget.allTrips.where((t) => t.id == widget.hero.tripId).firstOrNull
+            ? widget.allTrips
+                .where((t) => t.id == widget.hero.tripId)
+                .firstOrNull
             : null;
-    final yearTrips = widget.allTrips.where((t) => t.startedOn.year == year).toList();
+    final yearTrips =
+        widget.allTrips.where((t) => t.startedOn.year == year).toList();
     final yearCodes = yearTrips.map((t) => t.countryCode).toSet().toList();
     final countryTrips =
         heroCountryCode.isNotEmpty
-            ? widget.allTrips.where((t) => t.countryCode == heroCountryCode).toList()
+            ? widget.allTrips
+                .where((t) => t.countryCode == heroCountryCode)
+                .toList()
             : const <TripRecord>[];
     final allCodes = widget.allVisits.map((v) => v.countryCode).toList();
 
@@ -218,8 +223,9 @@ class _PulseMerchOptionScreenState
   Widget build(BuildContext context) {
     final landmarkAvailable =
         ref.watch(imagePlaygroundAvailableProvider).valueOrNull ?? false;
-    final (:flatOptions, allItems: _) =
-        _buildData(landmarkAvailable: landmarkAvailable);
+    final (:flatOptions, allItems: _) = _buildData(
+      landmarkAvailable: landmarkAvailable,
+    );
     final allCodes = widget.allVisits.map((v) => v.countryCode).toList();
     final year = widget.hero.capturedAt.year;
     final heroCountryCode = widget.hero.countryCode ?? '';
@@ -245,7 +251,10 @@ class _PulseMerchOptionScreenState
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
                 'Inspired by $countryName · $year',
-                style: TextStyle(color: pmoCs.onSurface.withValues(alpha: 0.54), fontSize: 13),
+                style: TextStyle(
+                  color: pmoCs.onSurface.withValues(alpha: 0.54),
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
@@ -288,11 +297,12 @@ class _ExclusiveDesignsSection extends StatelessWidget {
 
   MerchUnlockContext _buildCtx() {
     final countryCount = allVisits.length;
-    final continentCount = allVisits
-        .map((v) => kCountryContinent[v.countryCode])
-        .whereType<String>()
-        .toSet()
-        .length;
+    final continentCount =
+        allVisits
+            .map((v) => kCountryContinent[v.countryCode])
+            .whereType<String>()
+            .toSet()
+            .length;
     return MerchUnlockContext(
       countryCount: countryCount,
       continentCount: continentCount,
@@ -304,11 +314,12 @@ class _ExclusiveDesignsSection extends StatelessWidget {
     final ctx = _buildCtx();
     const nearMissThreshold = 15;
 
-    final toShow = kMerchExclusiveDesigns.where((d) {
-      if (d.isUnlocked(ctx)) return true;
-      final rem = d.remaining(ctx);
-      return rem > 0 && rem <= nearMissThreshold;
-    }).toList();
+    final toShow =
+        kMerchExclusiveDesigns.where((d) {
+          if (d.isUnlocked(ctx)) return true;
+          final rem = d.remaining(ctx);
+          return rem > 0 && rem <= nearMissThreshold;
+        }).toList();
 
     if (toShow.isEmpty) return const SizedBox(height: 40);
 
@@ -321,13 +332,17 @@ class _ExclusiveDesignsSection extends StatelessWidget {
         children: [
           Divider(
             height: 1,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.12),
           ),
           const SizedBox(height: 12),
           Text(
             'EXCLUSIVE DESIGNS',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.38),
               letterSpacing: 1.2,
             ),
           ),
@@ -336,8 +351,9 @@ class _ExclusiveDesignsSection extends StatelessWidget {
             (d) => MerchLockedDesignCard(
               design: d,
               ctx: ctx,
-              onUnlockedTap: d.isUnlocked(ctx)
-                  ? () => Navigator.of(context).push(
+              onUnlockedTap:
+                  d.isUnlocked(ctx)
+                      ? () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder:
                               (_) => LocalMockupPreviewScreen(
@@ -359,7 +375,7 @@ class _ExclusiveDesignsSection extends StatelessWidget {
                               ),
                         ),
                       )
-                  : null,
+                      : null,
             ),
           ),
         ],

@@ -12,10 +12,13 @@ import '../../world_leap_config.dart';
 /// Not a singleton — instantiate in the game screen and call [dispose] when
 /// the screen is removed from the tree.
 class WorldLeapAudioService {
-  WorldLeapAudioService({AudioPlayer? player, AudioPlayer? windPlayer, SharedPreferences? prefs})
-      : _player = player ?? AudioPlayer(),
-        _windPlayer = windPlayer ?? AudioPlayer(),
-        _prefs = prefs;
+  WorldLeapAudioService({
+    AudioPlayer? player,
+    AudioPlayer? windPlayer,
+    SharedPreferences? prefs,
+  }) : _player = player ?? AudioPlayer(),
+       _windPlayer = windPlayer ?? AudioPlayer(),
+       _prefs = prefs;
 
   final AudioPlayer _player;
 
@@ -82,7 +85,8 @@ class WorldLeapAudioService {
 
   Future<void> stop() => Future.wait([_player.stop(), _windPlayer.stop()]);
 
-  Future<void> dispose() => Future.wait([_player.dispose(), _windPlayer.dispose()]);
+  Future<void> dispose() =>
+      Future.wait([_player.dispose(), _windPlayer.dispose()]);
 
   Future<void> _play(String asset) async {
     if (_muted) return;

@@ -180,12 +180,13 @@ class _DeepestRegionCardView extends StatelessWidget {
               tween: Tween(begin: 0, end: fraction),
               duration: const Duration(milliseconds: 900),
               curve: Curves.easeOut,
-              builder: (_, value, __) => LinearProgressIndicator(
-                value: value,
-                minHeight: 8,
-                backgroundColor: color.withValues(alpha: 0.18),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
+              builder:
+                  (_, value, __) => LinearProgressIndicator(
+                    value: value,
+                    minHeight: 8,
+                    backgroundColor: color.withValues(alpha: 0.18),
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                  ),
             ),
           ),
           const SizedBox(height: 10),
@@ -210,11 +211,12 @@ class _DeepestRegionCardView extends StatelessWidget {
           const SizedBox(height: 16),
           // CTA
           FilledButton.tonal(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ContinentExplorerScreen(),
-              ),
-            ),
+            onPressed:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ContinentExplorerScreen(),
+                  ),
+                ),
             style: FilledButton.styleFrom(
               backgroundColor: color.withValues(alpha: 0.18),
               foregroundColor: color,

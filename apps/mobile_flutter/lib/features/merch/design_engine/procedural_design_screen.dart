@@ -63,7 +63,8 @@ class _ProceduralDesignScreenState
   bool _opening = false; // guards against double-open while rendering print art
   int _seed = 1;
   CardRenderThumbnailer? _thumbnailer;
-  CardRenderThumbnailer? _printRenderer; // higher-res, for the exact print source
+  CardRenderThumbnailer?
+  _printRenderer; // higher-res, for the exact print source
   MergedFlagRenderer? _merged;
   int _runToken = 0;
 
@@ -76,9 +77,10 @@ class _ProceduralDesignScreenState
 
   DesignContext _contextFor() {
     final codes = widget.codes;
-    final scope = codes.length <= 1
-        ? DesignScope.singleCountry
-        : DesignScope.multiCountry;
+    final scope =
+        codes.length <= 1
+            ? DesignScope.singleCountry
+            : DesignScope.multiCountry;
     return DesignContext.of(
       scope: scope,
       countryCodes: codes,
@@ -89,9 +91,10 @@ class _ProceduralDesignScreenState
 
   List<TripRecord> _tripsFor(List<String> codes) {
     final set = codes.map((c) => c.toUpperCase()).toSet();
-    final scoped = widget.trips
-        .where((t) => set.contains(t.countryCode.toUpperCase()))
-        .toList();
+    final scoped =
+        widget.trips
+            .where((t) => set.contains(t.countryCode.toUpperCase()))
+            .toList();
     return scoped.isEmpty ? widget.trips : scoped;
   }
 
@@ -131,8 +134,10 @@ class _ProceduralDesignScreenState
     // Render artwork WITHOUT the baked-in title/footer so the destructive
     // print-style passes can never tear or clip the text; the label is
     // composited back as a separate full layer below (see [_composeText]).
-    _thumbnailer ??=
-        CardRenderThumbnailer.forContext(context, suppressText: true);
+    _thumbnailer ??= CardRenderThumbnailer.forContext(
+      context,
+      suppressText: true,
+    );
     try {
       _merged ??= await MergedFlagRenderer.load(); // GPU flag-blend renderer
     } catch (_) {
@@ -148,12 +153,16 @@ class _ProceduralDesignScreenState
         // Fall back to the normal composition thumbnail if not a merge (or if
         // the merge couldn't render).
         bytes ??= await _thumbnailer!.renderThumbnail(
-            it.design.params, _tripsFor(it.design.recipe.countryCodes));
+          it.design.params,
+          _tripsFor(it.design.recipe.countryCodes),
+        );
         // Apply the recipe's continuous treatment genes (distress/grain/
         // halftone/fade) so the feed shows the actual look.
         if (it.design.recipe.hasTreatment) {
-          bytes = await PrintStylePipeline.instance
-              .applyToBytes(bytes, it.design.recipe.toPrintStyleParams());
+          bytes = await PrintStylePipeline.instance.applyToBytes(
+            bytes,
+            it.design.recipe.toPrintStyleParams(),
+          );
         }
         // Composite the title/footer as a separate, un-clippable layer on top of
         // the styled artwork (merged/GPU designs carry no card text, so skip).
@@ -179,11 +188,12 @@ class _ProceduralDesignScreenState
   void _showVariations(_ProcItem it) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => VariationGridScreen(
-          anchor: it.design,
-          allCodes: widget.allCodes,
-          trips: _tripsFor(it.design.recipe.countryCodes),
-        ),
+        builder:
+            (_) => VariationGridScreen(
+              anchor: it.design,
+              allCodes: widget.allCodes,
+              trips: _tripsFor(it.design.recipe.countryCodes),
+            ),
       ),
     );
   }
@@ -220,13 +230,21 @@ class _ProceduralDesignScreenState
     Uint8List? art;
     setState(() => _opening = true);
     try {
-      _printRenderer ??= CardRenderThumbnailer.forContext(context,
-          pixelRatio: 5.0, cacheCapacity: 8, suppressText: true);
-      art = await _printRenderer!
-          .renderThumbnail(params, _tripsFor(params.countryCodes));
+      _printRenderer ??= CardRenderThumbnailer.forContext(
+        context,
+        pixelRatio: 5.0,
+        cacheCapacity: 8,
+        suppressText: true,
+      );
+      art = await _printRenderer!.renderThumbnail(
+        params,
+        _tripsFor(params.countryCodes),
+      );
       if (it.design.recipe.hasTreatment) {
-        art = await PrintStylePipeline.instance
-            .applyToBytes(art, it.design.recipe.toPrintStyleParams());
+        art = await PrintStylePipeline.instance.applyToBytes(
+          art,
+          it.design.recipe.toPrintStyleParams(),
+        );
       }
       // Composite the title/footer on top of the styled print artwork so the
       // preview/print reproduce the feed pixel-for-pixel, with legible text.
@@ -240,37 +258,40 @@ class _ProceduralDesignScreenState
     if (art != null) {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => LocalMockupPreviewScreen(
-            selectedCodes: params.countryCodes,
-            allCodes: widget.allCodes,
-            trips: _tripsFor(params.countryCodes),
-            artworkImageBytes: art, // the exact feed image = the first frame
-            // NOT fixedArtwork: the card-rendered artwork can be re-generated, so
-            // re-configuring (orientation / flag count / colour / title) works.
-            // The recipe's STYLE recipe below is re-applied on every render so it
-            // never reverts to the plain template.
-            autoStyleParams: it.design.recipe.toPrintStyleParams(),
-            autoShowTitle: it.design.recipe.showTitle,
-            autoShowFooter: it.design.recipe.showFooter,
-            initialTemplate: params.template,
-            // Layout genome — so a re-render regenerates the SAME composition.
-            initialPreset: MerchPreset(
-              id: 'proc_${it.design.recipe.recipeId.hashCode}',
-              label: 'Auto design',
-              config: params.toPresetConfig(),
-            ),
-            confirmedAspectRatio: params.isPortrait ? 4 / 5 : 5 / 4,
-            transparentBackground: true,
-            initialColour: params.shirtColour,
-            gridLayoutMode: params.gridLayoutMode,
-            clipShape: params.clipShape,
-            clipCode: params.clipCode,
-            continentKey: params.clipShape == GridClipShape.continentOutline
-                ? params.clipCode
-                : null,
-            flagRepeatCount: params.rowCount,
-            rowCount: params.rowCount,
-          ),
+          builder:
+              (_) => LocalMockupPreviewScreen(
+                selectedCodes: params.countryCodes,
+                allCodes: widget.allCodes,
+                trips: _tripsFor(params.countryCodes),
+                artworkImageBytes:
+                    art, // the exact feed image = the first frame
+                // NOT fixedArtwork: the card-rendered artwork can be re-generated, so
+                // re-configuring (orientation / flag count / colour / title) works.
+                // The recipe's STYLE recipe below is re-applied on every render so it
+                // never reverts to the plain template.
+                autoStyleParams: it.design.recipe.toPrintStyleParams(),
+                autoShowTitle: it.design.recipe.showTitle,
+                autoShowFooter: it.design.recipe.showFooter,
+                initialTemplate: params.template,
+                // Layout genome — so a re-render regenerates the SAME composition.
+                initialPreset: MerchPreset(
+                  id: 'proc_${it.design.recipe.recipeId.hashCode}',
+                  label: 'Auto design',
+                  config: params.toPresetConfig(),
+                ),
+                confirmedAspectRatio: params.isPortrait ? 4 / 5 : 5 / 4,
+                transparentBackground: true,
+                initialColour: params.shirtColour,
+                gridLayoutMode: params.gridLayoutMode,
+                clipShape: params.clipShape,
+                clipCode: params.clipCode,
+                continentKey:
+                    params.clipShape == GridClipShape.continentOutline
+                        ? params.clipCode
+                        : null,
+                flagRepeatCount: params.rowCount,
+                rowCount: params.rowCount,
+              ),
         ),
       );
       return;
@@ -278,28 +299,30 @@ class _ProceduralDesignScreenState
     // Fallback: preset-driven generation (opens even if the exact render fails).
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LocalMockupPreviewScreen(
-          selectedCodes: params.countryCodes,
-          allCodes: widget.allCodes,
-          trips: _tripsFor(params.countryCodes),
-          initialTemplate: params.template,
-          initialPreset: MerchPreset(
-            id: 'proc_${it.design.recipe.recipeId.hashCode}',
-            label: 'Auto design',
-            config: params.toPresetConfig(),
-          ),
-          confirmedAspectRatio: merchBackCardAspectRatio(params.template),
-          transparentBackground: true,
-          initialColour: params.shirtColour,
-          gridLayoutMode: params.gridLayoutMode,
-          clipShape: params.clipShape,
-          clipCode: params.clipCode,
-          continentKey: params.clipShape == GridClipShape.continentOutline
-              ? params.clipCode
-              : null,
-          flagRepeatCount: params.rowCount,
-          rowCount: params.rowCount,
-        ),
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: params.countryCodes,
+              allCodes: widget.allCodes,
+              trips: _tripsFor(params.countryCodes),
+              initialTemplate: params.template,
+              initialPreset: MerchPreset(
+                id: 'proc_${it.design.recipe.recipeId.hashCode}',
+                label: 'Auto design',
+                config: params.toPresetConfig(),
+              ),
+              confirmedAspectRatio: merchBackCardAspectRatio(params.template),
+              transparentBackground: true,
+              initialColour: params.shirtColour,
+              gridLayoutMode: params.gridLayoutMode,
+              clipShape: params.clipShape,
+              clipCode: params.clipCode,
+              continentKey:
+                  params.clipShape == GridClipShape.continentOutline
+                      ? params.clipCode
+                      : null,
+              flagRepeatCount: params.rowCount,
+              rowCount: params.rowCount,
+            ),
       ),
     );
   }
@@ -316,8 +339,10 @@ class _ProceduralDesignScreenState
       _merged ??= await MergedFlagRenderer.load();
       art = await _merged!.renderPng(r, size: 1024);
       if (art != null && r.hasTreatment) {
-        art = await PrintStylePipeline.instance
-            .applyToBytes(art, r.toPrintStyleParams());
+        art = await PrintStylePipeline.instance.applyToBytes(
+          art,
+          r.toPrintStyleParams(),
+        );
       }
     } catch (_) {
       art = null;
@@ -331,17 +356,20 @@ class _ProceduralDesignScreenState
     setState(() => _opening = false);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LocalMockupPreviewScreen(
-          selectedCodes: r.countryCodes,
-          allCodes: widget.allCodes,
-          trips: _tripsFor(r.countryCodes),
-          artworkImageBytes: art, // pre-rendered merged artwork (print source)
-          fixedArtwork: true, // never regenerate from a template on colour change
-          initialTemplate: CardTemplateType.grid,
-          confirmedAspectRatio: 1.0, // square merged flag
-          transparentBackground: true,
-          initialColour: r.garmentColour,
-        ),
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: r.countryCodes,
+              allCodes: widget.allCodes,
+              trips: _tripsFor(r.countryCodes),
+              artworkImageBytes:
+                  art, // pre-rendered merged artwork (print source)
+              fixedArtwork:
+                  true, // never regenerate from a template on colour change
+              initialTemplate: CardTemplateType.grid,
+              confirmedAspectRatio: 1.0, // square merged flag
+              transparentBackground: true,
+              initialColour: r.garmentColour,
+            ),
       ),
     );
   }
@@ -421,26 +449,33 @@ class _ProceduralDesignScreenState
   Widget _buildBody(ThemeData theme) {
     if (widget.codes.isEmpty) {
       return Center(
-        child: Text('Pick at least one country first.',
-            style: theme.textTheme.bodyMedium),
+        child: Text(
+          'Pick at least one country first.',
+          style: theme.textTheme.bodyMedium,
+        ),
       );
     }
     if (_items.isEmpty) {
       return Center(
-        child: _loading
-            ? const CircularProgressIndicator()
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.brush_outlined, size: 40),
-                  const SizedBox(height: 12),
-                  Text('Couldn’t compose a design from this selection.',
-                      style: theme.textTheme.bodyMedium),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                      onPressed: _regenerate, child: const Text('Try again')),
-                ],
-              ),
+        child:
+            _loading
+                ? const CircularProgressIndicator()
+                : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.brush_outlined, size: 40),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Couldn’t compose a design from this selection.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _regenerate,
+                      child: const Text('Try again'),
+                    ),
+                  ],
+                ),
       );
     }
     return GridView.builder(
@@ -451,12 +486,13 @@ class _ProceduralDesignScreenState
         childAspectRatio: 0.82,
       ),
       itemCount: _items.length,
-      itemBuilder: (context, i) => _ProcCard(
-        item: _items[i],
-        onTap: () => _openDesign(_items[i]),
-        onSave: () => _toggleSave(_items[i]),
-        onMoreLikeThis: () => _showVariations(_items[i]),
-      ),
+      itemBuilder:
+          (context, i) => _ProcCard(
+            item: _items[i],
+            onTap: () => _openDesign(_items[i]),
+            onSave: () => _toggleSave(_items[i]),
+            onMoreLikeThis: () => _showVariations(_items[i]),
+          ),
     );
   }
 }
@@ -498,10 +534,14 @@ class _ProcCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Center(
-                  child: item.thumb == null
-                      ? const CircularProgressIndicator()
-                      : Image.memory(item.thumb!,
-                          fit: BoxFit.contain, gaplessPlayback: true),
+                  child:
+                      item.thumb == null
+                          ? const CircularProgressIndicator()
+                          : Image.memory(
+                            item.thumb!,
+                            fit: BoxFit.contain,
+                            gaplessPlayback: true,
+                          ),
                 ),
               ),
             ),
@@ -515,8 +555,11 @@ class _ProcCard extends StatelessWidget {
                     IconButton(
                       iconSize: 18,
                       tooltip: 'More like this',
-                      icon: const Icon(Icons.auto_awesome,
-                          color: Colors.white70, size: 18),
+                      icon: const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.white70,
+                        size: 18,
+                      ),
                       onPressed: onMoreLikeThis,
                     ),
                   IconButton(

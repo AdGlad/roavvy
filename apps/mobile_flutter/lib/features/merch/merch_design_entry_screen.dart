@@ -101,13 +101,9 @@ class _MerchDesignEntryScreenState
         final year = DateTime.now().year;
         return visits.any((v) => v.firstSeen?.year == year);
       case MerchDesignFilterChip.europe:
-        return visits.any(
-          (v) => kCountryContinent[v.countryCode] == 'Europe',
-        );
+        return visits.any((v) => kCountryContinent[v.countryCode] == 'Europe');
       case MerchDesignFilterChip.asia:
-        return visits.any(
-          (v) => kCountryContinent[v.countryCode] == 'Asia',
-        );
+        return visits.any((v) => kCountryContinent[v.countryCode] == 'Asia');
       case MerchDesignFilterChip.americas:
         return visits.any((v) {
           final c = kCountryContinent[v.countryCode];
@@ -137,15 +133,10 @@ class _MerchDesignEntryScreenState
     final deTheme = Theme.of(context);
     final deCs = deTheme.colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Design a shirt'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Design a shirt'), elevation: 0),
       body: visitsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Text('Could not load visits: $e'),
-        ),
+        error: (e, _) => Center(child: Text('Could not load visits: $e')),
         data: (visits) {
           // Initialise selection on first data load.
           if (!_initialised) {
@@ -154,10 +145,9 @@ class _MerchDesignEntryScreenState
           }
 
           final sortedVisits = [...visits]..sort(
-            (a, b) =>
-                (kCountryNames[a.countryCode] ?? a.countryCode).compareTo(
-                  kCountryNames[b.countryCode] ?? b.countryCode,
-                ),
+            (a, b) => (kCountryNames[a.countryCode] ?? a.countryCode).compareTo(
+              kCountryNames[b.countryCode] ?? b.countryCode,
+            ),
           );
 
           final chips = [
@@ -177,7 +167,10 @@ class _MerchDesignEntryScreenState
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                 child: Text(
                   '${visits.length} ${visits.length == 1 ? "country" : "countries"} in your collection',
-                  style: TextStyle(color: deCs.onSurface.withValues(alpha: 0.54), fontSize: 13),
+                  style: TextStyle(
+                    color: deCs.onSurface.withValues(alpha: 0.54),
+                    fontSize: 13,
+                  ),
                 ),
               ),
 
@@ -210,7 +203,9 @@ class _MerchDesignEntryScreenState
                             side: BorderSide(
                               color:
                                   _chip == chip
-                                      ? const Color(0xFFF2C94C).withValues(alpha: 0.6)
+                                      ? const Color(
+                                        0xFFF2C94C,
+                                      ).withValues(alpha: 0.6)
                                       : deCs.onSurface.withValues(alpha: 0.12),
                             ),
                           ),
@@ -252,24 +247,27 @@ class _MerchDesignEntryScreenState
             children: [
               // ── AI "Design for me" — alongside the manual flow (M201) ──────
               OutlinedButton.icon(
-                onPressed: _selectedCodes.isEmpty
-                    ? null
-                    : () {
-                        final trips = tripsAsync.valueOrNull ?? const [];
-                        final allCodes = visitsAsync.valueOrNull
-                                ?.map((v) => v.countryCode)
-                                .toList() ??
-                            const [];
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => DesignForMeScreen(
-                              codes: _selectedCodes.toList(),
-                              allCodes: allCodes,
-                              trips: trips,
+                onPressed:
+                    _selectedCodes.isEmpty
+                        ? null
+                        : () {
+                          final trips = tripsAsync.valueOrNull ?? const [];
+                          final allCodes =
+                              visitsAsync.valueOrNull
+                                  ?.map((v) => v.countryCode)
+                                  .toList() ??
+                              const [];
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder:
+                                  (_) => DesignForMeScreen(
+                                    codes: _selectedCodes.toList(),
+                                    allCodes: allCodes,
+                                    trips: trips,
+                                  ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
                 icon: const Icon(Icons.auto_awesome_rounded, size: 18),
                 label: const Text('Design for me'),
               ),
@@ -277,71 +275,75 @@ class _MerchDesignEntryScreenState
               // ── Procedural "Auto designs" — combined/merged-flag compositions,
               //    improves with use + the reference library.
               OutlinedButton.icon(
-                onPressed: _selectedCodes.isEmpty
-                    ? null
-                    : () {
-                        final trips = tripsAsync.valueOrNull ?? const [];
-                        final allCodes = visitsAsync.valueOrNull
-                                ?.map((v) => v.countryCode)
-                                .toList() ??
-                            const [];
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ProceduralDesignScreen(
-                              codes: _selectedCodes.toList(),
-                              allCodes: allCodes,
-                              trips: trips,
+                onPressed:
+                    _selectedCodes.isEmpty
+                        ? null
+                        : () {
+                          final trips = tripsAsync.valueOrNull ?? const [];
+                          final allCodes =
+                              visitsAsync.valueOrNull
+                                  ?.map((v) => v.countryCode)
+                                  .toList() ??
+                              const [];
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder:
+                                  (_) => ProceduralDesignScreen(
+                                    codes: _selectedCodes.toList(),
+                                    allCodes: allCodes,
+                                    trips: trips,
+                                  ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
                 icon: const Icon(Icons.grid_view_rounded, size: 18),
                 label: const Text('Auto designs (beta)'),
               ),
               const SizedBox(height: 8),
               FilledButton(
-            onPressed:
-                _selectedCodes.isEmpty
-                    ? null
-                    : () {
-                      final trips = tripsAsync.valueOrNull ?? const [];
-                      final allCodes =
-                          visitsAsync.valueOrNull
-                              ?.map((v) => v.countryCode)
-                              .toList() ??
-                          const [];
-                      final codes = _selectedCodes.toList();
-                      final ranks = MerchTemplateRanker.rankFor(
-                        codeCount: codes.length,
-                      );
-                      final template = ranks
-                          .firstWhere(
-                            (r) => !r.exclude,
-                            orElse: () => ranks.first,
-                          )
-                          .template;
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder:
-                              (_) => ShopCollectionOptionScreen(
-                                label: 'My Design',
-                                codes: codes,
-                                allCodes: allCodes,
-                                trips: trips,
-                                featuredTemplate: template,
-                              ),
-                        ),
-                      );
-                    },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFF2C94C),
-              foregroundColor: Colors.black,
-            ),
-            child: Text(
-              'Design with ${_selectedCodes.length} '
-              '${_selectedCodes.length == 1 ? "country" : "countries"} →',
-            ),
-          ),
+                onPressed:
+                    _selectedCodes.isEmpty
+                        ? null
+                        : () {
+                          final trips = tripsAsync.valueOrNull ?? const [];
+                          final allCodes =
+                              visitsAsync.valueOrNull
+                                  ?.map((v) => v.countryCode)
+                                  .toList() ??
+                              const [];
+                          final codes = _selectedCodes.toList();
+                          final ranks = MerchTemplateRanker.rankFor(
+                            codeCount: codes.length,
+                          );
+                          final template =
+                              ranks
+                                  .firstWhere(
+                                    (r) => !r.exclude,
+                                    orElse: () => ranks.first,
+                                  )
+                                  .template;
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder:
+                                  (_) => ShopCollectionOptionScreen(
+                                    label: 'My Design',
+                                    codes: codes,
+                                    allCodes: allCodes,
+                                    trips: trips,
+                                    featuredTemplate: template,
+                                  ),
+                            ),
+                          );
+                        },
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFF2C94C),
+                  foregroundColor: Colors.black,
+                ),
+                child: Text(
+                  'Design with ${_selectedCodes.length} '
+                  '${_selectedCodes.length == 1 ? "country" : "countries"} →',
+                ),
+              ),
             ],
           ),
         ),

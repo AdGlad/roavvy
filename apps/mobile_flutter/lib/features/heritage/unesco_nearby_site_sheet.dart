@@ -12,16 +12,16 @@ const _mint = Color(0xFF2ED8B6);
 const _coral = Color(0xFFFF6B6B);
 
 Color _categoryColor(String cat) => switch (cat.toLowerCase()) {
-      'natural' => _mint,
-      'mixed' => _coral,
-      _ => _gold,
-    };
+  'natural' => _mint,
+  'mixed' => _coral,
+  _ => _gold,
+};
 
 String _categoryLabel(String cat) => switch (cat.toLowerCase()) {
-      'natural' => 'Natural',
-      'mixed' => 'Mixed',
-      _ => 'Cultural',
-    };
+  'natural' => 'Natural',
+  'mixed' => 'Mixed',
+  _ => 'Cultural',
+};
 
 String _flagEmoji(String code) {
   if (code.length != 2) return '';
@@ -64,161 +64,177 @@ class _UnescoNearbySiteSheet extends StatelessWidget {
       initialChildSize: 0.75,
       minChildSize: 0.4,
       maxChildSize: 0.92,
-      builder: (_, controller) => Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: CustomScrollView(
-          controller: controller,
-          slivers: [
-            // ── Hero / header ───────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: hasImage
-                  ? _HeroImage(
-                      url: imageUrl,
-                      siteName: site.name,
-                      catLabel: catLabel,
-                      catColor: catColor,
-                    )
-                  : _HeaderNoImage(
-                      siteName: site.name,
-                      catLabel: catLabel,
-                      catColor: catColor,
-                    ),
+      builder:
+          (_, controller) => Container(
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
+            clipBehavior: Clip.hardEdge,
+            child: CustomScrollView(
+              controller: controller,
+              slivers: [
+                // ── Hero / header ───────────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child:
+                      hasImage
+                          ? _HeroImage(
+                            url: imageUrl,
+                            siteName: site.name,
+                            catLabel: catLabel,
+                            catColor: catColor,
+                          )
+                          : _HeaderNoImage(
+                            siteName: site.name,
+                            catLabel: catLabel,
+                            catColor: catColor,
+                          ),
+                ),
 
-            // ── Body ────────────────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Country row + visited badge
-                    Row(
+                // ── Body ────────────────────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(flag, style: const TextStyle(fontSize: 22)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            country,
+                        // Country row + visited badge
+                        Row(
+                          children: [
+                            Text(flag, style: const TextStyle(fontSize: 22)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                country,
+                                style: TextStyle(
+                                  color: cs.onSurface,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            if (result.isVisited)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: Colors.green.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                child: const Text(
+                                  '✅ Visited',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Distance + bearing strip
+                        _DistanceBearingStrip(
+                          result: result,
+                          catColor: catColor,
+                        ),
+
+                        const SizedBox(height: 16),
+                        Divider(
+                          color: cs.onSurface.withValues(alpha: 0.12),
+                          height: 1,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Travel time row
+                        _TravelTimeSection(result: result),
+
+                        const SizedBox(height: 16),
+                        Divider(
+                          color: cs.onSurface.withValues(alpha: 0.12),
+                          height: 1,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Short description
+                        if (site.shortDescription != null &&
+                            site.shortDescription!.isNotEmpty) ...[
+                          Text(
+                            site.shortDescription!,
                             style: TextStyle(
-                              color: cs.onSurface,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              color: cs.onSurface.withValues(alpha: 0.70),
+                              fontSize: 14,
+                              height: 1.6,
                             ),
                           ),
-                        ),
-                        if (result.isVisited)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                  color: Colors.green.withValues(alpha: 0.5)),
+                          const SizedBox(height: 16),
+                          Divider(
+                            color: cs.onSurface.withValues(alpha: 0.12),
+                            height: 1,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Stats
+                        Wrap(
+                          spacing: 24,
+                          runSpacing: 14,
+                          children: [
+                            if (site.inscriptionYear > 0)
+                              _StatCell(
+                                label: 'UNESCO Listed',
+                                value: '${site.inscriptionYear}',
+                              ),
+                            _StatCell(
+                              label: 'Coordinates',
+                              value:
+                                  '${site.latitude.toStringAsFixed(3)}°, '
+                                  '${site.longitude.toStringAsFixed(3)}°',
                             ),
-                            child: const Text(
-                              '✅ Visited',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                          ],
+                        ),
+
+                        const SizedBox(height: 28),
+
+                        // Get Directions button
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed:
+                                () => NativeMapsLauncher.open(
+                                  site.latitude,
+                                  site.longitude,
+                                  site.name,
+                                ),
+                            icon: const Icon(Icons.directions, size: 18),
+                            label: const Text('Get Directions'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: catColor,
+                              foregroundColor: Colors.black87,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              textStyle: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Distance + bearing strip
-                    _DistanceBearingStrip(result: result, catColor: catColor),
-
-                    const SizedBox(height: 16),
-                    Divider(
-                        color: cs.onSurface.withValues(alpha: 0.12), height: 1),
-                    const SizedBox(height: 16),
-
-                    // Travel time row
-                    _TravelTimeSection(result: result),
-
-                    const SizedBox(height: 16),
-                    Divider(
-                        color: cs.onSurface.withValues(alpha: 0.12), height: 1),
-                    const SizedBox(height: 16),
-
-                    // Short description
-                    if (site.shortDescription != null &&
-                        site.shortDescription!.isNotEmpty) ...[
-                      Text(
-                        site.shortDescription!,
-                        style: TextStyle(
-                          color: cs.onSurface.withValues(alpha: 0.70),
-                          fontSize: 14,
-                          height: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Divider(
-                          color: cs.onSurface.withValues(alpha: 0.12),
-                          height: 1),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Stats
-                    Wrap(
-                      spacing: 24,
-                      runSpacing: 14,
-                      children: [
-                        if (site.inscriptionYear > 0)
-                          _StatCell(
-                            label: 'UNESCO Listed',
-                            value: '${site.inscriptionYear}',
-                          ),
-                        _StatCell(
-                          label: 'Coordinates',
-                          value:
-                              '${site.latitude.toStringAsFixed(3)}°, '
-                              '${site.longitude.toStringAsFixed(3)}°',
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 28),
-
-                    // Get Directions button
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () => NativeMapsLauncher.open(
-                          site.latitude,
-                          site.longitude,
-                          site.name,
-                        ),
-                        icon: const Icon(Icons.directions, size: 18),
-                        label: const Text('Get Directions'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: catColor,
-                          foregroundColor: Colors.black87,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          textStyle: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 }
@@ -233,9 +249,10 @@ class _DistanceBearingStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final distStr = result.distanceKm < 1
-        ? '${(result.distanceKm * 1000).round()} m'
-        : '${result.distanceKm.toStringAsFixed(1)} km';
+    final distStr =
+        result.distanceKm < 1
+            ? '${(result.distanceKm * 1000).round()} m'
+            : '${result.distanceKm.toStringAsFixed(1)} km';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -295,14 +312,11 @@ class _TravelTimeSection extends StatelessWidget {
         const SizedBox(height: 10),
         Row(
           children: [
-            _TravelTile(
-                icon: '🚶', label: 'Walking', time: result.walkTime),
+            _TravelTile(icon: '🚶', label: 'Walking', time: result.walkTime),
             const SizedBox(width: 12),
-            _TravelTile(
-                icon: '🚲', label: 'Cycling', time: result.cycleTime),
+            _TravelTile(icon: '🚲', label: 'Cycling', time: result.cycleTime),
             const SizedBox(width: 12),
-            _TravelTile(
-                icon: '🚗', label: 'Driving', time: result.driveTime),
+            _TravelTile(icon: '🚗', label: 'Driving', time: result.driveTime),
           ],
         ),
         const SizedBox(height: 6),
@@ -393,17 +407,17 @@ class _HeroImage extends StatelessWidget {
           Image.network(
             url,
             fit: BoxFit.cover,
-            errorBuilder: (ctx, __, ___) => Container(
-              color: Theme.of(ctx).colorScheme.surfaceContainer,
-              child: Icon(
-                Icons.landscape_outlined,
-                color: Theme.of(ctx)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.24),
-                size: 48,
-              ),
-            ),
+            errorBuilder:
+                (ctx, __, ___) => Container(
+                  color: Theme.of(ctx).colorScheme.surfaceContainer,
+                  child: Icon(
+                    Icons.landscape_outlined,
+                    color: Theme.of(
+                      ctx,
+                    ).colorScheme.onSurface.withValues(alpha: 0.24),
+                    size: 48,
+                  ),
+                ),
           ),
           Positioned.fill(
             child: DecoratedBox(
@@ -511,7 +525,9 @@ class _HeaderNoImage extends StatelessWidget {
               Text(
                 'UNESCO World Heritage',
                 style: TextStyle(
-                    color: cs.onSurface.withValues(alpha: 0.54), fontSize: 12),
+                  color: cs.onSurface.withValues(alpha: 0.54),
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(width: 8),
               _SmallBadge(label: catLabel, color: catColor),

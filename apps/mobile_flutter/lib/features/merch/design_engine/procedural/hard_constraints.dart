@@ -50,8 +50,7 @@ class _ClipLegality extends RecipeConstraint {
   };
   @override
   String? check(ProceduralDesignRecipe r, DesignContext ctx) {
-    if (r.template != CardTemplateType.grid &&
-        r.mask != GridClipShape.none) {
+    if (r.template != CardTemplateType.grid && r.mask != GridClipShape.none) {
       return 'clip on non-grid template';
     }
     if (_single.contains(r.mask) && r.countryCount != 1) {
@@ -130,8 +129,10 @@ class _MinFeature extends RecipeConstraint {
         perFlagLinear = 1.0 / (math.sqrt(n) * 1.15 + 0.5);
       case HierarchyMode.dominantAccent:
         final accents = math.max(1, n - 1);
-        perFlagLinear =
-            math.min(r.heroScale, (1 - r.heroScale) / math.sqrt(accents));
+        perFlagLinear = math.min(
+          r.heroScale,
+          (1 - r.heroScale) / math.sqrt(accents),
+        );
       case HierarchyMode.sequence:
         perFlagLinear = 1.0 / (n + 0.5);
       case HierarchyMode.singleFocal:

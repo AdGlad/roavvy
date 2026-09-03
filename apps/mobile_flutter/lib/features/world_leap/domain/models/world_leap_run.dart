@@ -71,21 +71,22 @@ class WorldLeapRun {
 
   /// All country codes visited during this run (including start).
   Set<String> get visitedCountryCodes => {
-        startCountryCode,
-        ...launches.map((l) => l.toCountryCode),
-      };
+    startCountryCode,
+    ...launches.map((l) => l.toCountryCode),
+  };
 
   /// All continent names visited during this run (including the start country's
   /// continent, if known).
   Set<String> get visitedContinents => {
-        if (kCountryContinent[startCountryCode] case final c?) c,
-        for (final l in launches)
-          if (kCountryContinent[l.toCountryCode] case final c?) c,
-      };
+    if (kCountryContinent[startCountryCode] case final c?) c,
+    for (final l in launches)
+      if (kCountryContinent[l.toCountryCode] case final c?) c,
+  };
 
-  double get longestLaunchKm => launches.isEmpty
-      ? 0.0
-      : launches.map((l) => l.distanceKm).reduce((a, b) => a > b ? a : b);
+  double get longestLaunchKm =>
+      launches.isEmpty
+          ? 0.0
+          : launches.map((l) => l.distanceKm).reduce((a, b) => a > b ? a : b);
 
   WorldLeapRun copyWith({
     List<WorldLeapLaunch>? launches,
@@ -97,65 +98,67 @@ class WorldLeapRun {
     String? targetCountryName,
     int? timeLimitSeconds,
     bool clearTarget = false,
-  }) =>
-      WorldLeapRun(
-        id: id,
-        userId: userId,
-        date: date,
-        startCountryCode: startCountryCode,
-        startCountryName: startCountryName,
-        launches: launches ?? this.launches,
-        totalScore: totalScore ?? this.totalScore,
-        isComplete: isComplete ?? this.isComplete,
-        failureReason: failureReason ?? this.failureReason,
-        completedAt: completedAt ?? this.completedAt,
-        targetCountryCode:
-            clearTarget ? null : (targetCountryCode ?? this.targetCountryCode),
-        targetCountryName:
-            clearTarget ? null : (targetCountryName ?? this.targetCountryName),
-        timeLimitSeconds: timeLimitSeconds ?? this.timeLimitSeconds,
-      );
+  }) => WorldLeapRun(
+    id: id,
+    userId: userId,
+    date: date,
+    startCountryCode: startCountryCode,
+    startCountryName: startCountryName,
+    launches: launches ?? this.launches,
+    totalScore: totalScore ?? this.totalScore,
+    isComplete: isComplete ?? this.isComplete,
+    failureReason: failureReason ?? this.failureReason,
+    completedAt: completedAt ?? this.completedAt,
+    targetCountryCode:
+        clearTarget ? null : (targetCountryCode ?? this.targetCountryCode),
+    targetCountryName:
+        clearTarget ? null : (targetCountryName ?? this.targetCountryName),
+    timeLimitSeconds: timeLimitSeconds ?? this.timeLimitSeconds,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'userId': userId,
-        'date': date,
-        'startCountryCode': startCountryCode,
-        'startCountryName': startCountryName,
-        'launches': launches.map((l) => l.toJson()).toList(),
-        'totalScore': totalScore,
-        'isComplete': isComplete,
-        'failureReason': failureReason?.toJson(),
-        'completedAt': completedAt?.toIso8601String(),
-        'targetCountryCode': targetCountryCode,
-        'targetCountryName': targetCountryName,
-        'timeLimitSeconds': timeLimitSeconds,
-      };
+    'id': id,
+    'userId': userId,
+    'date': date,
+    'startCountryCode': startCountryCode,
+    'startCountryName': startCountryName,
+    'launches': launches.map((l) => l.toJson()).toList(),
+    'totalScore': totalScore,
+    'isComplete': isComplete,
+    'failureReason': failureReason?.toJson(),
+    'completedAt': completedAt?.toIso8601String(),
+    'targetCountryCode': targetCountryCode,
+    'targetCountryName': targetCountryName,
+    'timeLimitSeconds': timeLimitSeconds,
+  };
 
   factory WorldLeapRun.fromJson(Map<String, dynamic> json) => WorldLeapRun(
-        id: json['id'] as String,
-        userId: json['userId'] as String,
-        date: json['date'] as String,
-        startCountryCode: json['startCountryCode'] as String,
-        startCountryName: json['startCountryName'] as String? ?? '',
-        launches: (json['launches'] as List<dynamic>? ?? [])
+    id: json['id'] as String,
+    userId: json['userId'] as String,
+    date: json['date'] as String,
+    startCountryCode: json['startCountryCode'] as String,
+    startCountryName: json['startCountryName'] as String? ?? '',
+    launches:
+        (json['launches'] as List<dynamic>? ?? [])
             .map((e) => WorldLeapLaunch.fromJson(e as Map<String, dynamic>))
             .toList(),
-        totalScore: (json['totalScore'] as num?)?.toInt() ?? 0,
-        isComplete: json['isComplete'] as bool? ?? false,
-        failureReason: json['failureReason'] != null
+    totalScore: (json['totalScore'] as num?)?.toInt() ?? 0,
+    isComplete: json['isComplete'] as bool? ?? false,
+    failureReason:
+        json['failureReason'] != null
             ? WorldLeapFailureReasonX.fromJson(json['failureReason'] as String)
             : null,
-        completedAt: json['completedAt'] != null
+    completedAt:
+        json['completedAt'] != null
             ? DateTime.parse(json['completedAt'] as String)
             : null,
-        targetCountryCode: json['targetCountryCode'] as String?,
-        targetCountryName: json['targetCountryName'] as String?,
-        timeLimitSeconds: (json['timeLimitSeconds'] as num?)?.toInt() ??
-            WorldLeapConfig.countdownStartSeconds,
-      );
+    targetCountryCode: json['targetCountryCode'] as String?,
+    targetCountryName: json['targetCountryName'] as String?,
+    timeLimitSeconds:
+        (json['timeLimitSeconds'] as num?)?.toInt() ??
+        WorldLeapConfig.countdownStartSeconds,
+  );
 
   /// Generates the Firestore document ID for a given user and date.
-  static String documentId(String userId, String date) =>
-      '${userId}_$date';
+  static String documentId(String userId, String date) => '${userId}_$date';
 }

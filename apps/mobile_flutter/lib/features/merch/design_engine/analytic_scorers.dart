@@ -32,7 +32,11 @@ class CoverageBalanceScorer implements DesignScorer {
   String get name => 'CoverageBalance';
 
   @override
-  double score(DesignParams params, TravelProfile profile, {Uint8List? thumbnail}) {
+  double score(
+    DesignParams params,
+    TravelProfile profile, {
+    Uint8List? thumbnail,
+  }) {
     if (params.template != CardTemplateType.grid) return 0.7;
     final canvas = printCanvasFor(params.imageSize);
     final tiles = printGridTiles(params);
@@ -49,7 +53,8 @@ class CoverageBalanceScorer implements DesignScorer {
     if (area <= 0) return 0.0;
     final centroid = Offset(ax / area, ay / area);
     final centre = Offset(canvas.width / 2, canvas.height / 2);
-    final offset = (centroid.dx - centre.dx).abs() / canvas.width +
+    final offset =
+        (centroid.dx - centre.dx).abs() / canvas.width +
         (centroid.dy - centre.dy).abs() / canvas.height;
     final centreScore = (1.0 - offset * 2.0).clamp(0.0, 1.0);
 
@@ -87,7 +92,11 @@ class WhitespaceScorer implements DesignScorer {
   String get name => 'Whitespace';
 
   @override
-  double score(DesignParams params, TravelProfile profile, {Uint8List? thumbnail}) {
+  double score(
+    DesignParams params,
+    TravelProfile profile, {
+    Uint8List? thumbnail,
+  }) {
     final cov = estimateInkCoverage(params);
     final dev = (cov - idealCoverage).abs();
     return (1.0 - dev / tolerance).clamp(0.0, 1.0);
@@ -109,7 +118,11 @@ class FocalHierarchyScorer implements DesignScorer {
   String get name => 'FocalHierarchy';
 
   @override
-  double score(DesignParams params, TravelProfile profile, {Uint8List? thumbnail}) {
+  double score(
+    DesignParams params,
+    TravelProfile profile, {
+    Uint8List? thumbnail,
+  }) {
     final n = params.countryCodes.length;
 
     // A single-country silhouette/outline clip is the strongest possible focal.
@@ -197,7 +210,11 @@ class AspectFitScorer implements DesignScorer {
   }
 
   @override
-  double score(DesignParams params, TravelProfile profile, {Uint8List? thumbnail}) {
+  double score(
+    DesignParams params,
+    TravelProfile profile, {
+    Uint8List? thumbnail,
+  }) {
     final expect = _expectPortrait(params);
     if (expect == null) return 0.80; // either orientation is fine
     return params.isPortrait == expect ? 1.0 : 0.45;
@@ -219,7 +236,11 @@ class ProfileFitScorer implements DesignScorer {
   String get name => 'ProfileFit';
 
   @override
-  double score(DesignParams params, TravelProfile profile, {Uint8List? thumbnail}) {
+  double score(
+    DesignParams params,
+    TravelProfile profile, {
+    Uint8List? thumbnail,
+  }) {
     // Template affinity from the ranker (priority 1 == best; exclude == worst).
     final ranks = MerchTemplateRanker.rankFor(codeCount: profile.countryCount);
     MerchTemplateRank? rank;
@@ -243,7 +264,10 @@ class ProfileFitScorer implements DesignScorer {
   /// Persona → country-source affinity (0..1). A globe-trotter loves the
   /// all-time map; a recent adventurer loves this-year / recent-trip; a deep
   /// diver loves a single country.
-  static double _sourceAffinity(TravelPersona persona, MerchCountrySource source) {
+  static double _sourceAffinity(
+    TravelPersona persona,
+    MerchCountrySource source,
+  ) {
     switch (persona) {
       case TravelPersona.soloDeepDive:
         return source == MerchCountrySource.singleCountry

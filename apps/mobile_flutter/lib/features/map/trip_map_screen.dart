@@ -115,8 +115,7 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final scaffoldBg =
-        isDark ? _kOceanBackground : theme.colorScheme.surface;
+    final scaffoldBg = isDark ? _kOceanBackground : theme.colorScheme.surface;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
@@ -139,9 +138,7 @@ class _TripMapScreenState extends ConsumerState<TripMapScreen> {
         future: _visitedCodesFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           final visitedCodes = snapshot.data!.toSet();

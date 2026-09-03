@@ -31,23 +31,23 @@ import '../../world_leap_config.dart';
 
 // ── Colour constants ─────────────────────────────────────────────────────────
 
-const _kOceanColor        = Color(0xFF0D1B2A);
-const _kUnvisitedFill     = Color(0xFF1E3A5F);
-const _kUnvisitedBorder   = Color(0xFF2A4F7A);
-const _kVisitedFill       = Color(0xFF3DBE6E);
-const _kVisitedBorder     = Color(0xFF5DE88A);
-const _kCurrentFill       = Color(0xFFFFD700);
-const _kCurrentBorder     = Color(0xFFFFFFFF);
-const _kTargetFill        = Color(0xFFE53935);
-const _kTargetBorder      = Color(0xFFFF8A80);
+const _kOceanColor = Color(0xFF0D1B2A);
+const _kUnvisitedFill = Color(0xFF1E3A5F);
+const _kUnvisitedBorder = Color(0xFF2A4F7A);
+const _kVisitedFill = Color(0xFF3DBE6E);
+const _kVisitedBorder = Color(0xFF5DE88A);
+const _kCurrentFill = Color(0xFFFFD700);
+const _kCurrentBorder = Color(0xFFFFFFFF);
+const _kTargetFill = Color(0xFFE53935);
+const _kTargetBorder = Color(0xFFFF8A80);
 // Vivid glow ring drawn at the target's centroid, independent of its polygon
 // size/colour — guarantees the target is visible even when its fill colour
 // is hard to distinguish from the ocean, or the country is too small to read
 // at the current zoom (usability rework).
-const _kTargetGlowColor   = Color(0xFFFF1744);
-const _kTrajectoryColor   = Color(0xFFFFFFFF);
-const _kFlightTrailColor  = Color(0xCCFFFFFF);
-const _kProjectileColor   = Color(0xFFFFD700);
+const _kTargetGlowColor = Color(0xFFFF1744);
+const _kTrajectoryColor = Color(0xFFFFFFFF);
+const _kFlightTrailColor = Color(0xCCFFFFFF);
+const _kProjectileColor = Color(0xFFFFD700);
 
 /// Screen-space forgiveness radius (logical px) around the current-country
 /// origin marker for [WorldLeapMapWidgetState.isInCurrentCountry]'s tap
@@ -113,13 +113,13 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
   late final List<List<LatLng>> _cachedPoints; // pre-converted, never changes
 
   // ── Pre-built polygon caches (rebuilt only on game-state changes) ──────────
-  List<Polygon> _staticPolygons = [];  // ~248 countries: unvisited + visited
+  List<Polygon> _staticPolygons = []; // ~248 countries: unvisited + visited
   // Multi-ring countries (archipelagos, islands — e.g. Yemen/Socotra, Saudi
   // Arabia/Farasan) share one ISO code across several CountryPolygon entries
   // (see country_lookup's loadPolygons() doc). Current/target must collect
   // ALL matching rings, not just the last one seen, or the mainland silently
   // renders with no highlight while a small offshore island gets it instead.
-  List<Polygon> _currentPolygons = [];      // current (gold) — no animation
+  List<Polygon> _currentPolygons = []; // current (gold) — no animation
   List<List<LatLng>> _targetPolygonRings = []; // target rings — animated
   String? _cachedCurrentCode;
   String? _cachedTargetCode;
@@ -216,10 +216,10 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..addStatusListener((status) {
-        if (status == AnimationStatus.completed && mounted) {
-          setState(() => _splashPoint = null);
-        }
-      });
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() => _splashPoint = null);
+      }
+    });
 
     widget.slingshotActive?.addListener(_onSlingshotActiveChanged);
     widget.controller.addListener(_onStateChanged);
@@ -272,11 +272,7 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     _computeTrajectory(state.run, aim.bearingDeg, aim.power);
   }
 
-  void _computeTrajectory(
-    WorldLeapRun run,
-    double bearingDeg,
-    double power,
-  ) {
+  void _computeTrajectory(WorldLeapRun run, double bearingDeg, double power) {
     final origin = _originFor(run);
     final distanceKm = (power * WorldLeapConfig.maxLaunchDistanceKm).clamp(
       WorldLeapConfig.minLaunchDistanceKm,
@@ -360,7 +356,8 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     // without ever leaving Aiming — only run the "fresh turn" reset below on
     // an actual transition INTO Aiming, not every notify while already there.
     final justEnteredAiming =
-        state is WorldLeapStateAiming && _prevControllerState is! WorldLeapStateAiming;
+        state is WorldLeapStateAiming &&
+        _prevControllerState is! WorldLeapStateAiming;
     _prevControllerState = state;
 
     // Rebuild polygon caches whenever state (and thus run) changes.
@@ -504,10 +501,10 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
       if (p.longitude > maxLon) maxLon = p.longitude;
     }
     final span = math.max(maxLat - minLat, maxLon - minLon);
-    if (span < 1.0) return 5.5;  // tiny — e.g. Luxembourg, Singapore
-    if (span < 2.5) return 4.5;  // small — e.g. Belgium, Rwanda
-    if (span < 5.0) return 3.5;  // medium-small
-    return 1.0;                  // large countries — no extra minimum
+    if (span < 1.0) return 5.5; // tiny — e.g. Luxembourg, Singapore
+    if (span < 2.5) return 4.5; // small — e.g. Belgium, Rwanda
+    if (span < 5.0) return 3.5; // medium-small
+    return 1.0; // large countries — no extra minimum
   }
 
   void _flyToShowBoth() {
@@ -528,13 +525,20 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     if (midLon < -180) midLon += 360;
 
     final distKm = widget.controller.targetDistanceKm ?? 0;
-    final distZoom = distKm > 14000 ? 1.3
-        : distKm > 10000 ? 1.5
-        : distKm > 7000  ? 1.8
-        : distKm > 4000  ? 2.2
-        : distKm > 2000  ? 2.8
-        : distKm > 800   ? 3.5
-        : 4.2;
+    final distZoom =
+        distKm > 14000
+            ? 1.3
+            : distKm > 10000
+            ? 1.5
+            : distKm > 7000
+            ? 1.8
+            : distKm > 4000
+            ? 2.2
+            : distKm > 2000
+            ? 2.8
+            : distKm > 800
+            ? 3.5
+            : 4.2;
     final zoom = math.max(distZoom, _minZoomForTargetSize());
 
     _mapController.move(LatLng(midLat, midLon), zoom);
@@ -553,11 +557,8 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     // ring happened to be processed last. Pulses between two vivid reds —
     // never a dark tone that could blend with the ocean.
     if (_targetPolygonRings.isNotEmpty) {
-      final targetColor = Color.lerp(
-        const Color(0xFFC62828),
-        _kTargetFill,
-        pulse,
-      )!;
+      final targetColor =
+          Color.lerp(const Color(0xFFC62828), _kTargetFill, pulse)!;
       layers.add(
         PolygonLayer(
           polygonCulling: true,
@@ -587,8 +588,9 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
               radius: 26 + pulse * 16,
               useRadiusInMeter: false,
               color: Colors.transparent,
-              borderColor:
-                  _kTargetGlowColor.withValues(alpha: 0.85 - pulse * 0.35),
+              borderColor: _kTargetGlowColor.withValues(
+                alpha: 0.85 - pulse * 0.35,
+              ),
               borderStrokeWidth: 3.5,
             ),
             CircleMarker(
@@ -643,11 +645,13 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
     final tailCircles = <CircleMarker>[];
     for (var i = 1; i <= tailLength && upTo - i - 1 >= 0; i++) {
       final fade = 1.0 - (i / tailLength);
-      tailCircles.add(CircleMarker(
-        point: pts[upTo - i - 1],
-        radius: 7.0 * fade,
-        color: _kProjectileColor.withValues(alpha: fade * 0.8),
-      ));
+      tailCircles.add(
+        CircleMarker(
+          point: pts[upTo - i - 1],
+          radius: 7.0 * fade,
+          color: _kProjectileColor.withValues(alpha: fade * 0.8),
+        ),
+      );
     }
 
     return Stack(
@@ -720,9 +724,10 @@ class WorldLeapMapWidgetState extends State<WorldLeapMapWidget>
           maxZoom: 8.0,
           backgroundColor: _kOceanColor,
           interactionOptions: InteractionOptions(
-            flags: (widget.slingshotActive?.value ?? false)
-                ? InteractiveFlag.pinchZoom
-                : InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+            flags:
+                (widget.slingshotActive?.value ?? false)
+                    ? InteractiveFlag.pinchZoom
+                    : InteractiveFlag.pinchZoom | InteractiveFlag.drag,
           ),
         ),
         children: [

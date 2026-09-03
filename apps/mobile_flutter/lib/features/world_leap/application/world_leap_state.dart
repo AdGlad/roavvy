@@ -30,11 +30,7 @@ final class WorldLeapStateAiming extends WorldLeapState {
   /// Current normalised power (0–1). Null while not actively aiming.
   final double? power;
 
-  WorldLeapStateAiming({
-    required this.run,
-    this.bearingDeg,
-    this.power,
-  });
+  WorldLeapStateAiming({required this.run, this.bearingDeg, this.power});
 }
 
 /// Projectile in flight — animation is playing.
@@ -57,10 +53,7 @@ final class WorldLeapStateLanded extends WorldLeapState {
   /// The launch that just completed (for the score panel).
   final WorldLeapLaunch lastLaunch;
 
-  WorldLeapStateLanded({
-    required this.run,
-    required this.lastLaunch,
-  });
+  WorldLeapStateLanded({required this.run, required this.lastLaunch});
 }
 
 /// Landing failed (water, repeat country, same country, invalid).
@@ -68,10 +61,7 @@ final class WorldLeapStateFailed extends WorldLeapState {
   final WorldLeapRun run;
   final WorldLeapFailureReason reason;
 
-  WorldLeapStateFailed({
-    required this.run,
-    required this.reason,
-  });
+  WorldLeapStateFailed({required this.run, required this.reason});
 }
 
 /// Run is complete — all launches used or player ended the game.

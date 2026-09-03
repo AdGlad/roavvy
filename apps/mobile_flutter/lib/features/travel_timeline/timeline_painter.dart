@@ -31,12 +31,13 @@ class TimelinePainter extends CustomPainter {
     final top = positions.first.dy;
     final bottom = positions.last.dy;
 
-    final shadowPaint = Paint()
-      ..color = pathShadowColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 20
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    final shadowPaint =
+        Paint()
+          ..color = pathShadowColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 20
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
     final gradientShader = LinearGradient(
       begin: Alignment.topCenter,
@@ -44,11 +45,12 @@ class TimelinePainter extends CustomPainter {
       colors: _kPathGradientColors,
     ).createShader(Rect.fromLTWH(0, top, size.width, bottom - top));
 
-    final pathPaint = Paint()
-      ..shader = gradientShader
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 14
-      ..strokeCap = StrokeCap.round;
+    final pathPaint =
+        Paint()
+          ..shader = gradientShader
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 14
+          ..strokeCap = StrokeCap.round;
 
     canvas.drawPath(visiblePath, shadowPaint);
     canvas.drawPath(visiblePath, pathPaint);
@@ -144,5 +146,4 @@ double timelineHeight({
   double topPadding = 48.0,
   double nodeSpacing = 118.0,
   double bottomPadding = 80.0,
-}) =>
-    topPadding + (count - 1) * nodeSpacing + bottomPadding;
+}) => topPadding + (count - 1) * nodeSpacing + bottomPadding;

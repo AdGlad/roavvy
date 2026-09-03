@@ -49,13 +49,14 @@ class StatsGrid extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            onTap: (visits != null && visits!.isNotEmpty)
-                ? () => Navigator.of(context).push(
+            onTap:
+                (visits != null && visits!.isNotEmpty)
+                    ? () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => const FlagMosaicScreen(),
                       ),
                     )
-                : null,
+                    : null,
           ),
           _AnimatedStatCard(
             value: continentCount,
@@ -67,13 +68,14 @@ class StatsGrid extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            onTap: continentCount > 0
-                ? () => Navigator.of(context).push(
+            onTap:
+                continentCount > 0
+                    ? () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => const ContinentExplorerScreen(),
                       ),
                     )
-                : null,
+                    : null,
           ),
           _AnimatedStatCard(
             value: tripCount,
@@ -152,15 +154,16 @@ class _AnimatedStatCard extends StatelessWidget {
             tween: Tween(begin: 0, end: value.toDouble()),
             duration: const Duration(milliseconds: 900),
             curve: Curves.easeOut,
-            builder: (_, v, __) => Text(
-              '${v.round()}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                height: 1.1,
-              ),
-            ),
+            builder:
+                (_, v, __) => Text(
+                  '${v.round()}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    height: 1.1,
+                  ),
+                ),
           ),
           Row(
             children: [
@@ -173,7 +176,11 @@ class _AnimatedStatCard extends StatelessWidget {
                 ),
               ),
               if (onTap != null)
-                const Icon(Icons.chevron_right, size: 13, color: Colors.white54),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 13,
+                  color: Colors.white54,
+                ),
             ],
           ),
         ],

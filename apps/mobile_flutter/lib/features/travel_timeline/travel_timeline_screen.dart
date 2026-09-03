@@ -14,8 +14,8 @@ import 'trip_detail_sheet.dart';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
-const _kNodeRadiusFirst = 34.0;   // first-visit trip node
-const _kNodeRadiusRepeat = 28.0;  // repeat-visit trip node
+const _kNodeRadiusFirst = 34.0; // first-visit trip node
+const _kNodeRadiusRepeat = 28.0; // repeat-visit trip node
 const _kAchievementRadius = 38.0;
 const _kNodeSpacing = 130.0;
 const _kTopPadding = 56.0;
@@ -258,10 +258,9 @@ class _TravelTimelineScreenState extends ConsumerState<TravelTimelineScreen> {
               _FilterBar(
                 activeContinent: _activeContinent,
                 firstVisitOnly: _firstVisitOnly,
-                onContinentChanged: (c) =>
-                    setState(() => _activeContinent = c),
-                onFirstVisitOnlyChanged: (v) =>
-                    setState(() => _firstVisitOnly = v),
+                onContinentChanged: (c) => setState(() => _activeContinent = c),
+                onFirstVisitOnlyChanged:
+                    (v) => setState(() => _firstVisitOnly = v),
               ),
               Expanded(
                 child: LayoutBuilder(
@@ -282,8 +281,7 @@ class _TravelTimelineScreenState extends ConsumerState<TravelTimelineScreen> {
                     for (int i = 0; i < filteredItems.length; i++) {
                       final item = filteredItems[i];
                       if (item is _YearHeaderItem) {
-                        yearOffsets[item.year] =
-                            positions[i].dy - _kTopPadding;
+                        yearOffsets[item.year] = positions[i].dy - _kTopPadding;
                       }
                     }
                     return Stack(
@@ -364,33 +362,28 @@ class _TimelineStatsHeaderState extends State<_TimelineStatsHeader> {
     final chipsRow = Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _StatChip(
-          label: '${widget.stats.countryCount} countries',
-          icon: '🌍',
-        ),
+        _StatChip(label: '${widget.stats.countryCount} countries', icon: '🌍'),
         _StatChip(
           label: '${widget.stats.visitedContinents.length} continents',
           icon: '🗺️',
         ),
-        _StatChip(
-          label: 'Since ${widget.stats.sinceYear}',
-          icon: '📅',
-        ),
+        _StatChip(label: 'Since ${widget.stats.sinceYear}', icon: '📅'),
       ],
     );
 
     final shareButton = OutlinedButton.icon(
       onPressed: _isSharing ? null : _share,
-      icon: _isSharing
-          ? SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: cs.primary,
-              ),
-            )
-          : const Icon(Icons.share_outlined, size: 16),
+      icon:
+          _isSharing
+              ? SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: cs.primary,
+                ),
+              )
+              : const Icon(Icons.share_outlined, size: 16),
       label: Text(_isSharing ? 'Sharing…' : 'Share your journey'),
       style: OutlinedButton.styleFrom(
         foregroundColor: cs.primary,
@@ -432,8 +425,7 @@ class _TimelineStatsHeaderState extends State<_TimelineStatsHeader> {
                   continent: continent,
                   visited: widget.stats.visitedContinents.contains(continent),
                 ),
-                if (continent != _kAllContinents.last)
-                  const SizedBox(width: 8),
+                if (continent != _kAllContinents.last) const SizedBox(width: 8),
               ],
             ],
           ),
@@ -503,10 +495,7 @@ class _ContinentDot extends StatelessWidget {
           ),
         ),
         alignment: Alignment.center,
-        child: Text(
-          emoji,
-          style: TextStyle(fontSize: visited ? 14 : 10),
-        ),
+        child: Text(emoji, style: TextStyle(fontSize: visited ? 14 : 10)),
       ),
     );
   }
@@ -514,13 +503,7 @@ class _ContinentDot extends StatelessWidget {
 
 // ── Filter bar ────────────────────────────────────────────────────────────────
 
-const _kContinentLabels = [
-  'Europe',
-  'Asia',
-  'Americas',
-  'Africa',
-  'Oceania',
-];
+const _kContinentLabels = ['Europe', 'Asia', 'Americas', 'Africa', 'Oceania'];
 
 class _FilterBar extends StatelessWidget {
   const _FilterBar({
@@ -611,11 +594,12 @@ class _YearJumpIndex extends StatelessWidget {
       children: [
         for (final year in sortedYears)
           GestureDetector(
-            onTap: () => scrollController.animateTo(
-              yearOffsets[year]!,
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOut,
-            ),
+            onTap:
+                () => scrollController.animateTo(
+                  yearOffsets[year]!,
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOut,
+                ),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Text(
@@ -658,8 +642,7 @@ class _TimelineBodyState extends State<_TimelineBody>
   @override
   void initState() {
     super.initState();
-    final staggerMs =
-        (widget.items.length * 40).clamp(1, 800);
+    final staggerMs = (widget.items.length * 40).clamp(1, 800);
 
     _pathCtrl = AnimationController(
       vsync: this,
@@ -742,10 +725,14 @@ class _TimelineBodyState extends State<_TimelineBody>
                     // Nodes with staggered entry
                     for (int i = 0; i < widget.items.length; i++) ...[
                       () {
-                        final delayFraction =
-                            (i * 40.0 / staggerMs).clamp(0.0, 1.0);
-                        final endFraction =
-                            (delayFraction + 0.3).clamp(0.0, 1.0);
+                        final delayFraction = (i * 40.0 / staggerMs).clamp(
+                          0.0,
+                          1.0,
+                        );
+                        final endFraction = (delayFraction + 0.3).clamp(
+                          0.0,
+                          1.0,
+                        );
                         final nodeProgress = Interval(
                           delayFraction,
                           endFraction,
@@ -799,7 +786,11 @@ class _PositionedNode extends StatelessWidget {
         center: center,
         canvasWidth: width,
       ),
-      _YearHeaderItem(:final year, :final countryCount, :final continentCount) =>
+      _YearHeaderItem(
+        :final year,
+        :final countryCount,
+        :final continentCount,
+      ) =>
         _YearHeaderNode(
           year: year,
           countryCount: countryCount,
@@ -865,13 +856,17 @@ class _TripNodeState extends State<_TripNode> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
-      onTap: () => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) =>
-            TripDetailSheet(trip: widget.trip, isFirstVisit: isFirstVisit),
-      ),
+      onTap:
+          () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder:
+                (_) => TripDetailSheet(
+                  trip: widget.trip,
+                  isFirstVisit: isFirstVisit,
+                ),
+          ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -888,10 +883,11 @@ class _TripNodeState extends State<_TripNode> {
                 width: flagW,
                 height: flagH,
                 fit: BoxFit.cover,
-                placeholderBuilder: (_) => Text(
-                  flagEmoji(cc),
-                  style: TextStyle(fontSize: isFirstVisit ? 22 : 16),
-                ),
+                placeholderBuilder:
+                    (_) => Text(
+                      flagEmoji(cc),
+                      style: TextStyle(fontSize: isFirstVisit ? 22 : 16),
+                    ),
               ),
             ),
           ),
@@ -996,12 +992,13 @@ class _AchievementNodeState extends State<_AchievementNode> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
-      onTap: () => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => AchievementDetailSheet(achievement: achievement),
-      ),
+      onTap:
+          () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => AchievementDetailSheet(achievement: achievement),
+          ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -1055,9 +1052,7 @@ class _AchievementNodeState extends State<_AchievementNode> {
 // Darkens [c] by reducing HSL lightness. Used for the raised-button base layer.
 Color _darken(Color c, [double amount = 0.22]) {
   final hsl = HSLColor.fromColor(c);
-  return hsl
-      .withLightness((hsl.lightness - amount).clamp(0.0, 1.0))
-      .toColor();
+  return hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0)).toColor();
 }
 
 // ── Premium node circle (trip) ────────────────────────────────────────────────
@@ -1092,9 +1087,11 @@ class _PremiumNodeCircle extends StatelessWidget {
     final d = radius * 2;
 
     // Face colours: top is lighter, bottom is the brand colour.
-    final faceTop = isFirstVisit ? cs.primaryContainer : cs.surfaceContainerHighest;
+    final faceTop =
+        isFirstVisit ? cs.primaryContainer : cs.surfaceContainerHighest;
     final faceBot = isFirstVisit ? cs.primary : cs.surfaceContainer;
-    final base    = isFirstVisit ? _darken(cs.primary) : _darken(cs.outlineVariant);
+    final base =
+        isFirstVisit ? _darken(cs.primary) : _darken(cs.outlineVariant);
 
     // Pressed: face drops down flush with the base (no depth visible).
     final faceOffset = isPressed ? _kDepth : 0.0;
@@ -1131,7 +1128,10 @@ class _PremiumNodeCircle extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [faceTop, faceBot],
                 ),
-                border: Border.all(color: base, width: isFirstVisit ? 2.5 : 1.5),
+                border: Border.all(
+                  color: base,
+                  width: isFirstVisit ? 2.5 : 1.5,
+                ),
               ),
               alignment: Alignment.center,
               child: child,
@@ -1152,10 +1152,7 @@ class _PremiumNodeCircle extends StatelessWidget {
                   gradient: const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x60FFFFFF),
-                      Color(0x00FFFFFF),
-                    ],
+                    colors: [Color(0x60FFFFFF), Color(0x00FFFFFF)],
                   ),
                 ),
               ),
@@ -1253,10 +1250,7 @@ class _AchievementCircle extends StatelessWidget {
                   gradient: const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x55FFFFFF),
-                      Color(0x00FFFFFF),
-                    ],
+                    colors: [Color(0x55FFFFFF), Color(0x00FFFFFF)],
                   ),
                 ),
               ),

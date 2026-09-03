@@ -49,10 +49,8 @@ class MerchMomentsSection extends StatelessWidget {
           ),
         ),
         ...display.map(
-          (a) => _MerchMomentTile(
-            achievement: a,
-            unlockedAt: unlockedById[a.id]!,
-          ),
+          (a) =>
+              _MerchMomentTile(achievement: a, unlockedAt: unlockedById[a.id]!),
         ),
       ],
     );
@@ -67,8 +65,18 @@ class _MerchMomentTile extends StatelessWidget {
 
   static String _monthYear(DateTime dt) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[dt.month - 1]} ${dt.year}';
   }
@@ -136,12 +144,15 @@ class _MerchMomentTile extends StatelessWidget {
           const SizedBox(width: 10),
           // ── CTA button ────────────────────────────────────────
           FilledButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) =>
-                    AchievementMerchOptionScreen(achievement: achievement),
-              ),
-            ),
+            onPressed:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder:
+                        (_) => AchievementMerchOptionScreen(
+                          achievement: achievement,
+                        ),
+                  ),
+                ),
             style: FilledButton.styleFrom(
               backgroundColor: RoavvyColours.roavvyGold,
               foregroundColor: Colors.black87,

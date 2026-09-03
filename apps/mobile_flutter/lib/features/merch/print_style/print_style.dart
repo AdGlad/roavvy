@@ -232,21 +232,21 @@ class PrintStyleParams {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        distress,
-        grain,
-        fade,
-        roughEdges,
-        cracks,
-        acidWash,
-        halftone,
-        halftoneScale,
-        colorTreatment,
-        duotoneA,
-        duotoneB,
-        seed,
-        detailFactor,
-      );
+    id,
+    distress,
+    grain,
+    fade,
+    roughEdges,
+    cracks,
+    acidWash,
+    halftone,
+    halftoneScale,
+    colorTreatment,
+    duotoneA,
+    duotoneB,
+    seed,
+    detailFactor,
+  );
 }
 
 /// Base parameters for each selectable style. `detailFactor`/`detail` are filled
@@ -386,20 +386,20 @@ const Map<PrintStyleId, PrintStyleParams> kPrintStylePresets = {
 
 /// Human-readable label for the style picker.
 String printStyleLabel(PrintStyleId id) => switch (id) {
-      PrintStyleId.clean => 'Clean',
-      PrintStyleId.vintage => 'Vintage',
-      PrintStyleId.retro => 'Retro',
-      PrintStyleId.halftone => 'Halftone',
-      PrintStyleId.stamp => 'Stamp',
-      PrintStyleId.grunge => 'Grunge',
-      PrintStyleId.riso => 'Riso',
-      PrintStyleId.newsprint => 'Newsprint',
-      PrintStyleId.sunFaded => 'Sun-Faded',
-      PrintStyleId.photocopy => 'Photocopy',
-      PrintStyleId.edgeTear => 'Edge Tear',
-      PrintStyleId.acidWash => 'Acid Wash',
-      PrintStyleId.rippedFlag => 'Ripped Flag',
-    };
+  PrintStyleId.clean => 'Clean',
+  PrintStyleId.vintage => 'Vintage',
+  PrintStyleId.retro => 'Retro',
+  PrintStyleId.halftone => 'Halftone',
+  PrintStyleId.stamp => 'Stamp',
+  PrintStyleId.grunge => 'Grunge',
+  PrintStyleId.riso => 'Riso',
+  PrintStyleId.newsprint => 'Newsprint',
+  PrintStyleId.sunFaded => 'Sun-Faded',
+  PrintStyleId.photocopy => 'Photocopy',
+  PrintStyleId.edgeTear => 'Edge Tear',
+  PrintStyleId.acidWash => 'Acid Wash',
+  PrintStyleId.rippedFlag => 'Ripped Flag',
+};
 
 /// Parses a persisted [PrintStyleId] name, tolerating unknown/missing values by
 /// falling back to [PrintStyleId.clean] (backward-compatible: designs saved

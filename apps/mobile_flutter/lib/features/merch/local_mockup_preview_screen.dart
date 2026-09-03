@@ -412,8 +412,7 @@ class _LocalMockupPreviewScreenState
 
   /// M174 — live artwork placement per face. Owned here (not by the canvas) so
   /// the print export and the cart item read exactly what the user arranged.
-  final MockupTransformController _frontTransform =
-      MockupTransformController();
+  final MockupTransformController _frontTransform = MockupTransformController();
   final MockupTransformController _backTransform = MockupTransformController();
 
   /// True while the user is arranging the design directly on the shirt.
@@ -854,9 +853,10 @@ class _LocalMockupPreviewScreenState
     if (params == null || clean == null) return;
     final n = widget.selectedCodes.length;
     final override = _titleOverride;
-    final title = (override != null && override.trim().isNotEmpty)
-        ? override
-        : '$n ${n == 1 ? 'Country' : 'Countries'}';
+    final title =
+        (override != null && override.trim().isNotEmpty)
+            ? override
+            : '$n ${n == 1 ? 'Country' : 'Countries'}';
     final styled = await styleAutoDesignArtwork(
       clean,
       params: params,
@@ -905,8 +905,10 @@ class _LocalMockupPreviewScreenState
     final params = kPrintStylePresets[_printStyleId]!
         .copyWith(seed: _printStyleSeed)
         .resolvedFor(detail);
-    final styled =
-        await PrintStylePipeline.instance.applyToBytes(cleanBytes, params);
+    final styled = await PrintStylePipeline.instance.applyToBytes(
+      cleanBytes,
+      params,
+    );
     _styleCache.put(key, styled);
     return styled;
   }
@@ -1371,9 +1373,8 @@ class _LocalMockupPreviewScreenState
       return widget.selectedCodes;
     }
     final sel = widget.selectedCodes.toSet();
-    final trips = [
-      ...widget.trips.where((t) => sel.contains(t.countryCode)),
-    ]..sort((a, b) => a.startedOn.compareTo(b.startedOn));
+    final trips = [...widget.trips.where((t) => sel.contains(t.countryCode))]
+      ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
     if (trips.isEmpty) return widget.selectedCodes;
     return [for (final t in trips) t.countryCode];
   }
@@ -1717,7 +1718,9 @@ class _LocalMockupPreviewScreenState
       // Filter trips to the selected countries — same scope as the original render.
       final selectedSet = Set<String>.from(widget.selectedCodes);
       final scopedTrips =
-          widget.trips.where((t) => selectedSet.contains(t.countryCode)).toList();
+          widget.trips
+              .where((t) => selectedSet.contains(t.countryCode))
+              .toList();
       final result = await CardImageRenderer.render(
         context,
         _template,
@@ -1871,11 +1874,12 @@ class _LocalMockupPreviewScreenState
     final request = TitleGenerationRequest(
       countryCodes: codes,
       countryNames: codes.map((c) => kCountryNames[c] ?? c).toList(),
-      regionNames: codes
-          .map((c) => kCountryContinent[c])
-          .whereType<String>()
-          .toSet()
-          .toList(),
+      regionNames:
+          codes
+              .map((c) => kCountryContinent[c])
+              .whereType<String>()
+              .toSet()
+              .toList(),
       cardType: _template,
     );
     try {
@@ -1993,11 +1997,12 @@ class _LocalMockupPreviewScreenState
     final request = TitleGenerationRequest(
       countryCodes: codes,
       countryNames: codes.map((c) => kCountryNames[c] ?? c).toList(),
-      regionNames: codes
-          .map((c) => kCountryContinent[c])
-          .whereType<String>()
-          .toSet()
-          .toList(),
+      regionNames:
+          codes
+              .map((c) => kCountryContinent[c])
+              .whereType<String>()
+              .toSet()
+              .toList(),
       cardType: _template,
     );
 
@@ -2081,8 +2086,7 @@ class _LocalMockupPreviewScreenState
     final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    final hex =
-        bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
         '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
         '${hex.substring(20)}';
@@ -2297,31 +2301,35 @@ class _LocalMockupPreviewScreenState
 
       if (printDims != null) {
         final processSw = Stopwatch()..start();
-        final frontResult = sendFrontImage
-            ? await MerchImageProcessor.processFront(
-                sourceBytes: frontSourceBytes,
-                frontPosition: PrintfulPlacementMapper.mapFront(_frontPosition),
-                widthPx: printDims.widthPx,
-                heightPx: printDims.heightPx,
-                dpi: printDims.dpi,
-                transparentBackground: printDims.transparent,
-                // M174: print exactly what the preview showed.
-                transform: _frontTransform.value,
-              )
-            : null;
-        final backPrintBytes = sendBackImage
-            ? await MerchImageProcessor.processBack(
-                sourceBytes: artworkBytes,
-                widthPx: printDims.widthPx,
-                heightPx: printDims.heightPx,
-                transparentBackground: printDims.transparent,
-                // Match the preview: the design fills the same fraction of the
-                // printable area that the chosen Image Size shows (M190), then
-                // carries the user's own placement on top (M174).
-                fillFraction: _imageSize.fillFraction,
-                transform: _backTransform.value,
-              )
-            : null;
+        final frontResult =
+            sendFrontImage
+                ? await MerchImageProcessor.processFront(
+                  sourceBytes: frontSourceBytes,
+                  frontPosition: PrintfulPlacementMapper.mapFront(
+                    _frontPosition,
+                  ),
+                  widthPx: printDims.widthPx,
+                  heightPx: printDims.heightPx,
+                  dpi: printDims.dpi,
+                  transparentBackground: printDims.transparent,
+                  // M174: print exactly what the preview showed.
+                  transform: _frontTransform.value,
+                )
+                : null;
+        final backPrintBytes =
+            sendBackImage
+                ? await MerchImageProcessor.processBack(
+                  sourceBytes: artworkBytes,
+                  widthPx: printDims.widthPx,
+                  heightPx: printDims.heightPx,
+                  transparentBackground: printDims.transparent,
+                  // Match the preview: the design fills the same fraction of the
+                  // printable area that the chosen Image Size shows (M190), then
+                  // carries the user's own placement on top (M174).
+                  fillFraction: _imageSize.fillFraction,
+                  transform: _backTransform.value,
+                )
+                : null;
         processSw.stop();
         debugPrint(
           '[mockup] step 3: on-device processing ${processSw.elapsedMilliseconds}ms  front=${frontResult != null}  back=${backPrintBytes != null}',
@@ -2346,10 +2354,7 @@ class _LocalMockupPreviewScreenState
           ],
           if (backPrintBytes != null)
             uploader
-                .upload(
-                  backPrintBytes,
-                  'back_print_files/$clientConfigId.png',
-                )
+                .upload(backPrintBytes, 'back_print_files/$clientConfigId.png')
                 .then((p) => backPrintStoragePath = p),
         ]);
         uploadSw.stop();
@@ -2391,7 +2396,8 @@ class _LocalMockupPreviewScreenState
           );
           if (!mounted) return;
           setState(() {
-            _retryMessage = 'Having trouble generating your mockup. Retrying\u2026';
+            _retryMessage =
+                'Having trouble generating your mockup. Retrying\u2026';
             _mockupApiComplete = false;
           });
           await Future.delayed(const Duration(seconds: 2));
@@ -2665,9 +2671,9 @@ class _LocalMockupPreviewScreenState
     final bytes = mockupBytes ?? _artworkBytes;
     if (bytes == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nothing to share yet.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Nothing to share yet.')));
       }
       return;
     }
@@ -2944,163 +2950,166 @@ class _LocalMockupPreviewScreenState
                 children: [
                   // Shuffle button
                   GestureDetector(
-                  onTap:
-                      _state == _MockupState.rerendering ||
-                              _state == _MockupState.approving
-                          ? null
-                          : () => unawaited(_shuffle()),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(
-                        alpha: 0.3,
+                    onTap:
+                        _state == _MockupState.rerendering ||
+                                _state == _MockupState.approving
+                            ? null
+                            : () => unawaited(_shuffle()),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.shuffle_rounded,
-                          size: 13,
-                          color: theme.colorScheme.primary,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.3,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Shuffle',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Orientation toggle
-                GestureDetector(
-                  onTap:
-                      _state == _MockupState.rerendering ||
-                              _state == _MockupState.approving
-                          ? null
-                          : () => unawaited(_toggleOrientation()),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(
-                        alpha: 0.3,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _isPortrait
-                              ? Icons.stay_current_portrait
-                              : Icons.stay_current_landscape,
-                          size: 13,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _isPortrait ? 'Portrait' : 'Landscape',
-                          style: theme.textTheme.labelSmall?.copyWith(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.shuffle_rounded,
+                            size: 13,
                             color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Flip front/back
-                GestureDetector(
-                  onTap:
-                      () => setState(() {
-                        _showingFront = !_showingFront;
-                        _flipViewKey++;
-                      }),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(
-                        alpha: 0.3,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.flip,
-                          size: 13,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _showingFront ? 'See Back' : 'See Front',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // M174 — arrange the design directly on the shirt.
-                GestureDetector(
-                  key: const Key('mockup-adjust-toggle'),
-                  onTap: () => setState(() => _adjustMode = !_adjustMode),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _adjustMode
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.primaryContainer.withValues(
-                              alpha: 0.3,
+                          const SizedBox(width: 4),
+                          Text(
+                            'Shuffle',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
                             ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _adjustMode
-                              ? Icons.check_rounded
-                              : Icons.open_with_rounded,
-                          size: 13,
-                          color: _adjustMode
-                              ? theme.colorScheme.onPrimary
-                              : theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _adjustMode ? 'Done' : 'Adjust',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: _adjustMode
-                                ? theme.colorScheme.onPrimary
-                                : theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                  // Orientation toggle
+                  GestureDetector(
+                    onTap:
+                        _state == _MockupState.rerendering ||
+                                _state == _MockupState.approving
+                            ? null
+                            : () => unawaited(_toggleOrientation()),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.3,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _isPortrait
+                                ? Icons.stay_current_portrait
+                                : Icons.stay_current_landscape,
+                            size: 13,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _isPortrait ? 'Portrait' : 'Landscape',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Flip front/back
+                  GestureDetector(
+                    onTap:
+                        () => setState(() {
+                          _showingFront = !_showingFront;
+                          _flipViewKey++;
+                        }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.3,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.flip,
+                            size: 13,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _showingFront ? 'See Back' : 'See Front',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // M174 — arrange the design directly on the shirt.
+                  GestureDetector(
+                    key: const Key('mockup-adjust-toggle'),
+                    onTap: () => setState(() => _adjustMode = !_adjustMode),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            _adjustMode
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.primaryContainer.withValues(
+                                  alpha: 0.3,
+                                ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _adjustMode
+                                ? Icons.check_rounded
+                                : Icons.open_with_rounded,
+                            size: 13,
+                            color:
+                                _adjustMode
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _adjustMode ? 'Done' : 'Adjust',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color:
+                                  _adjustMode
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -3215,7 +3224,11 @@ class _LocalMockupPreviewScreenState
         // header + chevron signals that there's more to customise.
         Row(
           children: [
-            Icon(Icons.tune_rounded, size: 16, color: theme.colorScheme.primary),
+            Icon(
+              Icons.tune_rounded,
+              size: 16,
+              color: theme.colorScheme.primary,
+            ),
             const SizedBox(width: 8),
             Text(
               'Customize your design',
@@ -3357,9 +3370,8 @@ class _LocalMockupPreviewScreenState
                     ),
                   ),
                   child: Slider(
-                    value: (_rowCount ?? _flagRepeatCount)
-                        .clamp(1, 10)
-                        .toDouble(),
+                    value:
+                        (_rowCount ?? _flagRepeatCount).clamp(1, 10).toDouble(),
                     min: 1,
                     max: 10,
                     divisions: 9,
@@ -3386,8 +3398,7 @@ class _LocalMockupPreviewScreenState
                   value: _stampSizeMultiplier,
                   min: 0.5,
                   max: 1.5,
-                  valueLabel:
-                      '${(_stampSizeMultiplier * 100).round()}%',
+                  valueLabel: '${(_stampSizeMultiplier * 100).round()}%',
                   onChanged:
                       _state == _MockupState.rerendering ||
                               _state == _MockupState.approving
@@ -3402,8 +3413,7 @@ class _LocalMockupPreviewScreenState
                   value: _stampJitterFactor,
                   min: 0.0,
                   max: 1.0,
-                  valueLabel:
-                      '${(_stampJitterFactor * 100).round()}%',
+                  valueLabel: '${(_stampJitterFactor * 100).round()}%',
                   onChanged:
                       _state == _MockupState.rerendering ||
                               _state == _MockupState.approving
@@ -4053,10 +4063,7 @@ class _LocalMockupPreviewScreenState
               ),
               child: const Text(
                 'Review & Checkout',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -4240,9 +4247,10 @@ class _ShirtFlipViewState extends State<_ShirtFlipView>
     return GestureDetector(
       onVerticalDragStart: adjusting ? null : _onVerticalDragStart,
       onVerticalDragEnd: adjusting ? null : _onVerticalDragEnd,
-      onDoubleTap: adjusting
-          ? null
-          : () => _transformationController.value = Matrix4.identity(),
+      onDoubleTap:
+          adjusting
+              ? null
+              : () => _transformationController.value = Matrix4.identity(),
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
@@ -4642,9 +4650,10 @@ class _PrintStyleStrip extends StatelessWidget {
             selected: isSel,
             onSelected: enabled ? (_) => onSelected(id) : null,
             labelStyle: theme.textTheme.labelMedium?.copyWith(
-              color: isSel
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurface,
+              color:
+                  isSel
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.onSurface,
               fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
             ),
             selectedColor: theme.colorScheme.primary,
@@ -4733,9 +4742,10 @@ class _ClipShapeCarouselState extends State<_ClipShapeCarousel> {
           child: PageView.builder(
             controller: _controller,
             itemCount: widget.options.length,
-            physics: widget.enabled
-                ? const BouncingScrollPhysics()
-                : const NeverScrollableScrollPhysics(),
+            physics:
+                widget.enabled
+                    ? const BouncingScrollPhysics()
+                    : const NeverScrollableScrollPhysics(),
             onPageChanged: (i) {
               setState(() => _current = i);
               if (widget.enabled) widget.onSelected(widget.options[i]);
@@ -4747,26 +4757,33 @@ class _ClipShapeCarouselState extends State<_ClipShapeCarousel> {
                 scale: selected ? 1.0 : 0.88,
                 duration: const Duration(milliseconds: 150),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 4,
+                  ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: widget.shirtColour,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: selected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.outline.withValues(alpha: 0.2),
+                        color:
+                            selected
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.outline.withValues(
+                                  alpha: 0.2,
+                                ),
                         width: selected ? 2 : 1,
                       ),
-                      boxShadow: selected
-                          ? [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.18),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ]
-                          : null,
+                      boxShadow:
+                          selected
+                              ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ]
+                              : null,
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
@@ -4805,9 +4822,10 @@ class _ClipShapeCarouselState extends State<_ClipShapeCarousel> {
                 width: i == current ? 16 : 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: i == current
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.outlineVariant,
+                  color:
+                      i == current
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outlineVariant,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -4969,9 +4987,7 @@ class _LayoutModeSelector extends StatelessWidget {
                                 ? theme.colorScheme.onPrimary
                                 : theme.colorScheme.onSurface,
                         fontWeight:
-                            mode == active
-                                ? FontWeight.bold
-                                : FontWeight.w500,
+                            mode == active ? FontWeight.bold : FontWeight.w500,
                       ),
                     ),
                   ],
@@ -5020,15 +5036,18 @@ class _FlagSourceSelector extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: value == perTrip
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.3),
+                  color:
+                      value == perTrip
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.primaryContainer.withValues(
+                            alpha: 0.3,
+                          ),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: value == perTrip
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outline.withValues(alpha: 0.25),
+                    color:
+                        value == perTrip
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline.withValues(alpha: 0.25),
                   ),
                 ),
                 child: Row(
@@ -5037,19 +5056,23 @@ class _FlagSourceSelector extends StatelessWidget {
                     Icon(
                       icon,
                       size: 14,
-                      color: value == perTrip
-                          ? theme.colorScheme.onPrimary
-                          : theme.colorScheme.primary,
+                      color:
+                          value == perTrip
+                              ? theme.colorScheme.onPrimary
+                              : theme.colorScheme.primary,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       label,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: value == perTrip
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.onSurface,
+                        color:
+                            value == perTrip
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.onSurface,
                         fontWeight:
-                            value == perTrip ? FontWeight.bold : FontWeight.w500,
+                            value == perTrip
+                                ? FontWeight.bold
+                                : FontWeight.w500,
                       ),
                     ),
                   ],
@@ -5098,15 +5121,18 @@ class _JourneyStyleSelector extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: style == selected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.3),
+                  color:
+                      style == selected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.primaryContainer.withValues(
+                            alpha: 0.3,
+                          ),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: style == selected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outline.withValues(alpha: 0.25),
+                    color:
+                        style == selected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline.withValues(alpha: 0.25),
                   ),
                 ),
                 child: Row(
@@ -5115,20 +5141,23 @@ class _JourneyStyleSelector extends StatelessWidget {
                     Icon(
                       icon,
                       size: 14,
-                      color: style == selected
-                          ? theme.colorScheme.onPrimary
-                          : theme.colorScheme.primary,
+                      color:
+                          style == selected
+                              ? theme.colorScheme.onPrimary
+                              : theme.colorScheme.primary,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       label,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: style == selected
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.onSurface,
-                        fontWeight: style == selected
-                            ? FontWeight.bold
-                            : FontWeight.w500,
+                        color:
+                            style == selected
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.onSurface,
+                        fontWeight:
+                            style == selected
+                                ? FontWeight.bold
+                                : FontWeight.w500,
                       ),
                     ),
                   ],
@@ -5201,9 +5230,10 @@ class _JourneyYearFilter extends StatelessWidget {
           divisions: maxY - minY,
           labels: RangeLabels('$start', '$end'),
           values: RangeValues(start.toDouble(), end.toDouble()),
-          onChanged: enabled
-              ? (v) => onChanged((v.start.round(), v.end.round()))
-              : null,
+          onChanged:
+              enabled
+                  ? (v) => onChanged((v.start.round(), v.end.round()))
+                  : null,
         ),
       ],
     );
@@ -5748,9 +5778,10 @@ class _StampSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final disabled = onChanged == null;
-    final labelColor = disabled
-        ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)
-        : theme.colorScheme.onSurfaceVariant;
+    final labelColor =
+        disabled
+            ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)
+            : theme.colorScheme.onSurfaceVariant;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -5770,9 +5801,10 @@ class _StampSlider extends StatelessWidget {
             Text(
               valueLabel,
               style: theme.textTheme.labelSmall?.copyWith(
-                color: disabled
-                    ? theme.colorScheme.primary.withValues(alpha: 0.4)
-                    : theme.colorScheme.primary,
+                color:
+                    disabled
+                        ? theme.colorScheme.primary.withValues(alpha: 0.4)
+                        : theme.colorScheme.primary,
                 fontWeight: FontWeight.bold,
                 fontSize: 10,
               ),
@@ -5785,13 +5817,16 @@ class _StampSlider extends StatelessWidget {
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
             activeTrackColor: theme.colorScheme.primary,
-            inactiveTrackColor:
-                theme.colorScheme.outline.withValues(alpha: 0.25),
+            inactiveTrackColor: theme.colorScheme.outline.withValues(
+              alpha: 0.25,
+            ),
             thumbColor: theme.colorScheme.primary,
-            disabledThumbColor:
-                theme.colorScheme.primary.withValues(alpha: 0.3),
-            disabledActiveTrackColor:
-                theme.colorScheme.primary.withValues(alpha: 0.3),
+            disabledThumbColor: theme.colorScheme.primary.withValues(
+              alpha: 0.3,
+            ),
+            disabledActiveTrackColor: theme.colorScheme.primary.withValues(
+              alpha: 0.3,
+            ),
           ),
           child: Slider(
             value: value.clamp(min, max),

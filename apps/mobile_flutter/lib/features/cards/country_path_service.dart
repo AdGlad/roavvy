@@ -56,7 +56,8 @@ class CountryPathService {
   /// paint. Errors are silently swallowed — callers fall back to circle clip.
   static Future<void> preload(List<String> codes, ui.Size targetSize) async {
     await Future.wait([
-      for (final code in codes) pathFor(code, targetSize).catchError((_) => null),
+      for (final code in codes)
+        pathFor(code, targetSize).catchError((_) => null),
     ]);
   }
 
@@ -70,9 +71,10 @@ class CountryPathService {
   static Future<Map<String, dynamic>?> _loadJson(String code) async {
     // Continent keys use a different directory.
     final isContinent = _continentKeys.contains(code);
-    final assetPath = isContinent
-        ? 'assets/continent_paths/$code.json'
-        : 'assets/country_paths/$code.json';
+    final assetPath =
+        isContinent
+            ? 'assets/continent_paths/$code.json'
+            : 'assets/country_paths/$code.json';
 
     try {
       final raw = await rootBundle.loadString(assetPath);
@@ -83,7 +85,12 @@ class CountryPathService {
   }
 
   static const Set<String> _continentKeys = {
-    'africa', 'asia', 'europe', 'north_america', 'oceania', 'south_america',
+    'africa',
+    'asia',
+    'europe',
+    'north_america',
+    'oceania',
+    'south_america',
   };
 
   // ── Path construction ──────────────────────────────────────────────────────

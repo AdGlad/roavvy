@@ -54,8 +54,9 @@ class MergedFlagRenderer {
   /// whole graphic is flag — the shader samples in uv 0..1).
   Future<ui.Image?> _rasterFlag(String code, int size) async {
     try {
-      final loader =
-          SvgAssetLoader('assets/flags/svg/${code.toLowerCase()}.svg');
+      final loader = SvgAssetLoader(
+        'assets/flags/svg/${code.toLowerCase()}.svg',
+      );
       final info = await vg.loadPicture(loader, null);
       final recorder = ui.PictureRecorder();
       final canvas = ui.Canvas(recorder);

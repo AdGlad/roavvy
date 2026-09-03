@@ -28,16 +28,14 @@ class WorldLeapGeoService {
           math.cos(phi1) * math.sin(delta) * math.cos(theta),
     );
 
-    final lambda2 = lambda1 +
+    final lambda2 =
+        lambda1 +
         math.atan2(
           math.sin(theta) * math.sin(delta) * math.cos(phi1),
           math.cos(delta) - math.sin(phi1) * math.sin(phi2),
         );
 
-    return (
-      lat: _toDeg(phi2),
-      lon: _normaliseLon(_toDeg(lambda2)),
-    );
+    return (lat: _toDeg(phi2), lon: _normaliseLon(_toDeg(lambda2)));
   }
 
   /// Computes the great-circle distance in kilometres between two points.
@@ -52,7 +50,8 @@ class WorldLeapGeoService {
     final deltaPhi = _toRad(lat2 - lat1);
     final deltaLambda = _toRad(lon2 - lon1);
 
-    final a = math.sin(deltaPhi / 2) * math.sin(deltaPhi / 2) +
+    final a =
+        math.sin(deltaPhi / 2) * math.sin(deltaPhi / 2) +
         math.cos(phi1) *
             math.cos(phi2) *
             math.sin(deltaLambda / 2) *
@@ -75,7 +74,8 @@ class WorldLeapGeoService {
     final deltaLambda = _toRad(lon2 - lon1);
 
     final y = math.sin(deltaLambda) * math.cos(phi2);
-    final x = math.cos(phi1) * math.sin(phi2) -
+    final x =
+        math.cos(phi1) * math.sin(phi2) -
         math.sin(phi1) * math.cos(phi2) * math.cos(deltaLambda);
 
     return (_toDeg(math.atan2(y, x)) + 360) % 360;
@@ -94,12 +94,14 @@ class WorldLeapGeoService {
     final points = <({double lat, double lon})>[];
     for (int i = 1; i <= count; i++) {
       final partial = distanceKm * (i / count);
-      points.add(destinationPoint(
-        startLat: fromLat,
-        startLon: fromLon,
-        bearingDeg: bearingDeg,
-        distanceKm: partial,
-      ));
+      points.add(
+        destinationPoint(
+          startLat: fromLat,
+          startLon: fromLon,
+          bearingDeg: bearingDeg,
+          distanceKm: partial,
+        ),
+      );
     }
     return points;
   }

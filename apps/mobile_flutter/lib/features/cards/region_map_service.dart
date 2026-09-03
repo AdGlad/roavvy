@@ -43,7 +43,12 @@ class RegionMapService {
   RegionMapService._();
 
   static const Set<String> _continentKeys = {
-    'africa', 'asia', 'europe', 'north_america', 'oceania', 'south_america',
+    'africa',
+    'asia',
+    'europe',
+    'north_america',
+    'oceania',
+    'south_america',
   };
 
   // LRU cache keyed by continent key.
@@ -74,10 +79,12 @@ class RegionMapService {
 
   static Future<RegionMap?> _load(String key) async {
     try {
-      final countriesRaw = await rootBundle
-          .loadString('assets/continent_paths/${key}_countries.json');
-      final outlineRaw =
-          await rootBundle.loadString('assets/continent_paths/$key.json');
+      final countriesRaw = await rootBundle.loadString(
+        'assets/continent_paths/${key}_countries.json',
+      );
+      final outlineRaw = await rootBundle.loadString(
+        'assets/continent_paths/$key.json',
+      );
 
       final cData = json.decode(countriesRaw) as Map<String, dynamic>;
       final oData = json.decode(outlineRaw) as Map<String, dynamic>;
@@ -114,7 +121,9 @@ class RegionMapService {
       path.moveTo((pts[0][0] as num).toDouble(), (pts[0][1] as num).toDouble());
       for (var i = 1; i < pts.length; i++) {
         path.lineTo(
-            (pts[i][0] as num).toDouble(), (pts[i][1] as num).toDouble());
+          (pts[i][0] as num).toDouble(),
+          (pts[i][1] as num).toDouble(),
+        );
       }
       path.close();
       any = true;

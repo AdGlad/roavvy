@@ -19,7 +19,8 @@ class DistanceUtils {
   ) {
     final dLat = _toRad(lat2 - lat1);
     final dLng = _toRad(lng2 - lng1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(_toRad(lat1)) *
             math.cos(_toRad(lat2)) *
             math.sin(dLng / 2) *
@@ -32,17 +33,13 @@ class DistanceUtils {
 
   /// Forward azimuth bearing in degrees (0–360, clockwise from north) from
   /// point 1 to point 2.
-  static double bearingDeg(
-    double lat1,
-    double lng1,
-    double lat2,
-    double lng2,
-  ) {
+  static double bearingDeg(double lat1, double lng1, double lat2, double lng2) {
     final lat1r = _toRad(lat1);
     final lat2r = _toRad(lat2);
     final dLng = _toRad(lng2 - lng1);
     final x = math.sin(dLng) * math.cos(lat2r);
-    final y = math.cos(lat1r) * math.sin(lat2r) -
+    final y =
+        math.cos(lat1r) * math.sin(lat2r) -
         math.sin(lat1r) * math.cos(lat2r) * math.cos(dLng);
     return (_toDeg(math.atan2(x, y)) + 360) % 360;
   }

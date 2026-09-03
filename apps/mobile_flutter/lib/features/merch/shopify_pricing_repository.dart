@@ -23,9 +23,9 @@ class MerchPrices {
   static const unknown = MerchPrices();
 
   static MerchPrices _fromJson(Map<String, dynamic> data) => MerchPrices(
-        tshirtFromPrice: formatMoney(data['tshirtPrice']),
-        posterFromPrice: formatMoney(data['posterPrice']),
-      );
+    tshirtFromPrice: formatMoney(data['tshirtPrice']),
+    posterFromPrice: formatMoney(data['posterPrice']),
+  );
 
   /// Formats a Shopify Money map (`{amount, currencyCode}`) into a display
   /// string like "AU$29.99". Returns null when the map is missing/malformed.

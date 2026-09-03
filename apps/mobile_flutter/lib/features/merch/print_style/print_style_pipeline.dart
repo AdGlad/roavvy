@@ -61,60 +61,100 @@ class PrintStylePipeline {
     final srcRect = rect;
 
     // Pre-load any textures needed (async) before entering the canvas pass.
-    final grainImg = params.grain > 0
-        ? await PrintStyleTextures.instance.get(PrintTextureKind.grain,
-            params.seed, size: 256)
-        : null;
-    final distressImg = params.effectiveDistress > 0
-        ? await PrintStyleTextures.instance.get(PrintTextureKind.blotch,
-            params.seed, size: 256)
-        : null;
-    final scratchImg = params.effectiveRoughEdges > 0 && _usesScratches(params)
-        ? await PrintStyleTextures.instance.get(PrintTextureKind.scratch,
-            params.seed ^ 0x5bd1e995, size: 256)
-        : null;
+    final grainImg =
+        params.grain > 0
+            ? await PrintStyleTextures.instance.get(
+              PrintTextureKind.grain,
+              params.seed,
+              size: 256,
+            )
+            : null;
+    final distressImg =
+        params.effectiveDistress > 0
+            ? await PrintStyleTextures.instance.get(
+              PrintTextureKind.blotch,
+              params.seed,
+              size: 256,
+            )
+            : null;
+    final scratchImg =
+        params.effectiveRoughEdges > 0 && _usesScratches(params)
+            ? await PrintStyleTextures.instance.get(
+              PrintTextureKind.scratch,
+              params.seed ^ 0x5bd1e995,
+              size: 256,
+            )
+            : null;
     final stampInkImg =
         params.effectiveRoughEdges > 0 && params.id == PrintStyleId.stamp
-            ? await PrintStyleTextures.instance.get(PrintTextureKind.stampInk,
-                params.seed ^ 0x27d4eb2f, size: 256)
+            ? await PrintStyleTextures.instance.get(
+              PrintTextureKind.stampInk,
+              params.seed ^ 0x27d4eb2f,
+              size: 256,
+            )
             : null;
     // Fine mottled breakup, layered on top of the coarse blotch so distress
     // reads as dense grungy ink loss rather than a few soft blobs.
-    final mottleImg = params.effectiveDistress > 0.25
-        ? await PrintStyleTextures.instance.get(PrintTextureKind.mottle,
-            params.seed ^ 0x9e3779b1, size: 256)
-        : null;
+    final mottleImg =
+        params.effectiveDistress > 0.25
+            ? await PrintStyleTextures.instance.get(
+              PrintTextureKind.mottle,
+              params.seed ^ 0x9e3779b1,
+              size: 256,
+            )
+            : null;
     // Branching crack network (cracked-paint / grunge).
-    final crackImg = params.effectiveCracks > 0
-        ? await PrintStyleTextures.instance.get(PrintTextureKind.crack,
-            params.seed ^ 0x165667b1, size: 256)
-        : null;
+    final crackImg =
+        params.effectiveCracks > 0
+            ? await PrintStyleTextures.instance.get(
+              PrintTextureKind.crack,
+              params.seed ^ 0x165667b1,
+              size: 256,
+            )
+            : null;
     // Soft cloud for acid-wash bleach patches.
-    final washImg = params.acidWash > 0
-        ? await PrintStyleTextures.instance.get(PrintTextureKind.wash,
-            params.seed ^ 0x2545f491, size: 256)
-        : null;
+    final washImg =
+        params.acidWash > 0
+            ? await PrintStyleTextures.instance.get(
+              PrintTextureKind.wash,
+              params.seed ^ 0x2545f491,
+              size: 256,
+            )
+            : null;
     // Ragged torn outer edge (design frays into the garment).
     final tornEdgeImg =
         params.effectiveRoughEdges > 0 && _usesTornEdges(params)
             ? await _buildTornEdgeImage(
-                params.seed, w, h, params.effectiveRoughEdges)
+              params.seed,
+              w,
+              h,
+              params.effectiveRoughEdges,
+            )
             : null;
     // Central vertical "gash" mask — the ripped-through-fabric flag (id-gated).
-    final gashImg = params.id == PrintStyleId.rippedFlag
-        ? await _buildGashImage(params.seed, w, h)
-        : null;
+    final gashImg =
+        params.id == PrintStyleId.rippedFlag
+            ? await _buildGashImage(params.seed, w, h)
+            : null;
     // Torn-flag silhouette — the v2 torn engine (TornRecipe → geometry → mask).
     // A cached keep-mask carves a curated torn perimeter into the whole design;
     // owned by the renderer's cache, so it is NOT disposed here.
-    final tornKeepMask = params.id == PrintStyleId.edgeTear
-        ? await TornMaskRenderer.instance
-            .keepMask(_tornRecipeFor(params), width: w, height: h)
-        : null;
+    final tornKeepMask =
+        params.id == PrintStyleId.edgeTear
+            ? await TornMaskRenderer.instance.keepMask(
+              _tornRecipeFor(params),
+              width: w,
+              height: h,
+            )
+            : null;
     // Local protection mask (keeps emblems/text inked). Only needed when an
     // ink-removing pass runs.
-    final needsErase = distressImg != null || scratchImg != null ||
-        stampInkImg != null || mottleImg != null || crackImg != null;
+    final needsErase =
+        distressImg != null ||
+        scratchImg != null ||
+        stampInkImg != null ||
+        mottleImg != null ||
+        crackImg != null;
     final protectionImg =
         needsErase ? await _buildProtectionImage(params.detail) : null;
 
@@ -124,10 +164,11 @@ class PrintStylePipeline {
     if (params.effectiveHalftone > 0) {
       halftoneCols = _halftoneCols(rect, params);
       if (halftoneCols >= 2) {
-        halftoneRows =
-            (halftoneCols * rect.height / rect.width).round().clamp(2, 400);
-        halftoneGrid =
-            await _coverageGrid(source, halftoneCols, halftoneRows);
+        halftoneRows = (halftoneCols * rect.height / rect.width).round().clamp(
+          2,
+          400,
+        );
+        halftoneGrid = await _coverageGrid(source, halftoneCols, halftoneRows);
       }
     }
 
@@ -146,7 +187,13 @@ class PrintStylePipeline {
     //     and print match.
     if (params.effectiveHalftone > 0 && halftoneGrid != null) {
       _applyHalftone(
-          canvas, rect, params, halftoneGrid, halftoneCols, halftoneRows);
+        canvas,
+        rect,
+        params,
+        halftoneGrid,
+        halftoneCols,
+        halftoneRows,
+      );
     }
 
     // 2. Grain — masked to the artwork's alpha, composited with soft light so it
@@ -180,14 +227,26 @@ class PrintStylePipeline {
     //    effectiveDistress (already reduced for detailed artwork) and locally
     //    spared where the protection mask marks emblems/text.
     if (distressImg != null) {
-      _erase(canvas, rect, distressImg, params.effectiveDistress,
-          protection: protectionImg, hardness: params.distressHardness);
+      _erase(
+        canvas,
+        rect,
+        distressImg,
+        params.effectiveDistress,
+        protection: protectionImg,
+        hardness: params.distressHardness,
+      );
     }
 
     // 3b. Fine mottle — dense grungy breakup layered over the coarse blotch.
     if (mottleImg != null) {
-      _erase(canvas, rect, mottleImg, params.effectiveDistress * 0.7,
-          protection: protectionImg, hardness: params.distressHardness);
+      _erase(
+        canvas,
+        rect,
+        mottleImg,
+        params.effectiveDistress * 0.7,
+        protection: protectionImg,
+        hardness: params.distressHardness,
+      );
     }
 
     // 3c. Cracks — thin transparent fissures through the ink. Not protected, so
@@ -199,17 +258,28 @@ class PrintStylePipeline {
 
     // 4. Scratches / ink chips (grunge-style ink loss), stronger streaks.
     if (scratchImg != null) {
-      _erase(canvas, rect, scratchImg, params.effectiveRoughEdges,
-          protection: protectionImg, hardness: params.distressHardness);
+      _erase(
+        canvas,
+        rect,
+        scratchImg,
+        params.effectiveRoughEdges,
+        protection: protectionImg,
+        hardness: params.distressHardness,
+      );
     }
 
     // 5. Stamp uneven ink + rough edges — finer, higher-contrast erosion that
     //    breaks up solid fills and roughens boundaries like a rubber stamp.
     //    Stamp ink reads crisp, so bias hardness up.
     if (stampInkImg != null) {
-      _erase(canvas, rect, stampInkImg, params.effectiveRoughEdges,
-          protection: protectionImg,
-          hardness: math.max(params.distressHardness, 0.7));
+      _erase(
+        canvas,
+        rect,
+        stampInkImg,
+        params.effectiveRoughEdges,
+        protection: protectionImg,
+        hardness: math.max(params.distressHardness, 0.7),
+      );
     }
 
     // 6. Torn outer edge — frays the design boundary into the garment. Alpha of
@@ -218,7 +288,11 @@ class PrintStylePipeline {
       canvas.drawImageRect(
         tornEdgeImg,
         ui.Rect.fromLTWH(
-            0, 0, tornEdgeImg.width.toDouble(), tornEdgeImg.height.toDouble()),
+          0,
+          0,
+          tornEdgeImg.width.toDouble(),
+          tornEdgeImg.height.toDouble(),
+        ),
         rect,
         ui.Paint()
           ..blendMode = ui.BlendMode.dstOut
@@ -234,7 +308,11 @@ class PrintStylePipeline {
       canvas.drawImageRect(
         gashImg,
         ui.Rect.fromLTWH(
-            0, 0, gashImg.width.toDouble(), gashImg.height.toDouble()),
+          0,
+          0,
+          gashImg.width.toDouble(),
+          gashImg.height.toDouble(),
+        ),
         rect,
         ui.Paint()
           ..blendMode = ui.BlendMode.dstIn
@@ -288,7 +366,11 @@ class PrintStylePipeline {
   /// filtering (see the torn-edge pass) to keep the cut crisp rather than blurred
   /// back into a soft feather.
   Future<ui.Image> _buildTornEdgeImage(
-      int seed, int w, int h, double strength) {
+    int seed,
+    int w,
+    int h,
+    double strength,
+  ) {
     const cap = 1024;
     final longSide = w > h ? w : h;
     final scale = longSide > cap ? cap / longSide : 1.0;
@@ -298,14 +380,20 @@ class PrintStylePipeline {
     // into the garment; grunge/vintage stay a subtler fray).
     final margin = (0.06 + 0.13 * strength.clamp(0.0, 1.0)).clamp(0.06, 0.20);
     final bytes = generateTornEdgeBytes(
-        seed: seed ^ 0xa5a5f00d,
-        w: tw,
-        h: th,
-        margin: margin,
-        strength: strength);
+      seed: seed ^ 0xa5a5f00d,
+      w: tw,
+      h: th,
+      margin: margin,
+      strength: strength,
+    );
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
-        bytes, tw, th, ui.PixelFormat.rgba8888, completer.complete);
+      bytes,
+      tw,
+      th,
+      ui.PixelFormat.rgba8888,
+      completer.complete,
+    );
     return completer.future;
   }
 
@@ -321,7 +409,12 @@ class PrintStylePipeline {
     final bytes = generateGashBytes(seed: seed ^ 0x3a5f, w: tw, h: th);
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
-        bytes, tw, th, ui.PixelFormat.rgba8888, completer.complete);
+      bytes,
+      tw,
+      th,
+      ui.PixelFormat.rgba8888,
+      completer.complete,
+    );
     return completer.future;
   }
 
@@ -372,8 +465,12 @@ class PrintStylePipeline {
         ui.Paint()
           ..blendMode = ui.BlendMode.dstOut
           ..colorFilter = ui.ColorFilter.matrix(matrix)
-          ..shader = ui.ImageShader(tex, ui.TileMode.repeated,
-              ui.TileMode.repeated, _tileMatrix(rect, tex)),
+          ..shader = ui.ImageShader(
+            tex,
+            ui.TileMode.repeated,
+            ui.TileMode.repeated,
+            _tileMatrix(rect, tex),
+          ),
       );
       return;
     }
@@ -385,14 +482,22 @@ class PrintStylePipeline {
       rect,
       ui.Paint()
         ..colorFilter = ui.ColorFilter.matrix(matrix)
-        ..shader = ui.ImageShader(tex, ui.TileMode.repeated,
-            ui.TileMode.repeated, _tileMatrix(rect, tex)),
+        ..shader = ui.ImageShader(
+          tex,
+          ui.TileMode.repeated,
+          ui.TileMode.repeated,
+          _tileMatrix(rect, tex),
+        ),
     );
     // Thin the eraser where protection alpha is high (dstOut inside the layer).
     canvas.drawImageRect(
       protection,
       ui.Rect.fromLTWH(
-          0, 0, protection.width.toDouble(), protection.height.toDouble()),
+        0,
+        0,
+        protection.width.toDouble(),
+        protection.height.toDouble(),
+      ),
       rect,
       ui.Paint()
         ..blendMode = ui.BlendMode.dstOut
@@ -429,8 +534,12 @@ class PrintStylePipeline {
           0, 0, s, 0, 0, //
           0, 0, 0, 0, 255, //
         ])
-        ..shader = ui.ImageShader(wash, ui.TileMode.repeated,
-            ui.TileMode.repeated, _tileMatrix(rect, wash)),
+        ..shader = ui.ImageShader(
+          wash,
+          ui.TileMode.repeated,
+          ui.TileMode.repeated,
+          _tileMatrix(rect, wash),
+        ),
     );
     // Confine the bleach to inked pixels.
     canvas.drawImageRect(
@@ -458,11 +567,19 @@ class PrintStylePipeline {
     for (var i = 0; i < w * h; i++) {
       final o = i * 4;
       // rgb=0; alpha = edge strength scaled by protect strength.
-      rgba[o + 3] = (detail.edgeMap[i] * _kProtectStrength).round().clamp(0, 255);
+      rgba[o + 3] = (detail.edgeMap[i] * _kProtectStrength).round().clamp(
+        0,
+        255,
+      );
     }
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
-        rgba, w, h, ui.PixelFormat.rgba8888, completer.complete);
+      rgba,
+      w,
+      h,
+      ui.PixelFormat.rgba8888,
+      completer.complete,
+    );
     return completer.future;
   }
 
@@ -517,8 +634,7 @@ class PrintStylePipeline {
     final cx0 = rect.center.dx;
     final cy0 = rect.center.dy;
     // Lattice must cover the rect after rotation → span its diagonal.
-    final diag =
-        math.sqrt(rect.width * rect.width + rect.height * rect.height);
+    final diag = math.sqrt(rect.width * rect.width + rect.height * rect.height);
     final n = (diag / cell).ceil() + 2;
     for (var j = -n; j <= n; j++) {
       final rowOffset = (j & 1) == 0 ? 0.0 : 0.5; // brick offset
@@ -535,12 +651,14 @@ class PrintStylePipeline {
           continue;
         }
         // Sample coverage at this centre (nearest cell in the axis-aligned grid).
-        final gx = ((px - rect.left) / rect.width * cols)
-            .floor()
-            .clamp(0, cols - 1);
-        final gy = ((py - rect.top) / rect.height * rows)
-            .floor()
-            .clamp(0, rows - 1);
+        final gx = ((px - rect.left) / rect.width * cols).floor().clamp(
+          0,
+          cols - 1,
+        );
+        final gy = ((py - rect.top) / rect.height * rows).floor().clamp(
+          0,
+          rows - 1,
+        );
         final cov = grid[gy * cols + gx];
         if (cov <= 0.02) continue;
         // Area ∝ coverage → radius ∝ sqrt(coverage).
@@ -591,10 +709,12 @@ class PrintStylePipeline {
         final a = bytes[o + 3] / 255.0;
         final lum =
             (bytes[o] * 0.299 + bytes[o + 1] * 0.587 + bytes[o + 2] * 0.114) /
-                255.0;
+            255.0;
         final darkness = 1.0 - lum;
-        grid[ry * cols + cx] =
-            (a * (0.82 + 0.18 * darkness) * vignette).clamp(0.0, 1.0);
+        grid[ry * cols + cx] = (a * (0.82 + 0.18 * darkness) * vignette).clamp(
+          0.0,
+          1.0,
+        );
       }
     }
     return grid;
@@ -616,14 +736,15 @@ class PrintStylePipeline {
     ui.Image tex,
     ui.BlendMode blendMode,
   ) {
-    final paint = ui.Paint()
-      ..blendMode = blendMode
-      ..shader = ui.ImageShader(
-        tex,
-        ui.TileMode.repeated,
-        ui.TileMode.repeated,
-        _tileMatrix(rect, tex),
-      );
+    final paint =
+        ui.Paint()
+          ..blendMode = blendMode
+          ..shader = ui.ImageShader(
+            tex,
+            ui.TileMode.repeated,
+            ui.TileMode.repeated,
+            _tileMatrix(rect, tex),
+          );
     canvas.drawRect(rect, paint);
   }
 
@@ -653,7 +774,8 @@ class PrintStylePipeline {
   /// Builds the colour-grading filter from [colorTreatment] + [fade].
   /// Returns null when neither applies (base drawn untouched).
   ui.ColorFilter? _buildColorFilter(PrintStyleParams p) {
-    final isDuotone = p.colorTreatment == ColorTreatment.duotone &&
+    final isDuotone =
+        p.colorTreatment == ColorTreatment.duotone &&
         p.duotoneA != null &&
         p.duotoneB != null;
     if (p.colorTreatment == ColorTreatment.none && p.fade <= 0 && !isDuotone) {
@@ -714,11 +836,11 @@ class PrintStylePipeline {
   // ── Colour matrix helpers (4×5 row-major, Flutter ColorFilter.matrix) ──────
 
   List<double> _identity() => <double>[
-        1, 0, 0, 0, 0, //
-        0, 1, 0, 0, 0, //
-        0, 0, 1, 0, 0, //
-        0, 0, 0, 1, 0, //
-      ];
+    1, 0, 0, 0, 0, //
+    0, 1, 0, 0, 0, //
+    0, 0, 1, 0, 0, //
+    0, 0, 0, 1, 0, //
+  ];
 
   /// Luminance-preserving saturation. [s] = 1 identity, 0 grayscale.
   List<double> _saturation(double s) {
@@ -734,11 +856,11 @@ class PrintStylePipeline {
 
   /// Warm, aged cast: lift reds, drop blues, small sepia bias.
   List<double> _warm() => <double>[
-        1.06, 0, 0, 0, 6, //
-        0, 1.0, 0, 0, 2, //
-        0, 0, 0.86, 0, -4, //
-        0, 0, 0, 1, 0, //
-      ];
+    1.06, 0, 0, 0, 6, //
+    0, 1.0, 0, 0, 2, //
+    0, 0, 0.86, 0, -4, //
+    0, 0, 0, 1, 0, //
+  ];
 
   /// Fade: reduce contrast toward mid-gray and lift the black point. [f] 0..1.
   List<double> _fade(double f) {

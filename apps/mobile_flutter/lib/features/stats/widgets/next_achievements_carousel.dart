@@ -55,8 +55,7 @@ class _NextAchievementsCarouselState extends State<NextAchievementsCarousel> {
 
   bool _matchesFilter(Achievement a) => switch (_filter) {
     _AchievementFilter.all => true,
-    _AchievementFilter.countries =>
-      a.category == AchievementCategory.countries,
+    _AchievementFilter.countries => a.category == AchievementCategory.countries,
     _AchievementFilter.continents =>
       a.category == AchievementCategory.continents,
     _AchievementFilter.trips => a.category == AchievementCategory.trips,
@@ -69,17 +68,17 @@ class _NextAchievementsCarouselState extends State<NextAchievementsCarousel> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final allUnmet = kAchievements
-        .where((a) => !widget.unlockedIds.contains(a.id))
-        .map((a) => (a, a.progressTarget - _currentProgress(a)))
-        .where((t) => t.$2 > 0)
-        .toList()
-      ..sort((a, b) => a.$2.compareTo(b.$2));
+    final allUnmet =
+        kAchievements
+            .where((a) => !widget.unlockedIds.contains(a.id))
+            .map((a) => (a, a.progressTarget - _currentProgress(a)))
+            .where((t) => t.$2 > 0)
+            .toList()
+          ..sort((a, b) => a.$2.compareTo(b.$2));
 
     if (allUnmet.isEmpty) return const SizedBox.shrink();
 
-    final filtered =
-        allUnmet.where((t) => _matchesFilter(t.$1)).toList();
+    final filtered = allUnmet.where((t) => _matchesFilter(t.$1)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,10 +102,7 @@ class _NextAchievementsCarouselState extends State<NextAchievementsCarousel> {
               ),
               const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
@@ -134,54 +130,48 @@ class _NextAchievementsCarouselState extends State<NextAchievementsCarousel> {
                 label: 'All',
                 selected: _filter == _AchievementFilter.all,
                 color: theme.colorScheme.primary,
-                onTap: () => setState(
-                  () => _filter = _AchievementFilter.all,
-                ),
+                onTap: () => setState(() => _filter = _AchievementFilter.all),
               ),
               const SizedBox(width: 6),
               _FilterChip(
                 label: 'Countries',
                 selected: _filter == _AchievementFilter.countries,
                 color: const Color(0xFF2F80ED),
-                onTap: () => setState(
-                  () => _filter = _AchievementFilter.countries,
-                ),
+                onTap:
+                    () =>
+                        setState(() => _filter = _AchievementFilter.countries),
               ),
               const SizedBox(width: 6),
               _FilterChip(
                 label: 'Continents',
                 selected: _filter == _AchievementFilter.continents,
                 color: const Color(0xFF27AE60),
-                onTap: () => setState(
-                  () => _filter = _AchievementFilter.continents,
-                ),
+                onTap:
+                    () =>
+                        setState(() => _filter = _AchievementFilter.continents),
               ),
               const SizedBox(width: 6),
               _FilterChip(
                 label: 'Trips',
                 selected: _filter == _AchievementFilter.trips,
                 color: const Color(0xFF9B51E0),
-                onTap: () => setState(
-                  () => _filter = _AchievementFilter.trips,
-                ),
+                onTap: () => setState(() => _filter = _AchievementFilter.trips),
               ),
               const SizedBox(width: 6),
               _FilterChip(
                 label: 'This Year',
                 selected: _filter == _AchievementFilter.thisYear,
                 color: const Color(0xFF00ACC1),
-                onTap: () => setState(
-                  () => _filter = _AchievementFilter.thisYear,
-                ),
+                onTap:
+                    () => setState(() => _filter = _AchievementFilter.thisYear),
               ),
               const SizedBox(width: 6),
               _FilterChip(
                 label: 'UNESCO',
                 selected: _filter == _AchievementFilter.heritage,
                 color: RoavvyColours.roavvyGold,
-                onTap: () => setState(
-                  () => _filter = _AchievementFilter.heritage,
-                ),
+                onTap:
+                    () => setState(() => _filter = _AchievementFilter.heritage),
               ),
             ],
           ),
@@ -356,7 +346,11 @@ class _NextAchievementCard extends StatelessWidget {
           // ── Header ───────────────────────────────────────────────
           Row(
             children: [
-              Icon(_icon(achievement.category), size: 16, color: Colors.white70),
+              Icon(
+                _icon(achievement.category),
+                size: 16,
+                color: Colors.white70,
+              ),
               const Spacer(),
               if (isSoClose)
                 Container(
@@ -403,13 +397,14 @@ class _NextAchievementCard extends StatelessWidget {
             tween: Tween(begin: 0, end: progress),
             duration: const Duration(milliseconds: 900),
             curve: Curves.easeOut,
-            builder: (_, v, __) => LinearProgressIndicator(
-              value: v,
-              minHeight: 5,
-              borderRadius: BorderRadius.circular(3),
-              backgroundColor: Colors.white.withValues(alpha: 0.25),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
+            builder:
+                (_, v, __) => LinearProgressIndicator(
+                  value: v,
+                  minHeight: 5,
+                  borderRadius: BorderRadius.circular(3),
+                  backgroundColor: Colors.white.withValues(alpha: 0.25),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
           ),
           const SizedBox(height: 6),
           Row(
@@ -420,9 +415,7 @@ class _NextAchievementCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                isSoClose
-                    ? '$remaining to go!'
-                    : '$remaining more to go',
+                isSoClose ? '$remaining to go!' : '$remaining more to go',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 10,

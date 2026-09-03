@@ -127,23 +127,23 @@ class RoavvyDesignDna {
   /// Serialise for the bundled DNA asset (so references can improve the house
   /// style without a code change — regenerate the asset, ship it).
   Map<String, dynamic> toJson() => {
-        'sampleCount': sampleCount,
-        'explorationBias': explorationBias,
-        'targets': {
-          for (final e in targets.entries)
-            e.key.name: {
-              'min': e.value.min,
-              'max': e.value.max,
-              'weight': e.value.weight,
-            },
+    'sampleCount': sampleCount,
+    'explorationBias': explorationBias,
+    'targets': {
+      for (final e in targets.entries)
+        e.key.name: {
+          'min': e.value.min,
+          'max': e.value.max,
+          'weight': e.value.weight,
         },
-        'familyAffinity': {
-          for (final e in familyAffinity.entries) e.key.name: e.value,
-        },
-        'printStyleAffinity': {
-          for (final e in printStyleAffinity.entries) e.key.name: e.value,
-        },
-      };
+    },
+    'familyAffinity': {
+      for (final e in familyAffinity.entries) e.key.name: e.value,
+    },
+    'printStyleAffinity': {
+      for (final e in printStyleAffinity.entries) e.key.name: e.value,
+    },
+  };
 
   /// Parse a DNA asset, starting from [base] so any missing/renamed keys keep a
   /// sane default (forward/backward compatible).
@@ -164,21 +164,28 @@ class RoavvyDesignDna {
       final p = byName(DesignPrinciple.values, k, (e) => e.name);
       final m = (v as Map).cast<String, dynamic>();
       if (p != null) {
-        targets[p] = PrincipleTarget((m['min'] as num).toDouble(),
-            (m['max'] as num).toDouble(), (m['weight'] as num).toDouble());
+        targets[p] = PrincipleTarget(
+          (m['min'] as num).toDouble(),
+          (m['max'] as num).toDouble(),
+          (m['weight'] as num).toDouble(),
+        );
       }
     });
 
     final fam = Map<CompositionFamily, double>.of(base.familyAffinity);
-    ((j['familyAffinity'] as Map?)?.cast<String, dynamic>() ?? {})
-        .forEach((k, v) {
+    ((j['familyAffinity'] as Map?)?.cast<String, dynamic>() ?? {}).forEach((
+      k,
+      v,
+    ) {
       final f = byName(CompositionFamily.values, k, (e) => e.name);
       if (f != null) fam[f] = (v as num).toDouble();
     });
 
     final ps = Map<PrintStyleId, double>.of(base.printStyleAffinity);
-    ((j['printStyleAffinity'] as Map?)?.cast<String, dynamic>() ?? {})
-        .forEach((k, v) {
+    ((j['printStyleAffinity'] as Map?)?.cast<String, dynamic>() ?? {}).forEach((
+      k,
+      v,
+    ) {
       final s = byName(PrintStyleId.values, k, (e) => e.name);
       if (s != null) ps[s] = (v as num).toDouble();
     });
@@ -223,12 +230,14 @@ class RoavvyDesignDna {
       final mean = xs.reduce((a, b) => a + b) / xs.length;
       final variance =
           xs.map((x) => (x - mean) * (x - mean)).reduce((a, b) => a + b) /
-              xs.length;
+          xs.length;
       final sd = math.sqrt(variance);
       // Band = mean ± max(sd, 0.08); tighter agreement ⇒ higher weight.
       final half = math.max(sd, 0.08);
-      final weight = (1.0 - sd.clamp(0.0, 0.5) / 0.5)
-          .clamp(0.2, 1.0); // 1 when unanimous, ≥0.2 when scattered
+      final weight = (1.0 - sd.clamp(0.0, 0.5) / 0.5).clamp(
+        0.2,
+        1.0,
+      ); // 1 when unanimous, ≥0.2 when scattered
       targets[p] = PrincipleTarget(
         (mean - half).clamp(0.0, 1.0),
         (mean + half).clamp(0.0, 1.0),

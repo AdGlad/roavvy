@@ -83,9 +83,10 @@ class CountryStats {
     final dayStr = totalDays == 1 ? '1 day' : '$totalDays days';
     final season =
         firstTripStart != null ? _season(firstTripStart!.month) : null;
-    final yearStr = firstVisitYear != null
-        ? '${season != null ? "$season " : ""}$firstVisitYear'
-        : null;
+    final yearStr =
+        firstVisitYear != null
+            ? '${season != null ? "$season " : ""}$firstVisitYear'
+            : null;
 
     String base;
     if (tripCount == 1) {

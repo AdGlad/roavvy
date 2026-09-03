@@ -66,13 +66,14 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
             ? box.localToGlobal(Offset.zero) & box.size
             : Rect.fromLTWH(0, 0, 1, 1);
     final title = widget.designTitle;
-    final shareText = title != null
-        ? 'Just had my "$title" shirt made — '
-          "${widget.countryCount} countries I've visited, "
-          'designed with Roavvy 🌍'
-        : 'Just ordered a ${widget.product.name} with all '
-          "${widget.countryCount} countries I've visited — "
-          'made with Roavvy 🌍';
+    final shareText =
+        title != null
+            ? 'Just had my "$title" shirt made — '
+                "${widget.countryCount} countries I've visited, "
+                'designed with Roavvy 🌍'
+            : 'Just ordered a ${widget.product.name} with all '
+                "${widget.countryCount} countries I've visited — "
+                'made with Roavvy 🌍';
     Share.share(shareText, sharePositionOrigin: origin);
   }
 
@@ -110,7 +111,10 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
             // Main content
             SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 48,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -130,11 +134,14 @@ class _MerchPostPurchaseScreenState extends State<MerchPostPurchaseScreen> {
                               child: Center(child: CircularProgressIndicator()),
                             );
                           },
-                          errorBuilder: (ctx, __, ___) => Icon(
-                            Icons.dry_cleaning_outlined,
-                            size: 80,
-                            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.30),
-                          ),
+                          errorBuilder:
+                              (ctx, __, ___) => Icon(
+                                Icons.dry_cleaning_outlined,
+                                size: 80,
+                                color: Theme.of(
+                                  ctx,
+                                ).colorScheme.onSurface.withValues(alpha: 0.30),
+                              ),
                         ),
                       ),
                       if (widget.designTitle != null) ...[

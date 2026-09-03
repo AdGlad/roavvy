@@ -60,10 +60,7 @@ class StarfieldBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
-      child: CustomPaint(
-        painter: _painter,
-        child: const SizedBox.expand(),
-      ),
+      child: CustomPaint(painter: _painter, child: const SizedBox.expand()),
     );
   }
 }
@@ -73,12 +70,12 @@ class StarfieldBackground extends StatelessWidget {
 // Each band: (relY centre, relH height, color, peak alpha, phase offset rad)
 const _kAuroraBands = [
   // Northern lights — top of screen (Arctic latitudes on the map)
-  (0.055, 0.16, Color(0xFF00E5CC), 0.14, 0.0),   // teal
-  (0.090, 0.13, Color(0xFF00C853), 0.10, 1.3),   // emerald green
-  (0.045, 0.09, Color(0xFF651FFF), 0.07, 2.6),   // violet
+  (0.055, 0.16, Color(0xFF00E5CC), 0.14, 0.0), // teal
+  (0.090, 0.13, Color(0xFF00C853), 0.10, 1.3), // emerald green
+  (0.045, 0.09, Color(0xFF651FFF), 0.07, 2.6), // violet
   // Southern lights — bottom of screen (Antarctic latitudes)
-  (0.945, 0.14, Color(0xFF00BFA5), 0.09, 0.7),   // cyan-teal
-  (0.965, 0.09, Color(0xFF00897B), 0.06, 2.0),   // deep teal
+  (0.945, 0.14, Color(0xFF00BFA5), 0.09, 0.7), // cyan-teal
+  (0.965, 0.09, Color(0xFF00897B), 0.06, 2.0), // deep teal
 ];
 
 class _AuroraPainter extends CustomPainter {
@@ -89,8 +86,7 @@ class _AuroraPainter extends CustomPainter {
   void paint(Canvas canvas, Size sz) {
     for (final (relY, relH, color, maxA, phase) in _kAuroraBands) {
       // Gentle vertical drift driven by a slow sine wave.
-      final yc =
-          sz.height * relY + sin(t * pi * 2 + phase) * sz.height * 0.012;
+      final yc = sz.height * relY + sin(t * pi * 2 + phase) * sz.height * 0.012;
       final bh = sz.height * relH;
       final rect = Rect.fromLTWH(0, yc - bh / 2, sz.width, bh);
       canvas.drawRect(
@@ -152,10 +148,11 @@ class _AuroraOverlayState extends State<AuroraOverlay>
       child: RepaintBoundary(
         child: AnimatedBuilder(
           animation: _ctrl,
-          builder: (_, __) => CustomPaint(
-            painter: _AuroraPainter(_ctrl.value),
-            child: const SizedBox.expand(),
-          ),
+          builder:
+              (_, __) => CustomPaint(
+                painter: _AuroraPainter(_ctrl.value),
+                child: const SizedBox.expand(),
+              ),
         ),
       ),
     );

@@ -321,16 +321,18 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                             _OptionChip(
                               label: 'Flags',
                               selected: _journeyStyle == JourneyStyle.flags,
-                              onTap: () => setState(
-                                () => _journeyStyle = JourneyStyle.flags,
-                              ),
+                              onTap:
+                                  () => setState(
+                                    () => _journeyStyle = JourneyStyle.flags,
+                                  ),
                             ),
                             _OptionChip(
                               label: 'Trips',
                               selected: _journeyStyle == JourneyStyle.trips,
-                              onTap: () => setState(
-                                () => _journeyStyle = JourneyStyle.trips,
-                              ),
+                              onTap:
+                                  () => setState(
+                                    () => _journeyStyle = JourneyStyle.trips,
+                                  ),
                             ),
                           ],
                         ),

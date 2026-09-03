@@ -303,9 +303,7 @@ class ScanResolverIsolate {
     Set<String>? knownAssetIds,
   }) async {
     final replyPort = ReceivePort();
-    _sendPort.send(
-      _ResolverRequest(photos, knownAssetIds, replyPort.sendPort),
-    );
+    _sendPort.send(_ResolverRequest(photos, knownAssetIds, replyPort.sendPort));
     final result = await replyPort.first as BatchResult;
     replyPort.close();
     return result;
@@ -1601,11 +1599,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     List<EffectiveVisitedCountry> effective,
   ) async {
     final countryCount = effective.length;
-    final continentCount = effective
-        .map((v) => kCountryContinent[v.countryCode])
-        .whereType<String>()
-        .toSet()
-        .length;
+    final continentCount =
+        effective
+            .map((v) => kCountryContinent[v.countryCode])
+            .whereType<String>()
+            .toSet()
+            .length;
     final ctx = MerchUnlockContext(
       countryCount: countryCount,
       continentCount: continentCount,
@@ -2531,8 +2530,8 @@ class _YearChapterCard extends StatelessWidget {
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
-      builder: (context, opacity, child) =>
-          Opacity(opacity: opacity, child: child),
+      builder:
+          (context, opacity, child) => Opacity(opacity: opacity, child: child),
       child: card,
     );
   }
@@ -2965,7 +2964,11 @@ class _ScanGlobeWidgetState extends ConsumerState<_ScanGlobeWidget>
                 );
 
         return AnimatedBuilder(
-          animation: Listenable.merge([_spinCtrl, _pulseCtrl, _heritagePulseCtrl]),
+          animation: Listenable.merge([
+            _spinCtrl,
+            _pulseCtrl,
+            _heritagePulseCtrl,
+          ]),
           builder: (context, _) {
             final isIdle =
                 (_travelCtrl == null || !_travelCtrl!.isAnimating) &&
@@ -3347,9 +3350,10 @@ class _ScanPhotoThumbnailState extends State<_ScanPhotoThumbnail> {
       child: SizedBox(
         width: widget.width,
         height: widget.height,
-        child: _bytes != null
-            ? Image.memory(_bytes!, fit: widget.fit, gaplessPlayback: true)
-            : widget.fallback,
+        child:
+            _bytes != null
+                ? Image.memory(_bytes!, fit: widget.fit, gaplessPlayback: true)
+                : widget.fallback,
       ),
     );
   }
@@ -3457,8 +3461,10 @@ class _ScanMontageState extends State<_ScanMontage>
       image = AnimatedBuilder(
         animation: kenBurnsCtrl,
         builder:
-            (context, child) =>
-                Transform.scale(scale: 1.0 + kenBurnsCtrl.value * 0.04, child: child),
+            (context, child) => Transform.scale(
+              scale: 1.0 + kenBurnsCtrl.value * 0.04,
+              child: child,
+            ),
         child: image,
       );
     }
@@ -3671,7 +3677,9 @@ class _FirstCountryCinematic extends StatelessWidget {
         // heavier when there's no photo (matches the original solid look).
         IgnorePointer(
           child: Container(
-            color: Colors.black.withValues(alpha: assetId != null ? 0.55 : 0.75),
+            color: Colors.black.withValues(
+              alpha: assetId != null ? 0.55 : 0.75,
+            ),
           ),
         ),
         Container(

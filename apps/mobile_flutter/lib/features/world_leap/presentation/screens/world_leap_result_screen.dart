@@ -34,9 +34,9 @@ String resultHeader(WorldLeapRun run) {
 /// Returns the ordered list of country codes in the run trail.
 /// Package-private for testing.
 List<String> runTrail(WorldLeapRun run) => [
-      run.startCountryCode,
-      ...run.launches.map((l) => l.toCountryCode),
-    ];
+  run.startCountryCode,
+  ...run.launches.map((l) => l.toCountryCode),
+];
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -138,19 +138,19 @@ class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [
-                        Color(0xFFFFD700),
-                        Color(0xFFFF8F00),
-                      ]),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFD700), Color(0xFFFF8F00)],
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('🏆',
-                            style: TextStyle(fontSize: 22)),
+                        Text('🏆', style: TextStyle(fontSize: 22)),
                         SizedBox(width: 10),
                         Text(
                           'NEW PERSONAL BEST!',
@@ -162,8 +162,7 @@ class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
                           ),
                         ),
                         SizedBox(width: 10),
-                        Text('🏆',
-                            style: TextStyle(fontSize: 22)),
+                        Text('🏆', style: TextStyle(fontSize: 22)),
                       ],
                     ),
                   ),
@@ -198,11 +197,7 @@ class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _StatCard(
-                  label: 'Date',
-                  value: run.date,
-                  goldColor: _gold,
-                ),
+                _StatCard(label: 'Date', value: run.date, goldColor: _gold),
                 const SizedBox(height: 32),
 
                 // ── Country trail ──────────────────────────────────────────
@@ -222,29 +217,33 @@ class _WorldLeapResultScreenState extends State<WorldLeapResultScreen> {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: trail.length,
-                      separatorBuilder: (_, __) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white.withValues(alpha:0.4),
-                          size: 14,
-                        ),
-                      ),
-                      itemBuilder: (context, index) => Chip(
-                        label: Text(
-                          trail[index],
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                      separatorBuilder:
+                          (_, __) => Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white.withValues(alpha: 0.4),
+                              size: 14,
+                            ),
                           ),
-                        ),
-                        backgroundColor: Colors.white.withValues(alpha:0.12),
-                        side: BorderSide(
-                          color: Colors.white.withValues(alpha:0.2),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                      ),
+                      itemBuilder:
+                          (context, index) => Chip(
+                            label: Text(
+                              trail[index],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.12,
+                            ),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.2),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                          ),
                     ),
                   ),
                   const SizedBox(height: 36),
@@ -320,10 +319,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          emoji,
-          style: const TextStyle(fontSize: 56),
-        ),
+        Text(emoji, style: const TextStyle(fontSize: 56)),
         const SizedBox(height: 12),
         Text(
           title,

@@ -102,10 +102,7 @@ class _TripDetailContent extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Date row
-          _DetailRow(
-            icon: Icons.calendar_today_outlined,
-            label: dateStr,
-          ),
+          _DetailRow(icon: Icons.calendar_today_outlined, label: dateStr),
 
           // Duration row
           if (nights > 0)
@@ -114,10 +111,7 @@ class _TripDetailContent extends StatelessWidget {
               label: '$nights ${nights == 1 ? 'night' : 'nights'}',
             )
           else
-            _DetailRow(
-              icon: Icons.wb_sunny_outlined,
-              label: 'Day trip',
-            ),
+            _DetailRow(icon: Icons.wb_sunny_outlined, label: 'Day trip'),
 
           const SizedBox(height: 20),
 
@@ -247,9 +241,7 @@ class _AchievementDetailContent extends StatelessWidget {
           const SizedBox(height: 8),
 
           // Achievement emoji
-          Center(
-            child: Text(emoji, style: const TextStyle(fontSize: 48)),
-          ),
+          Center(child: Text(emoji, style: const TextStyle(fontSize: 48))),
 
           const SizedBox(height: 16),
 
@@ -452,9 +444,9 @@ class _DetailRow extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: cs.onSurface,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: cs.onSurface),
           ),
         ],
       ),
@@ -496,9 +488,9 @@ class _ActionButton extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: cs.onSurface,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: cs.onSurface),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

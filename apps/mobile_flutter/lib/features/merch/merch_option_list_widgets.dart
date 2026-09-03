@@ -159,7 +159,9 @@ class MerchOptionSectionHeader extends StatelessWidget {
       child: Text(
         label.toUpperCase(),
         style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.38),
           fontSize: 11,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
@@ -354,8 +356,9 @@ class _MerchOptionCardState extends State<MerchOptionCard>
   }
 
   void _navigate() {
-    final enabled = ProviderScope.containerOf(context)
-        .read(purchasingEnabledForTemplateProvider(widget.option.template));
+    final enabled = ProviderScope.containerOf(
+      context,
+    ).read(purchasingEnabledForTemplateProvider(widget.option.template));
     if (!enabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -468,7 +471,9 @@ class _MerchOptionCardState extends State<MerchOptionCard>
                     Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: 13,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.38),
                     ),
                 ],
               ),
@@ -777,12 +782,13 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
     try {
       final isSoloGrid =
           opt.template == CardTemplateType.grid && opt.codes.length == 1;
-      final defaultAnimalClipCode = isSoloGrid
-          ? await AnimalSilhouetteService.defaultClipCodeFor(
-              opt.codes.first,
-              'animal',
-            )
-          : null;
+      final defaultAnimalClipCode =
+          isSoloGrid
+              ? await AnimalSilhouetteService.defaultClipCodeFor(
+                opt.codes.first,
+                'animal',
+              )
+              : null;
       if (!mounted) return;
       final artResult = await CardImageRenderer.render(
         context,
@@ -799,9 +805,10 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
         subtitleOverride: opt.artworkSubtitle,
         stampColor: merchDefaultStampColor(opt.template),
         textColor: merchDefaultTextColor(opt.template),
-        clipShape: defaultAnimalClipCode != null
-            ? GridClipShape.animalSilhouette
-            : GridClipShape.none,
+        clipShape:
+            defaultAnimalClipCode != null
+                ? GridClipShape.animalSilhouette
+                : GridClipShape.none,
         clipCode: defaultAnimalClipCode,
       );
       if (!mounted) return;
@@ -844,8 +851,9 @@ class _MerchOptionFeaturedCardState extends State<MerchOptionFeaturedCard>
   }
 
   void _navigate() {
-    final enabled = ProviderScope.containerOf(context)
-        .read(purchasingEnabledForTemplateProvider(widget.option.template));
+    final enabled = ProviderScope.containerOf(
+      context,
+    ).read(purchasingEnabledForTemplateProvider(widget.option.template));
     if (!enabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1238,11 +1246,12 @@ class MerchOptionAlternativesStrip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: options.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (ctx, i) => _AlternativeThumb(
-          option: options[i],
-          allCodes: allCodes,
-          isFeatured: i == featuredIndex,
-        ),
+        itemBuilder:
+            (ctx, i) => _AlternativeThumb(
+              option: options[i],
+              allCodes: allCodes,
+              isFeatured: i == featuredIndex,
+            ),
       ),
     );
   }
@@ -1344,8 +1353,9 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
   }
 
   void _navigate() {
-    final enabled = ProviderScope.containerOf(context)
-        .read(purchasingEnabledForTemplateProvider(widget.option.template));
+    final enabled = ProviderScope.containerOf(
+      context,
+    ).read(purchasingEnabledForTemplateProvider(widget.option.template));
     if (!enabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1432,16 +1442,15 @@ class _AlternativeThumbState extends State<_AlternativeThumb> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            decoration: widget.isFeatured
-                ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: kGold, width: 1.5),
-                  )
-                : null,
+            decoration:
+                widget.isFeatured
+                    ? BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: kGold, width: 1.5),
+                    )
+                    : null,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(
-                widget.isFeatured ? 6.5 : 8,
-              ),
+              borderRadius: BorderRadius.circular(widget.isFeatured ? 6.5 : 8),
               child: SizedBox(
                 width: w,
                 height: h,
@@ -1562,14 +1571,18 @@ class _MerchDesignCarouselState extends State<MerchDesignCarousel> {
           child: PageView.builder(
             controller: _ctrl,
             itemCount: widget.options.length,
-            itemBuilder: (ctx, i) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: _DesignCard(
-                option: widget.options[i],
-                allCodes: widget.allCodes,
-                isFeatured: i == widget.featuredIndex,
-              ),
-            ),
+            itemBuilder:
+                (ctx, i) => Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: _DesignCard(
+                    option: widget.options[i],
+                    allCodes: widget.allCodes,
+                    isFeatured: i == widget.featuredIndex,
+                  ),
+                ),
           ),
         ),
         const SizedBox(height: 12),
@@ -1585,9 +1598,10 @@ class _MerchDesignCarouselState extends State<MerchDesignCarousel> {
               height: 6,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(3),
-                color: active
-                    ? cs.onSurface.withValues(alpha: 0.75)
-                    : cs.onSurface.withValues(alpha: 0.2),
+                color:
+                    active
+                        ? cs.onSurface.withValues(alpha: 0.75)
+                        : cs.onSurface.withValues(alpha: 0.2),
               ),
             );
           }),
@@ -1638,23 +1652,29 @@ class _DesignCardState extends State<_DesignCard> {
     try {
       final isSoloGrid =
           opt.template == CardTemplateType.grid && opt.codes.length == 1;
-      final clipCode = isSoloGrid
-          ? await AnimalSilhouetteService.defaultClipCodeFor(
-              opt.codes.first,
-              'animal',
-            )
-          : null;
+      final clipCode =
+          isSoloGrid
+              ? await AnimalSilhouetteService.defaultClipCodeFor(
+                opt.codes.first,
+                'animal',
+              )
+              : null;
       if (!mounted) return;
       final clipShape =
-          clipCode != null ? GridClipShape.animalSilhouette : GridClipShape.none;
+          clipCode != null
+              ? GridClipShape.animalSilhouette
+              : GridClipShape.none;
       // A single-country design's shape (e.g. a kangaroo) may fill more of
       // the print area in portrait or landscape depending on its own
       // proportions — fall back to the template default otherwise.
       final isPortrait = await isPortraitForClipShape(clipShape, clipCode);
       if (!mounted) return;
-      final aspectRatio = isPortrait == null
-          ? merchBackCardAspectRatio(opt.template)
-          : (isPortrait ? kPortraitCardAspectRatio : kLandscapeCardAspectRatio);
+      final aspectRatio =
+          isPortrait == null
+              ? merchBackCardAspectRatio(opt.template)
+              : (isPortrait
+                  ? kPortraitCardAspectRatio
+                  : kLandscapeCardAspectRatio);
       final artResult = await CardImageRenderer.render(
         context,
         opt.template,
@@ -1716,8 +1736,9 @@ class _DesignCardState extends State<_DesignCard> {
   }
 
   void _navigate() {
-    final enabled = ProviderScope.containerOf(context)
-        .read(purchasingEnabledForTemplateProvider(widget.option.template));
+    final enabled = ProviderScope.containerOf(
+      context,
+    ).read(purchasingEnabledForTemplateProvider(widget.option.template));
     if (!enabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1806,12 +1827,13 @@ class _DesignCardState extends State<_DesignCard> {
         children: [
           Expanded(
             child: Container(
-              decoration: widget.isFeatured
-                  ? BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: kGold, width: 2),
-                    )
-                  : null,
+              decoration:
+                  widget.isFeatured
+                      ? BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: kGold, width: 2),
+                      )
+                      : null,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(
                   widget.isFeatured ? 12 : 14,
@@ -1915,9 +1937,10 @@ class MerchLockedDesignCard extends StatelessWidget {
         if (unlocked) {
           onUnlockedTap?.call();
         } else {
-          final unit = design.unlockCondition is ContinentCountCondition
-              ? (remaining == 1 ? 'continent' : 'continents')
-              : (remaining == 1 ? 'country' : 'countries');
+          final unit =
+              design.unlockCondition is ContinentCountCondition
+                  ? (remaining == 1 ? 'continent' : 'continents')
+                  : (remaining == 1 ? 'country' : 'countries');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -1933,9 +1956,10 @@ class MerchLockedDesignCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
-          border: unlocked
-              ? Border.all(color: const Color(0xFFFFD700), width: 1.5)
-              : null,
+          border:
+              unlocked
+                  ? Border.all(color: const Color(0xFFFFD700), width: 1.5)
+                  : null,
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -1952,9 +1976,12 @@ class MerchLockedDesignCard extends StatelessWidget {
                       design.label,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: unlocked
-                            ? null
-                            : theme.colorScheme.onSurface.withValues(alpha: 0.54),
+                        color:
+                            unlocked
+                                ? null
+                                : theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.54,
+                                ),
                       ),
                     ),
                   ),
@@ -1985,7 +2012,9 @@ class MerchLockedDesignCard extends StatelessWidget {
                     Icon(
                       Icons.lock_outline,
                       size: 16,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.38,
+                      ),
                     ),
                 ],
               ),
@@ -2003,9 +2032,10 @@ class MerchLockedDesignCard extends StatelessWidget {
                 Builder(
                   builder: (context) {
                     final condition = design.unlockCondition;
-                    final target = condition is CountryCountCondition
-                        ? condition.target
-                        : (condition as ContinentCountCondition).target;
+                    final target =
+                        condition is CountryCountCondition
+                            ? condition.target
+                            : (condition as ContinentCountCondition).target;
                     final current = target - remaining;
                     final progress = (current / target).clamp(0.0, 1.0);
                     return Column(
@@ -2013,7 +2043,8 @@ class MerchLockedDesignCard extends StatelessWidget {
                       children: [
                         LinearProgressIndicator(
                           value: progress,
-                          backgroundColor: theme.colorScheme.onSurface.withValues(alpha: 0.12),
+                          backgroundColor: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.12),
                           valueColor: const AlwaysStoppedAnimation(
                             Color(0xFFFFD700),
                           ),
@@ -2024,7 +2055,9 @@ class MerchLockedDesignCard extends StatelessWidget {
                         Text(
                           '$current/$target — $remaining more to unlock',
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.38,
+                            ),
                           ),
                         ),
                       ],
@@ -2069,7 +2102,8 @@ class MerchFromPriceText extends ConsumerWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-        color: color ??
+        color:
+            color ??
             Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
         fontSize: fontSize,
         fontWeight: fontWeight,

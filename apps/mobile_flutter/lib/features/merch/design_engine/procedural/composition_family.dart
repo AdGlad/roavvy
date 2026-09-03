@@ -233,7 +233,10 @@ const Map<CompositionFamily, CompositionFamilySpec> kCompositionFamilies = {
     // width+height; normalizedGrid fills the canvas) so flags fill the outline.
     // (Root cause is the montage↔clip fill interaction in the renderer; this is a
     // low-risk generator steer, not the deep render fix — verify on-device.)
-    layoutModes: [FlagGridLayoutMode.packedRow, FlagGridLayoutMode.normalizedGrid],
+    layoutModes: [
+      FlagGridLayoutMode.packedRow,
+      FlagGridLayoutMode.normalizedGrid,
+    ],
     heroRequiredWhenMulti: false,
     heroScaleRange: (0.7, 0.95),
     densitySuitability: {

@@ -176,10 +176,14 @@ class ProceduralDesignRecipe {
     // the continuous genes then tune the amounts. A clean base with no treatment
     // is a byte-perfect no-op; a clean style with treatment uses a neutral
     // carrier so the genes still apply.
-    final id = (!hasTreatment)
-        ? printStyle
-        : (printStyle == PrintStyleId.clean ? PrintStyleId.retro : printStyle);
-    final base = kPrintStylePresets[id] ??
+    final id =
+        (!hasTreatment)
+            ? printStyle
+            : (printStyle == PrintStyleId.clean
+                ? PrintStyleId.retro
+                : printStyle);
+    final base =
+        kPrintStylePresets[id] ??
         const PrintStyleParams(id: PrintStyleId.clean);
     if (base.isClean) return const PrintStyleParams(id: PrintStyleId.clean);
     return base.copyWith(
@@ -235,45 +239,45 @@ class ProceduralDesignRecipe {
   /// Stable identity over ALL recipe fields (superset of DesignParams.
   /// contentHash). Two recipes with the same id are byte-identical designs.
   String get recipeId => [
-        engineVersion,
-        grammarVersion,
-        family.name,
-        hierarchy.name,
-        template.name,
-        layoutMode.name,
-        mask.name,
-        maskCode ?? '',
-        rowCount,
-        (List.of(countryCodes)..sort()).join(','),
-        heroCode ?? '',
-        source.name,
-        density.name,
-        jitter.toStringAsFixed(3),
-        stampMode.name,
-        isPortrait ? 'p' : 'l',
-        imageSize.name,
-        garmentColour,
-        flagTreatment.name,
-        colourTreatment.name,
-        printStyle.name,
-        heroScale.toStringAsFixed(3),
-        placement.name,
-        placementOffset.toStringAsFixed(3),
-        cropMode.name,
-        rotationDeg.toStringAsFixed(2),
-        layerMode.name,
-        combination.name,
-        weightA.toStringAsFixed(3),
-        rippleAmp.toStringAsFixed(3),
-        rippleFreq.toStringAsFixed(2),
-        distress.toStringAsFixed(3),
-        grain.toStringAsFixed(3),
-        halftone.toStringAsFixed(3),
-        fade.toStringAsFixed(3),
-        showTitle ? 't' : '_',
-        showFooter ? 'f' : '_',
-        seed,
-      ].join('|');
+    engineVersion,
+    grammarVersion,
+    family.name,
+    hierarchy.name,
+    template.name,
+    layoutMode.name,
+    mask.name,
+    maskCode ?? '',
+    rowCount,
+    (List.of(countryCodes)..sort()).join(','),
+    heroCode ?? '',
+    source.name,
+    density.name,
+    jitter.toStringAsFixed(3),
+    stampMode.name,
+    isPortrait ? 'p' : 'l',
+    imageSize.name,
+    garmentColour,
+    flagTreatment.name,
+    colourTreatment.name,
+    printStyle.name,
+    heroScale.toStringAsFixed(3),
+    placement.name,
+    placementOffset.toStringAsFixed(3),
+    cropMode.name,
+    rotationDeg.toStringAsFixed(2),
+    layerMode.name,
+    combination.name,
+    weightA.toStringAsFixed(3),
+    rippleAmp.toStringAsFixed(3),
+    rippleFreq.toStringAsFixed(2),
+    distress.toStringAsFixed(3),
+    grain.toStringAsFixed(3),
+    halftone.toStringAsFixed(3),
+    fade.toStringAsFixed(3),
+    showTitle ? 't' : '_',
+    showFooter ? 'f' : '_',
+    seed,
+  ].join('|');
 
   /// Estimate this recipe's position on each abstract design principle, WITHOUT
   /// rendering. This is the bridge between concrete parameters and the Style DNA
@@ -295,7 +299,8 @@ class ProceduralDesignRecipe {
     };
     final heroBoost = heroCode != null ? heroScale * 0.15 : 0.0;
 
-    final negSpace = switch (density) {
+    final negSpace =
+        switch (density) {
           MerchDensity.sparse => 0.7,
           MerchDensity.balanced => 0.45,
           MerchDensity.dense => 0.22,
@@ -320,13 +325,10 @@ class ProceduralDesignRecipe {
     final geometry = switch (mask) {
       GridClipShape.circle => 0.8,
       GridClipShape.heart => 0.55,
-      GridClipShape.countryOutline ||
-      GridClipShape.continentOutline =>
-        0.35,
+      GridClipShape.countryOutline || GridClipShape.continentOutline => 0.35,
       GridClipShape.animalSilhouette ||
       GridClipShape.plantSilhouette ||
-      GridClipShape.landmarkSilhouette =>
-        0.3,
+      GridClipShape.landmarkSilhouette => 0.3,
       GridClipShape.none => 0.6,
     };
 
@@ -341,7 +343,8 @@ class ProceduralDesignRecipe {
       _ => 0.2,
     };
 
-    final colourRel = switch (colourTreatment) {
+    final colourRel =
+        switch (colourTreatment) {
           ColorTreatment.none => 0.75,
           ColorTreatment.muted => 0.5,
           ColorTreatment.vintageWarm => 0.45,
@@ -350,20 +353,22 @@ class ProceduralDesignRecipe {
         } *
         (flagTreatment == FlagTreatment.monochrome ? 0.4 : 1.0);
 
-    final visualDensity =
-        (logN * 0.6 + switch (density) {
-          MerchDensity.sparse => 0.1,
-          MerchDensity.balanced => 0.3,
-          MerchDensity.dense => 0.5,
-        })
-            .clamp(0.0, 1.0);
+    final visualDensity = (logN * 0.6 +
+            switch (density) {
+              MerchDensity.sparse => 0.1,
+              MerchDensity.balanced => 0.3,
+              MerchDensity.dense => 0.5,
+            })
+        .clamp(0.0, 1.0);
 
     double v(double x) => x.clamp(0.0, 1.0);
     return {
       DesignPrinciple.visualHierarchy: v(hierarchyBase + heroBoost),
-      DesignPrinciple.scale: v(hierarchy == HierarchyMode.uniform
-          ? 0.4 - logN * 0.1
-          : heroScale.clamp(0.2, 0.95)),
+      DesignPrinciple.scale: v(
+        hierarchy == HierarchyMode.uniform
+            ? 0.4 - logN * 0.1
+            : heroScale.clamp(0.2, 0.95),
+      ),
       DesignPrinciple.cropping: v(switch (cropMode) {
         CropMode.contained => 0.12,
         CropMode.inset => 0.3,
@@ -380,12 +385,15 @@ class ProceduralDesignRecipe {
       DesignPrinciple.distress: v(distress > 0 ? distress : ps.distress),
       DesignPrinciple.typography: v(typography),
       DesignPrinciple.colourRelationships: v(colourRel),
-      DesignPrinciple.layering: v(layerMode == LayerMode.layered
-          ? 0.6 + (_isCutout ? 0.1 : 0)
-          : 0.15 + (_isCutout ? 0.15 : 0)),
+      DesignPrinciple.layering: v(
+        layerMode == LayerMode.layered
+            ? 0.6 + (_isCutout ? 0.1 : 0)
+            : 0.15 + (_isCutout ? 0.15 : 0),
+      ),
       DesignPrinciple.edgeTreatment: v(ps.edge),
-      DesignPrinciple.printCharacter:
-          v(halftone > 0 ? (0.7 * halftone + 0.3 * ps.printChar) : ps.printChar),
+      DesignPrinciple.printCharacter: v(
+        halftone > 0 ? (0.7 * halftone + 0.3 * ps.printChar) : ps.printChar,
+      ),
       DesignPrinciple.visualDensity: visualDensity,
     };
   }
@@ -405,94 +413,93 @@ class ProceduralDesignRecipe {
     int? seed,
     bool? showTitle,
     bool? showFooter,
-  }) =>
-      ProceduralDesignRecipe(
-        engineVersion: engineVersion,
-        grammarVersion: grammarVersion,
-        seed: seed ?? this.seed,
-        scopeKey: scopeKey,
-        family: family,
-        hierarchy: hierarchy,
-        template: template,
-        layoutMode: layoutMode,
-        mask: mask,
-        maskCode: maskCode,
-        rowCount: rowCount,
-        countryCodes: countryCodes,
-        heroCode: heroCode,
-        source: source,
-        density: density,
-        jitter: jitter,
-        stampMode: stampMode,
-        isPortrait: isPortrait,
-        imageSize: imageSize,
-        garmentColour: garmentColour ?? this.garmentColour,
-        flagTreatment: flagTreatment,
-        colourTreatment: colourTreatment ?? this.colourTreatment,
-        printStyle: printStyle ?? this.printStyle,
-        heroScale: heroScale,
-        placement: placement,
-        placementOffset: placementOffset,
-        cropMode: cropMode,
-        rotationDeg: rotationDeg,
-        layerMode: layerMode,
-        generator: generator,
-        combination: combination,
-        weightA: weightA,
-        rippleAmp: rippleAmp,
-        rippleFreq: rippleFreq,
-        distress: distress,
-        grain: grain,
-        halftone: halftone,
-        fade: fade,
-        showTitle: showTitle ?? this.showTitle,
-        showFooter: showFooter ?? this.showFooter,
-      );
+  }) => ProceduralDesignRecipe(
+    engineVersion: engineVersion,
+    grammarVersion: grammarVersion,
+    seed: seed ?? this.seed,
+    scopeKey: scopeKey,
+    family: family,
+    hierarchy: hierarchy,
+    template: template,
+    layoutMode: layoutMode,
+    mask: mask,
+    maskCode: maskCode,
+    rowCount: rowCount,
+    countryCodes: countryCodes,
+    heroCode: heroCode,
+    source: source,
+    density: density,
+    jitter: jitter,
+    stampMode: stampMode,
+    isPortrait: isPortrait,
+    imageSize: imageSize,
+    garmentColour: garmentColour ?? this.garmentColour,
+    flagTreatment: flagTreatment,
+    colourTreatment: colourTreatment ?? this.colourTreatment,
+    printStyle: printStyle ?? this.printStyle,
+    heroScale: heroScale,
+    placement: placement,
+    placementOffset: placementOffset,
+    cropMode: cropMode,
+    rotationDeg: rotationDeg,
+    layerMode: layerMode,
+    generator: generator,
+    combination: combination,
+    weightA: weightA,
+    rippleAmp: rippleAmp,
+    rippleFreq: rippleFreq,
+    distress: distress,
+    grain: grain,
+    halftone: halftone,
+    fade: fade,
+    showTitle: showTitle ?? this.showTitle,
+    showFooter: showFooter ?? this.showFooter,
+  );
 
   /// Compact JSON for batch archives / regression goldens (no rendered image).
   Map<String, dynamic> toJson() => {
-        'engineVersion': engineVersion,
-        'grammarVersion': grammarVersion,
-        'seed': seed,
-        'scopeKey': scopeKey,
-        'generator': generator,
-        'family': family.name,
-        'hierarchy': hierarchy.name,
-        'template': template.name,
-        'layoutMode': layoutMode.name,
-        'mask': mask.name,
-        'maskCode': maskCode,
-        'rowCount': rowCount,
-        'countryCodes': countryCodes,
-        'heroCode': heroCode,
-        'source': source.name,
-        'density': density.name,
-        'jitter': jitter,
-        'stampMode': stampMode.name,
-        'isPortrait': isPortrait,
-        'imageSize': imageSize.name,
-        'garmentColour': garmentColour,
-        'flagTreatment': flagTreatment.name,
-        'colourTreatment': colourTreatment.name,
-        'printStyle': printStyle.name,
-        'heroScale': heroScale,
-        'placement': placement.name,
-        'placementOffset': placementOffset,
-        'cropMode': cropMode.name,
-        'rotationDeg': rotationDeg,
-        'layerMode': layerMode.name,
-        'combination': combination.name,
-        'weightA': weightA,
-        'rippleAmp': rippleAmp,
-        'rippleFreq': rippleFreq,
-        'distress': distress,
-        'grain': grain,
-        'halftone': halftone,
-        'fade': fade,
-        'showTitle': showTitle,
-        'showFooter': showFooter,
-        'recipeId': recipeId,
-      };
+    'engineVersion': engineVersion,
+    'grammarVersion': grammarVersion,
+    'seed': seed,
+    'scopeKey': scopeKey,
+    'generator': generator,
+    'family': family.name,
+    'hierarchy': hierarchy.name,
+    'template': template.name,
+    'layoutMode': layoutMode.name,
+    'mask': mask.name,
+    'maskCode': maskCode,
+    'rowCount': rowCount,
+    'countryCodes': countryCodes,
+    'heroCode': heroCode,
+    'source': source.name,
+    'density': density.name,
+    'jitter': jitter,
+    'stampMode': stampMode.name,
+    'isPortrait': isPortrait,
+    'imageSize': imageSize.name,
+    'garmentColour': garmentColour,
+    'flagTreatment': flagTreatment.name,
+    'colourTreatment': colourTreatment.name,
+    'printStyle': printStyle.name,
+    'heroScale': heroScale,
+    'placement': placement.name,
+    'placementOffset': placementOffset,
+    'cropMode': cropMode.name,
+    'rotationDeg': rotationDeg,
+    'layerMode': layerMode.name,
+    'combination': combination.name,
+    'weightA': weightA,
+    'rippleAmp': rippleAmp,
+    'rippleFreq': rippleFreq,
+    'distress': distress,
+    'grain': grain,
+    'halftone': halftone,
+    'fade': fade,
+    'showTitle': showTitle,
+    'showFooter': showFooter,
+    'recipeId': recipeId,
+  };
 }
 
 /// Print-character facets derived from a print style (texture/distress/edge/
@@ -508,17 +515,17 @@ class PrintFacets {
 
 /// Typical treatment character of each print style, in 0..1.
 PrintFacets printStyleFacets(PrintStyleId s) => switch (s) {
-      PrintStyleId.clean => const PrintFacets(0.05, 0.0, 0.05, 0.05),
-      PrintStyleId.vintage => const PrintFacets(0.5, 0.55, 0.35, 0.4),
-      PrintStyleId.retro => const PrintFacets(0.4, 0.35, 0.2, 0.55),
-      PrintStyleId.halftone => const PrintFacets(0.4, 0.1, 0.15, 0.9),
-      PrintStyleId.stamp => const PrintFacets(0.35, 0.5, 0.55, 0.55),
-      PrintStyleId.grunge => const PrintFacets(0.8, 0.85, 0.6, 0.5),
-      PrintStyleId.riso => const PrintFacets(0.45, 0.3, 0.25, 0.85),
-      PrintStyleId.newsprint => const PrintFacets(0.5, 0.35, 0.25, 0.85),
-      PrintStyleId.sunFaded => const PrintFacets(0.3, 0.4, 0.2, 0.3),
-      PrintStyleId.photocopy => const PrintFacets(0.55, 0.5, 0.4, 0.7),
-      PrintStyleId.edgeTear => const PrintFacets(0.3, 0.5, 0.85, 0.35),
-      PrintStyleId.acidWash => const PrintFacets(0.45, 0.45, 0.25, 0.4),
-      PrintStyleId.rippedFlag => const PrintFacets(0.3, 0.5, 0.9, 0.35),
-    };
+  PrintStyleId.clean => const PrintFacets(0.05, 0.0, 0.05, 0.05),
+  PrintStyleId.vintage => const PrintFacets(0.5, 0.55, 0.35, 0.4),
+  PrintStyleId.retro => const PrintFacets(0.4, 0.35, 0.2, 0.55),
+  PrintStyleId.halftone => const PrintFacets(0.4, 0.1, 0.15, 0.9),
+  PrintStyleId.stamp => const PrintFacets(0.35, 0.5, 0.55, 0.55),
+  PrintStyleId.grunge => const PrintFacets(0.8, 0.85, 0.6, 0.5),
+  PrintStyleId.riso => const PrintFacets(0.45, 0.3, 0.25, 0.85),
+  PrintStyleId.newsprint => const PrintFacets(0.5, 0.35, 0.25, 0.85),
+  PrintStyleId.sunFaded => const PrintFacets(0.3, 0.4, 0.2, 0.3),
+  PrintStyleId.photocopy => const PrintFacets(0.55, 0.5, 0.4, 0.7),
+  PrintStyleId.edgeTear => const PrintFacets(0.3, 0.5, 0.85, 0.35),
+  PrintStyleId.acidWash => const PrintFacets(0.45, 0.45, 0.25, 0.4),
+  PrintStyleId.rippedFlag => const PrintFacets(0.3, 0.5, 0.9, 0.35),
+};

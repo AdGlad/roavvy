@@ -25,19 +25,69 @@ class PreferenceBridge {
     //   typographic, badge, wordCloud, landmark, journey, artistic.
     // Map heuristically to clusters.
     _mapWeight(mobile.family, ['singleHero'], StyleCluster.clean, styleWeights);
-    _mapWeight(mobile.family, ['passport', 'timeline'], StyleCluster.vintage, styleWeights);
-    _mapWeight(mobile.family, ['badge', 'wordCloud'], StyleCluster.bold, styleWeights);
-    _mapWeight(mobile.family, ['flagBlend', 'grid'], StyleCluster.relaxed, styleWeights);
-    _mapWeight(mobile.family, ['artistic', 'landmark'], StyleCluster.artistic, styleWeights);
-    _mapWeight(mobile.family, ['typographic'], StyleCluster.typographic, styleWeights);
+    _mapWeight(
+      mobile.family,
+      ['passport', 'timeline'],
+      StyleCluster.vintage,
+      styleWeights,
+    );
+    _mapWeight(
+      mobile.family,
+      ['badge', 'wordCloud'],
+      StyleCluster.bold,
+      styleWeights,
+    );
+    _mapWeight(
+      mobile.family,
+      ['flagBlend', 'grid'],
+      StyleCluster.relaxed,
+      styleWeights,
+    );
+    _mapWeight(
+      mobile.family,
+      ['artistic', 'landmark'],
+      StyleCluster.artistic,
+      styleWeights,
+    );
+    _mapWeight(
+      mobile.family,
+      ['typographic'],
+      StyleCluster.typographic,
+      styleWeights,
+    );
 
     // Map mobile mask weights → forge shape preferences.
     final shapeWeights = <ShapePreference, double>{};
-    _mapWeight(mobile.mask, ['none', 'noClip'], ShapePreference.noClip, shapeWeights);
-    _mapWeight(mobile.mask, ['country', 'countryOutline', 'continent'], ShapePreference.countryOutline, shapeWeights);
-    _mapWeight(mobile.mask, ['animal', 'plant', 'landmark'], ShapePreference.silhouette, shapeWeights);
-    _mapWeight(mobile.mask, ['circle', 'oval', 'diamond', 'heart', 'hexagon', 'shield', 'star'], ShapePreference.geometric, shapeWeights);
-    _mapWeight(mobile.mask, ['compass', 'ticket', 'badge', 'mapPin', 'stamp'], ShapePreference.travelIcon, shapeWeights);
+    _mapWeight(
+      mobile.mask,
+      ['none', 'noClip'],
+      ShapePreference.noClip,
+      shapeWeights,
+    );
+    _mapWeight(
+      mobile.mask,
+      ['country', 'countryOutline', 'continent'],
+      ShapePreference.countryOutline,
+      shapeWeights,
+    );
+    _mapWeight(
+      mobile.mask,
+      ['animal', 'plant', 'landmark'],
+      ShapePreference.silhouette,
+      shapeWeights,
+    );
+    _mapWeight(
+      mobile.mask,
+      ['circle', 'oval', 'diamond', 'heart', 'hexagon', 'shield', 'star'],
+      ShapePreference.geometric,
+      shapeWeights,
+    );
+    _mapWeight(
+      mobile.mask,
+      ['compass', 'ticket', 'badge', 'mapPin', 'stamp'],
+      ShapePreference.travelIcon,
+      shapeWeights,
+    );
     _mapWeight(mobile.mask, ['text'], ShapePreference.textMask, shapeWeights);
 
     // Garment tone: check if the mobile colour weights suggest a dark preference.
@@ -50,9 +100,11 @@ class PreferenceBridge {
 
     // Vibrancy: check print style weights.
     bool? vibrant;
-    final vintageWeight = (mobile.printStyle['vintage'] ?? 1.0) +
+    final vintageWeight =
+        (mobile.printStyle['vintage'] ?? 1.0) +
         (mobile.printStyle['retro'] ?? 1.0);
-    final boldWeight = (mobile.printStyle['bold'] ?? 1.0) +
+    final boldWeight =
+        (mobile.printStyle['bold'] ?? 1.0) +
         (mobile.printStyle['vibrant'] ?? 1.0);
     if ((boldWeight - vintageWeight).abs() > 0.5) {
       vibrant = boldWeight > vintageWeight;
@@ -79,21 +131,56 @@ class PreferenceBridge {
   ) {
     // Propagate the forge's style cluster weights into the mobile family map.
     final family = Map<String, double>.from(existing.family);
-    _reverseMapWeight(forge.styleWeights, StyleCluster.clean, ['singleHero'], family);
-    _reverseMapWeight(forge.styleWeights, StyleCluster.vintage, ['passport', 'timeline'], family);
-    _reverseMapWeight(forge.styleWeights, StyleCluster.bold, ['badge', 'wordCloud'], family);
-    _reverseMapWeight(forge.styleWeights, StyleCluster.relaxed, ['flagBlend', 'grid'], family);
-    _reverseMapWeight(forge.styleWeights, StyleCluster.artistic, ['artistic', 'landmark'], family);
-    _reverseMapWeight(forge.styleWeights, StyleCluster.typographic, ['typographic'], family);
+    _reverseMapWeight(forge.styleWeights, StyleCluster.clean, [
+      'singleHero',
+    ], family);
+    _reverseMapWeight(forge.styleWeights, StyleCluster.vintage, [
+      'passport',
+      'timeline',
+    ], family);
+    _reverseMapWeight(forge.styleWeights, StyleCluster.bold, [
+      'badge',
+      'wordCloud',
+    ], family);
+    _reverseMapWeight(forge.styleWeights, StyleCluster.relaxed, [
+      'flagBlend',
+      'grid',
+    ], family);
+    _reverseMapWeight(forge.styleWeights, StyleCluster.artistic, [
+      'artistic',
+      'landmark',
+    ], family);
+    _reverseMapWeight(forge.styleWeights, StyleCluster.typographic, [
+      'typographic',
+    ], family);
 
     // Propagate shape weights into the mask map.
     final mask = Map<String, double>.from(existing.mask);
-    _reverseMapWeight(forge.shapeWeights, ShapePreference.noClip, ['none'], mask);
-    _reverseMapWeight(forge.shapeWeights, ShapePreference.countryOutline, ['country', 'continent'], mask);
-    _reverseMapWeight(forge.shapeWeights, ShapePreference.silhouette, ['animal', 'plant', 'landmark'], mask);
-    _reverseMapWeight(forge.shapeWeights, ShapePreference.geometric, ['circle', 'diamond', 'heart'], mask);
-    _reverseMapWeight(forge.shapeWeights, ShapePreference.travelIcon, ['compass', 'ticket', 'badge'], mask);
-    _reverseMapWeight(forge.shapeWeights, ShapePreference.textMask, ['text'], mask);
+    _reverseMapWeight(forge.shapeWeights, ShapePreference.noClip, [
+      'none',
+    ], mask);
+    _reverseMapWeight(forge.shapeWeights, ShapePreference.countryOutline, [
+      'country',
+      'continent',
+    ], mask);
+    _reverseMapWeight(forge.shapeWeights, ShapePreference.silhouette, [
+      'animal',
+      'plant',
+      'landmark',
+    ], mask);
+    _reverseMapWeight(forge.shapeWeights, ShapePreference.geometric, [
+      'circle',
+      'diamond',
+      'heart',
+    ], mask);
+    _reverseMapWeight(forge.shapeWeights, ShapePreference.travelIcon, [
+      'compass',
+      'ticket',
+      'badge',
+    ], mask);
+    _reverseMapWeight(forge.shapeWeights, ShapePreference.textMask, [
+      'text',
+    ], mask);
 
     return existing.copyWith(
       family: family,
@@ -104,8 +191,10 @@ class PreferenceBridge {
   }
 
   /// Build a [DesignContext] from a [TravelProfile].
-  DesignContext contextFromTravel(TravelProfile travel,
-      {List<String>? overrideCodes}) {
+  DesignContext contextFromTravel(
+    TravelProfile travel, {
+    List<String>? overrideCodes,
+  }) {
     final codes = overrideCodes ?? travel.allCodes;
     return DesignContext(
       flagCodes: codes.isEmpty ? ['us'] : codes,

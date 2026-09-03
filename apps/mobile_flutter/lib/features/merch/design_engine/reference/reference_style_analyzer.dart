@@ -41,9 +41,10 @@ class ReferenceFeatures {
   final double aspectRatio;
 
   /// Bucketed word for the schema's `features.focalHierarchy`.
-  String get focalHierarchy => focalConcentration > 0.40
-      ? 'strong'
-      : focalConcentration > 0.25
+  String get focalHierarchy =>
+      focalConcentration > 0.40
+          ? 'strong'
+          : focalConcentration > 0.25
           ? 'medium'
           : 'flat';
 
@@ -54,30 +55,30 @@ class ReferenceFeatures {
   /// The objective abstract-principle estimates this image implies. Feeds
   /// `StyleDna` when aggregating the Roavvy Design DNA.
   Map<DesignPrinciple, double> principleEstimates() => {
-        DesignPrinciple.visualHierarchy:
-            ((focalConcentration - 0.10) / 0.5).clamp(0.0, 1.0),
-        DesignPrinciple.visualDensity: visualDensityHint,
-        DesignPrinciple.negativeSpace: (1 - visualDensityHint).clamp(0.0, 1.0),
-        DesignPrinciple.colourRelationships: colourfulness,
-      };
+    DesignPrinciple.visualHierarchy: ((focalConcentration - 0.10) / 0.5).clamp(
+      0.0,
+      1.0,
+    ),
+    DesignPrinciple.visualDensity: visualDensityHint,
+    DesignPrinciple.negativeSpace: (1 - visualDensityHint).clamp(0.0, 1.0),
+    DesignPrinciple.colourRelationships: colourfulness,
+  };
 
   Map<String, dynamic> toFeaturesJson() => {
-        'dominantColors': dominantColors,
-        'focalHierarchy': focalHierarchy,
-        'legibility': legibility,
-      };
+    'dominantColors': dominantColors,
+    'focalHierarchy': focalHierarchy,
+    'legibility': legibility,
+  };
 
   Map<String, dynamic> toAnalysisJson() => {
-        'analyzerVersion': kReferenceAnalyzerVersion,
-        'computedAtEpochMs': DateTime.now().millisecondsSinceEpoch,
-        'aspectRatio': double.parse(aspectRatio.toStringAsFixed(3)),
-        'focalConcentration':
-            double.parse(focalConcentration.toStringAsFixed(3)),
-        'visualDensityHint':
-            double.parse(visualDensityHint.toStringAsFixed(3)),
-        'colourfulness': double.parse(colourfulness.toStringAsFixed(3)),
-        'source': 'host-dart-ui',
-      };
+    'analyzerVersion': kReferenceAnalyzerVersion,
+    'computedAtEpochMs': DateTime.now().millisecondsSinceEpoch,
+    'aspectRatio': double.parse(aspectRatio.toStringAsFixed(3)),
+    'focalConcentration': double.parse(focalConcentration.toStringAsFixed(3)),
+    'visualDensityHint': double.parse(visualDensityHint.toStringAsFixed(3)),
+    'colourfulness': double.parse(colourfulness.toStringAsFixed(3)),
+    'source': 'host-dart-ui',
+  };
 }
 
 class _Bucket {
@@ -103,11 +104,7 @@ class _Bucket {
 /// Analyse raw RGBA pixels (row-major, 4 bytes/pixel) into [ReferenceFeatures].
 /// Pure + deterministic; no image decoding here (the caller decodes, e.g. via
 /// `dart:ui`), so this is trivially unit-testable and reusable on any platform.
-ReferenceFeatures analyzeReferenceRgba(
-  Uint8List rgba,
-  int width,
-  int height,
-) {
+ReferenceFeatures analyzeReferenceRgba(Uint8List rgba, int width, int height) {
   const grid = 12; // coarse saliency grid
   final cellLum = List<double>.filled(grid * grid, 0);
   final cellCnt = List<int>.filled(grid * grid, 0);
@@ -156,7 +153,9 @@ ReferenceFeatures analyzeReferenceRgba(
   }
 
   final meanLum = lumSum / opaque;
-  final contrast = math.sqrt(math.max(0, lumSqSum / opaque - meanLum * meanLum));
+  final contrast = math.sqrt(
+    math.max(0, lumSqSum / opaque - meanLum * meanLum),
+  );
   final colourfulness = satSum / opaque;
 
   // Per-cell mean luminance → saliency = deviation from the occupied-grid mean.
@@ -182,7 +181,8 @@ ReferenceFeatures analyzeReferenceRgba(
   final total = saliency.fold<double>(0, (a, b) => a + b);
   final topK = math.max(1, (saliency.length * 0.1).ceil());
   final topSum = saliency.take(topK).fold<double>(0, (a, b) => a + b);
-  final focalConcentration = total <= 0 ? 0.0 : (topSum / total).clamp(0.0, 1.0);
+  final focalConcentration =
+      total <= 0 ? 0.0 : (topSum / total).clamp(0.0, 1.0);
   final visualDensityHint = occupied == 0 ? 0.0 : busy / occupied;
 
   // Dominant colours: top buckets by frequency, deduped by hex.

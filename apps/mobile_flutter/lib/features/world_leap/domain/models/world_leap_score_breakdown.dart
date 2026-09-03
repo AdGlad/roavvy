@@ -46,11 +46,18 @@ class WorldLeapScoreBreakdown {
 
   /// Pre-multiplier subtotal.
   int get _baseSubtotal =>
-      baseCountry + distanceBonus + longShotBonus + heritageBonus + continentBonus + speedBonus;
+      baseCountry +
+      distanceBonus +
+      longShotBonus +
+      heritageBonus +
+      continentBonus +
+      speedBonus;
 
   /// Extra points from the combo multiplier (0 when multiplier is 1.0).
   int get comboBonus =>
-      comboMultiplier > 1.0 ? ((_baseSubtotal * comboMultiplier) - _baseSubtotal).round() : 0;
+      comboMultiplier > 1.0
+          ? ((_baseSubtotal * comboMultiplier) - _baseSubtotal).round()
+          : 0;
 
   int get total => _baseSubtotal + comboBonus;
 
@@ -59,8 +66,8 @@ class WorldLeapScoreBreakdown {
   int get stars {
     if (speedBonus > 150) return 3; // > 10 s
     if (speedBonus >= 75) return 2; // 5–10 s
-    if (speedBonus > 0) return 1;   // < 5 s but hit
-    return 1;                        // no time bonus — still 1 star for hitting
+    if (speedBonus > 0) return 1; // < 5 s but hit
+    return 1; // no time bonus — still 1 star for hitting
   }
 
   bool get hasHeritageBonus => heritageBonus > 0;
@@ -70,26 +77,26 @@ class WorldLeapScoreBreakdown {
   bool get hasComboBonus => comboBonus > 0;
 
   factory WorldLeapScoreBreakdown.zero() => const WorldLeapScoreBreakdown(
-        baseCountry: 0,
-        distanceBonus: 0,
-        longShotBonus: 0,
-        heritageBonus: 0,
-        continentBonus: 0,
-        speedBonus: 0,
-      );
+    baseCountry: 0,
+    distanceBonus: 0,
+    longShotBonus: 0,
+    heritageBonus: 0,
+    continentBonus: 0,
+    speedBonus: 0,
+  );
 
   Map<String, dynamic> toJson() => {
-        'baseCountry': baseCountry,
-        'distanceBonus': distanceBonus,
-        'longShotBonus': longShotBonus,
-        'heritageBonus': heritageBonus,
-        'heritageSiteName': heritageSiteName,
-        'continentBonus': continentBonus,
-        'speedBonus': speedBonus,
-        'comboStreak': comboStreak,
-        'comboMultiplier': comboMultiplier,
-        'total': total,
-      };
+    'baseCountry': baseCountry,
+    'distanceBonus': distanceBonus,
+    'longShotBonus': longShotBonus,
+    'heritageBonus': heritageBonus,
+    'heritageSiteName': heritageSiteName,
+    'continentBonus': continentBonus,
+    'speedBonus': speedBonus,
+    'comboStreak': comboStreak,
+    'comboMultiplier': comboMultiplier,
+    'total': total,
+  };
 
   factory WorldLeapScoreBreakdown.fromJson(Map<String, dynamic> json) =>
       WorldLeapScoreBreakdown(

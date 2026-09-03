@@ -42,7 +42,8 @@ class MerchImageProcessor {
     final isRight =
         frontPosition == 'right_chest' || frontPosition == 'front_right';
     // 'front' is the mapped value for the app's 'center' front placement.
-    final isCenter = frontPosition == 'center' ||
+    final isCenter =
+        frontPosition == 'center' ||
         frontPosition == 'front_center' ||
         frontPosition == 'front';
     final isChest = isLeft || isRight || isCenter;
@@ -58,9 +59,10 @@ class MerchImageProcessor {
       final maxW = sizePx;
       final maxH = sizePx;
       final topOffset = (3.0 * dpi).round().toDouble(); // 450 px at 150 DPI
-      final centerIn = isLeft
-          ? 10.0
-          : isRight
+      final centerIn =
+          isLeft
+              ? 10.0
+              : isRight
               ? 2.0
               : 6.0;
       // Left edge = centre − half logo width (mirrors Math.round(sizePx/2) in TS)
@@ -98,9 +100,10 @@ class MerchImageProcessor {
         src: src,
         targetW: widthPx,
         targetH: heightPx,
-        bgColor: transparentBackground
-            ? const ui.Color(0x00000000)
-            : const ui.Color(0xFFFFFFFF),
+        bgColor:
+            transparentBackground
+                ? const ui.Color(0x00000000)
+                : const ui.Color(0xFFFFFFFF),
         transform: transform,
       );
 
@@ -140,9 +143,10 @@ class MerchImageProcessor {
       canvasW: widthPx,
       canvasH: heightPx,
       fillFraction: fillFraction,
-      bgColor: transparentBackground
-          ? const ui.Color(0x00000000)
-          : const ui.Color(0xFFFFFFFF),
+      bgColor:
+          transparentBackground
+              ? const ui.Color(0x00000000)
+              : const ui.Color(0xFFFFFFFF),
       transform: transform,
     );
     src.dispose();
@@ -232,8 +236,12 @@ class MerchImageProcessor {
     required ui.Color bgColor,
     MockupTransform transform = MockupTransform.identity,
   }) async {
-    final canvasRect =
-        ui.Rect.fromLTWH(0, 0, canvasW.toDouble(), canvasH.toDouble());
+    final canvasRect = ui.Rect.fromLTWH(
+      0,
+      0,
+      canvasW.toDouble(),
+      canvasH.toDouble(),
+    );
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder, canvasRect);
 

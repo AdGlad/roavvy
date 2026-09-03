@@ -86,8 +86,9 @@ class _DesignForMeScreenState extends ConsumerState<DesignForMeScreen> {
 
   List<TripRecord> get _scopedTrips {
     final set = _selected.toSet();
-    final scoped =
-        widget.trips.where((t) => set.contains(t.countryCode.toUpperCase()));
+    final scoped = widget.trips.where(
+      (t) => set.contains(t.countryCode.toUpperCase()),
+    );
     return scoped.isEmpty ? widget.trips : scoped.toList();
   }
 
@@ -111,7 +112,10 @@ class _DesignForMeScreenState extends ConsumerState<DesignForMeScreen> {
       trips: _scopedTrips,
       generator: RankerSeededGenerator(rng: math.Random(_seed)),
       constraints: kDefaultPrintabilityConstraints,
-      analyticScorers: const [...kDefaultAnalyticScorers, kDefaultProfileScorer],
+      analyticScorers: const [
+        ...kDefaultAnalyticScorers,
+        kDefaultProfileScorer,
+      ],
       pixelScorers: kDefaultPixelScorers,
       renderer: CardRenderThumbnailer.forContext(context),
       mutator: const GenomeMutator(),
@@ -175,32 +179,37 @@ class _DesignForMeScreenState extends ConsumerState<DesignForMeScreen> {
     final p = candidate.profileParams(widget.allCodes, _scopedTrips);
     // Telemetry (M202): the chosen genome, anonymised (contentHash + template +
     // whether the critic was used — no photos/PII). Fire-and-forget, never blocks.
-    unawaited(_telemetry.logDesignChosen(
-      contentHash: candidate.params.contentHash,
-      template: candidate.params.template.name,
-      criticUsed: _criticUsed,
-    ));
+    unawaited(
+      _telemetry.logDesignChosen(
+        contentHash: candidate.params.contentHash,
+        template: candidate.params.template.name,
+        criticUsed: _criticUsed,
+      ),
+    );
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LocalMockupPreviewScreen(
-          selectedCodes: p.codes,
-          allCodes: widget.allCodes,
-          trips: p.trips,
-          initialTemplate: candidate.params.template,
-          initialPreset: MerchPreset(
-            id: 'ai_${candidate.params.contentHash.hashCode}',
-            label: 'For you',
-            config: candidate.params.toPresetConfig(),
-          ),
-          confirmedAspectRatio: merchBackCardAspectRatio(candidate.params.template),
-          transparentBackground: true,
-          initialColour: candidate.params.shirtColour,
-          gridLayoutMode: candidate.params.gridLayoutMode,
-          clipShape: candidate.params.clipShape,
-          clipCode: candidate.params.clipCode,
-          flagRepeatCount: candidate.params.rowCount,
-          rowCount: candidate.params.rowCount,
-        ),
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: p.codes,
+              allCodes: widget.allCodes,
+              trips: p.trips,
+              initialTemplate: candidate.params.template,
+              initialPreset: MerchPreset(
+                id: 'ai_${candidate.params.contentHash.hashCode}',
+                label: 'For you',
+                config: candidate.params.toPresetConfig(),
+              ),
+              confirmedAspectRatio: merchBackCardAspectRatio(
+                candidate.params.template,
+              ),
+              transparentBackground: true,
+              initialColour: candidate.params.shirtColour,
+              gridLayoutMode: candidate.params.gridLayoutMode,
+              clipShape: candidate.params.clipShape,
+              clipCode: candidate.params.clipCode,
+              flagRepeatCount: candidate.params.rowCount,
+              rowCount: candidate.params.rowCount,
+            ),
       ),
     );
   }
@@ -246,33 +255,34 @@ class _DesignForMeScreenState extends ConsumerState<DesignForMeScreen> {
       return _running
           ? _buildSkeleton(theme)
           : Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.brush_outlined, size: 40),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Couldn’t craft a design from this selection.',
-                    style: theme.textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _regenerate,
-                    child: const Text('Try again'),
-                  ),
-                ],
-              ),
-            );
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.brush_outlined, size: 40),
+                const SizedBox(height: 12),
+                Text(
+                  'Couldn’t craft a design from this selection.',
+                  style: theme.textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: _regenerate,
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+          );
     }
     return ListView.separated(
       itemCount: _designs.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, i) => _DesignCard(
-        candidate: _designs[i],
-        featured: i == 0,
-        onTap: () => _openDesign(_designs[i]),
-      ),
+      itemBuilder:
+          (context, i) => _DesignCard(
+            candidate: _designs[i],
+            featured: i == 0,
+            onTap: () => _openDesign(_designs[i]),
+          ),
     );
   }
 
@@ -280,14 +290,17 @@ class _DesignForMeScreenState extends ConsumerState<DesignForMeScreen> {
     return ListView.separated(
       itemCount: 3,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, i) => Container(
-        height: i == 0 ? 220 : 150,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(child: CircularProgressIndicator()),
-      ),
+      itemBuilder:
+          (context, i) => Container(
+            height: i == 0 ? 220 : 150,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.4,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
     );
   }
 }
@@ -313,7 +326,8 @@ class _DesignCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = _shirtSwatch[candidate.params.shirtColour] ?? const Color(0xFF1A1A1A);
+    final bg =
+        _shirtSwatch[candidate.params.shirtColour] ?? const Color(0xFF1A1A1A);
     final thumb = candidate.thumbnail;
     return Material(
       color: bg,
@@ -325,16 +339,17 @@ class _DesignCard extends StatelessWidget {
         child: SizedBox(
           height: featured ? 220 : 150,
           child: Center(
-            child: thumb == null
-                ? const CircularProgressIndicator()
-                : Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Image.memory(
-                      thumb,
-                      fit: BoxFit.contain,
-                      gaplessPlayback: true,
+            child:
+                thumb == null
+                    ? const CircularProgressIndicator()
+                    : Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Image.memory(
+                        thumb,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                      ),
                     ),
-                  ),
           ),
         ),
       ),
@@ -350,9 +365,10 @@ extension _CandidateNav on DesignCandidate {
   ) {
     final codes = params.countryCodes;
     final set = codes.map((c) => c.toUpperCase()).toSet();
-    final trips = scopedTrips
-        .where((t) => set.contains(t.countryCode.toUpperCase()))
-        .toList();
+    final trips =
+        scopedTrips
+            .where((t) => set.contains(t.countryCode.toUpperCase()))
+            .toList();
     return (codes: codes, trips: trips.isEmpty ? scopedTrips : trips);
   }
 }

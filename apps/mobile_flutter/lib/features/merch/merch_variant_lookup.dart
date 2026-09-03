@@ -189,15 +189,15 @@ String resolveVariantGid({
     final gid = tshirtGids[(colour, size)];
     if (gid == null) {
       throw StateError(
-          'No t-shirt variant for colour "$colour" size "$size". '
-          'The picker offered a garment the store does not carry.');
+        'No t-shirt variant for colour "$colour" size "$size". '
+        'The picker offered a garment the store does not carry.',
+      );
     }
     return gid;
   }
   final gid = posterGids[(paper, size)];
   if (gid == null) {
-    throw StateError(
-        'No poster variant for paper "$paper" size "$size".');
+    throw StateError('No poster variant for paper "$paper" size "$size".');
   }
   return gid;
 }

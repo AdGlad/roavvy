@@ -11,7 +11,7 @@ import 'package:flutter/foundation.dart';
 /// never affect the user flow. Injectable [sink] for tests.
 class DesignEngineTelemetry {
   DesignEngineTelemetry({TelemetrySink? sink})
-      : _sink = sink ?? const FirestoreTelemetrySink();
+    : _sink = sink ?? const FirestoreTelemetrySink();
 
   final TelemetrySink _sink;
 
@@ -20,12 +20,11 @@ class DesignEngineTelemetry {
     required String contentHash,
     required String template,
     required bool criticUsed,
-  }) =>
-      _log('design_chosen', {
-        'contentHash': contentHash,
-        'template': template,
-        'criticUsed': criticUsed,
-      });
+  }) => _log('design_chosen', {
+    'contentHash': contentHash,
+    'template': template,
+    'criticUsed': criticUsed,
+  });
 
   Future<void> _log(String event, Map<String, Object?> data) async {
     try {

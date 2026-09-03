@@ -80,7 +80,9 @@ class GenomeMutator implements Mutator {
       case _Gene.template:
         return p.copyWith(template: _pick(_templatePool, rng));
       case _Gene.gridLayoutMode:
-        return p.copyWith(gridLayoutMode: _pick(FlagGridLayoutMode.values, rng));
+        return p.copyWith(
+          gridLayoutMode: _pick(FlagGridLayoutMode.values, rng),
+        );
       case _Gene.clip:
         return _mutateClip(p, rng);
       case _Gene.rowCount:

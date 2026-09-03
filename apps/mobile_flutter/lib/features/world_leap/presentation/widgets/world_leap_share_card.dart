@@ -6,9 +6,9 @@ import '../../domain/models/world_leap_run.dart';
 
 /// Returns the ordered list of country codes in the run trail.
 List<String> runTrail(WorldLeapRun run) => [
-      run.startCountryCode,
-      ...run.launches.map((l) => l.toCountryCode),
-    ];
+  run.startCountryCode,
+  ...run.launches.map((l) => l.toCountryCode),
+];
 
 /// A self-contained widget designed to be screenshot-able.
 /// Fixed 400x300 logical pixels with a dark green gradient and Roavvy branding.
@@ -30,11 +30,7 @@ class WorldLeapShareCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0D1F0D),
-              Color(0xFF1A3A1A),
-              Color(0xFF0A2A1A),
-            ],
+            colors: [Color(0xFF0D1F0D), Color(0xFF1A3A1A), Color(0xFF0A2A1A)],
           ),
         ),
         padding: const EdgeInsets.all(24),
@@ -70,12 +66,15 @@ class WorldLeapShareCard extends StatelessWidget {
               children: [
                 _CardStat(label: 'Score', value: run.totalScore.toString()),
                 _CardStat(
-                    label: 'Countries', value: run.countryCount.toString()),
+                  label: 'Countries',
+                  value: run.countryCount.toString(),
+                ),
                 _CardStat(
                   label: 'Longest',
-                  value: run.longestLaunchKm > 0
-                      ? '${run.longestLaunchKm.toStringAsFixed(0)} km'
-                      : '—',
+                  value:
+                      run.longestLaunchKm > 0
+                          ? '${run.longestLaunchKm.toStringAsFixed(0)} km'
+                          : '—',
                 ),
               ],
             ),
@@ -85,8 +84,10 @@ class WorldLeapShareCard extends StatelessWidget {
             if (trailText.isNotEmpty)
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(8),

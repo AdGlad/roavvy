@@ -14,10 +14,11 @@ const String kAiDesignCriticFlag = 'ai_design_critic_enabled';
 
 /// Transport for the `critiqueDesigns` cloud call, abstracted so tests can
 /// inject a fake without needing Firebase. Returns the raw `results` list.
-typedef CritiqueCaller = Future<List<Map<String, dynamic>>> Function(
-  List<Map<String, dynamic>> designs,
-  Duration timeout,
-);
+typedef CritiqueCaller =
+    Future<List<Map<String, dynamic>>> Function(
+      List<Map<String, dynamic>> designs,
+      Duration timeout,
+    );
 
 /// The optional cloud "art director" (architecture §6.4 / §16). Given the 3
 /// on-device finalists, it asks a vision model to re-score them and returns a
@@ -30,11 +31,9 @@ typedef CritiqueCaller = Future<List<Map<String, dynamic>>> Function(
 /// * **Never-throwing** — on flag-off, timeout, error, or missing thumbnails it
 ///   returns the input list unchanged, so the heuristic result always stands.
 class AiCritic {
-  AiCritic({
-    bool Function()? isEnabled,
-    CritiqueCaller? caller,
-  })  : _isEnabled = isEnabled ?? _remoteFlagEnabled,
-        _caller = caller ?? _defaultCaller;
+  AiCritic({bool Function()? isEnabled, CritiqueCaller? caller})
+    : _isEnabled = isEnabled ?? _remoteFlagEnabled,
+      _caller = caller ?? _defaultCaller;
 
   final bool Function() _isEnabled;
   final CritiqueCaller _caller;
@@ -103,16 +102,18 @@ class AiCritic {
     final updated = [...finalists];
     for (final raw in results) {
       final payloadIdx = (raw['index'] as num?)?.toInt();
-      if (payloadIdx == null || payloadIdx < 0 || payloadIdx >= indexMap.length) {
+      if (payloadIdx == null ||
+          payloadIdx < 0 ||
+          payloadIdx >= indexMap.length) {
         continue;
       }
       final score = (raw['aestheticScore'] as num?)?.toDouble();
       if (score == null) continue;
       final target = indexMap[payloadIdx];
       final current = updated[target];
-      final blended =
-          ((1 - _aiWeight) * current.score.aesthetic + _aiWeight * score)
-              .clamp(0.0, 1.0);
+      final blended = ((1 - _aiWeight) * current.score.aesthetic +
+              _aiWeight * score)
+          .clamp(0.0, 1.0);
       updated[target] = current.copyWith(
         score: DesignScore(
           printable: current.score.printable,

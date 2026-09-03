@@ -55,7 +55,7 @@ class GlobeMapWidget extends ConsumerStatefulWidget {
 
   /// Called after each frame with the current projection + canvas size.
   final void Function(GlobeProjection projection, Size canvasSize)?
-      onProjectionUpdated;
+  onProjectionUpdated;
 
   @override
   ConsumerState<GlobeMapWidget> createState() => _GlobeMapWidgetState();
@@ -445,7 +445,8 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     });
     // Start pulse only when there are visible heritage dots.
     if (natural.isNotEmpty || unvisited.isNotEmpty) {
-      if (!_heritagePulseCtrl.isAnimating) _heritagePulseCtrl.repeat(reverse: true);
+      if (!_heritagePulseCtrl.isAnimating)
+        _heritagePulseCtrl.repeat(reverse: true);
     } else {
       _heritagePulseCtrl.stop();
     }
@@ -569,11 +570,13 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
     // points instead of the resting persisted-data provider — historical
     // replay's frame.photoLocations is always empty, so this naturally
     // shows no heat there, unchanged from before.
-    final heatmapEnabled = overlayMode == MapOverlayMode.heatmap &&
+    final heatmapEnabled =
+        overlayMode == MapOverlayMode.heatmap &&
         ref.watch(showPhotoThumbnailsProvider);
-    final photoLocations = !heatmapEnabled
-        ? null
-        : frame != null
+    final photoLocations =
+        !heatmapEnabled
+            ? null
+            : frame != null
             ? (frame.photoLocations.isEmpty ? null : frame.photoLocations)
             : ref.watch(photoLocationsProvider).valueOrNull;
 
@@ -600,13 +603,14 @@ class _GlobeMapWidgetState extends ConsumerState<GlobeMapWidget>
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        final heatmap = (photoLocations == null || photoLocations.isEmpty)
-            ? null
-            : GlobeHeatmapData.of(
-                photoLocations,
-                _projection.scale,
-                _canvasSize.shortestSide / 2,
-              );
+        final heatmap =
+            (photoLocations == null || photoLocations.isEmpty)
+                ? null
+                : GlobeHeatmapData.of(
+                  photoLocations,
+                  _projection.scale,
+                  _canvasSize.shortestSide / 2,
+                );
 
         final globe = GestureDetector(
           // Disable interaction while replay/scan is running.

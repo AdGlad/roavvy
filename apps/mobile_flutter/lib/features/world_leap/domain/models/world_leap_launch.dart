@@ -51,20 +51,20 @@ class WorldLeapLaunch {
   int get score => scoreBreakdown.total;
 
   Map<String, dynamic> toJson() => {
-        'launchNumber': launchNumber,
-        'fromCountryCode': fromCountryCode,
-        'fromCountryName': fromCountryName,
-        'toCountryCode': toCountryCode,
-        'toCountryName': toCountryName,
-        'bearing': bearing,
-        'power': power,
-        'distanceKm': distanceKm,
-        'landingLat': landingLat,
-        'landingLon': landingLon,
-        'scoreBreakdown': scoreBreakdown.toJson(),
-        'timestamp': timestamp.toIso8601String(),
-        'newContinent': newContinent,
-      };
+    'launchNumber': launchNumber,
+    'fromCountryCode': fromCountryCode,
+    'fromCountryName': fromCountryName,
+    'toCountryCode': toCountryCode,
+    'toCountryName': toCountryName,
+    'bearing': bearing,
+    'power': power,
+    'distanceKm': distanceKm,
+    'landingLat': landingLat,
+    'landingLon': landingLon,
+    'scoreBreakdown': scoreBreakdown.toJson(),
+    'timestamp': timestamp.toIso8601String(),
+    'newContinent': newContinent,
+  };
 
   factory WorldLeapLaunch.fromJson(Map<String, dynamic> json) =>
       WorldLeapLaunch(
@@ -79,7 +79,8 @@ class WorldLeapLaunch {
         landingLat: (json['landingLat'] as num).toDouble(),
         landingLon: (json['landingLon'] as num).toDouble(),
         scoreBreakdown: WorldLeapScoreBreakdown.fromJson(
-            json['scoreBreakdown'] as Map<String, dynamic>),
+          json['scoreBreakdown'] as Map<String, dynamic>,
+        ),
         timestamp: DateTime.parse(json['timestamp'] as String),
         newContinent: json['newContinent'] as bool? ?? false,
       );

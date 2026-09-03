@@ -139,7 +139,8 @@ class DesignParams {
       next = next.copyWith(clipShape: GridClipShape.none, clipCode: null);
     }
     // Continent-outline clip needs a continent scope (a clipCode).
-    if (next.clipShape == GridClipShape.continentOutline && next.clipCode == null) {
+    if (next.clipShape == GridClipShape.continentOutline &&
+        next.clipCode == null) {
       next = next.copyWith(clipShape: GridClipShape.none);
     }
     // Outline/silhouette clips require a clipCode to resolve the path.

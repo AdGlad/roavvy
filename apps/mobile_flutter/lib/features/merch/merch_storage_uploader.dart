@@ -6,7 +6,7 @@ class MerchStorageUploader {
   final FirebaseStorage _storage;
 
   MerchStorageUploader({FirebaseStorage? storage})
-      : _storage = storage ?? FirebaseStorage.instance;
+    : _storage = storage ?? FirebaseStorage.instance;
 
   /// Uploads [bytes] to [storagePath] with content-type image/png.
   ///

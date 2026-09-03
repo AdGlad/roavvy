@@ -47,32 +47,38 @@ double _distanceSquared(PhotoLocation a, PhotoLocation b) {
 
   if (sortAnchor != null) {
     final byDistance = [...locations]..sort(
-      (a, b) => _distanceSquared(sortAnchor, a).compareTo(
-        _distanceSquared(sortAnchor, b),
-      ),
+      (a, b) => _distanceSquared(
+        sortAnchor,
+        a,
+      ).compareTo(_distanceSquared(sortAnchor, b)),
     );
-    final photos = byDistance.length > kMaxMapGalleryPhotos
-        ? byDistance.sublist(0, kMaxMapGalleryPhotos)
-        : byDistance;
+    final photos =
+        byDistance.length > kMaxMapGalleryPhotos
+            ? byDistance.sublist(0, kMaxMapGalleryPhotos)
+            : byDistance;
     return (photos: photos, totalCount: locations.length);
   }
 
   final List<PhotoLocation> pool;
   if (viewport != null) {
-    pool = locations
-        .where((loc) =>
-            loc.lat >= viewport.south &&
-            loc.lat <= viewport.north &&
-            loc.lng >= viewport.west &&
-            loc.lng <= viewport.east)
-        .toList();
+    pool =
+        locations
+            .where(
+              (loc) =>
+                  loc.lat >= viewport.south &&
+                  loc.lat <= viewport.north &&
+                  loc.lng >= viewport.west &&
+                  loc.lng <= viewport.east,
+            )
+            .toList();
   } else {
     pool = locations;
   }
   if (pool.isEmpty) return (photos: const [], totalCount: 0);
-  final capped = pool.length > kMaxMapGalleryPhotos
-      ? pool.sublist(pool.length - kMaxMapGalleryPhotos)
-      : pool;
+  final capped =
+      pool.length > kMaxMapGalleryPhotos
+          ? pool.sublist(pool.length - kMaxMapGalleryPhotos)
+          : pool;
   return (photos: capped.reversed.toList(), totalCount: pool.length);
 }
 
@@ -109,13 +115,15 @@ class MapPhotoViewer extends StatefulWidget {
   }) {
     return PageRouteBuilder<void>(
       opaque: true, // Hero shared-element animation requires an opaque route
-      pageBuilder: (_, __, ___) => MapPhotoViewer(
-        assetIds: assetIds,
-        initialIndex: initialIndex,
-        heroTag: heroTag,
-      ),
-      transitionsBuilder: (_, animation, __, child) =>
-          FadeTransition(opacity: animation, child: child),
+      pageBuilder:
+          (_, __, ___) => MapPhotoViewer(
+            assetIds: assetIds,
+            initialIndex: initialIndex,
+            heroTag: heroTag,
+          ),
+      transitionsBuilder:
+          (_, animation, __, child) =>
+              FadeTransition(opacity: animation, child: child),
     );
   }
 
@@ -156,9 +164,9 @@ class _MapPhotoViewerState extends State<MapPhotoViewer> {
         ThumbnailLruCache.instance.get(assetId) ??
         await const ThumbnailChannel().getThumbnail(assetId, size: 600);
     if (bytes == null || !mounted) return;
-    await Share.shareXFiles(
-      [XFile.fromData(bytes, mimeType: 'image/jpeg', name: 'photo.jpg')],
-    );
+    await Share.shareXFiles([
+      XFile.fromData(bytes, mimeType: 'image/jpeg', name: 'photo.jpg'),
+    ]);
   }
 
   @override
@@ -180,9 +188,10 @@ class _MapPhotoViewerState extends State<MapPhotoViewer> {
       },
       child: Scaffold(
         backgroundColor: Colors.black.withValues(
-          alpha: (_dragOffset / 200).clamp(0.0, 0.6) == 0.0
-              ? 1.0
-              : 1.0 - (_dragOffset / 200).clamp(0.0, 0.6),
+          alpha:
+              (_dragOffset / 200).clamp(0.0, 0.6) == 0.0
+                  ? 1.0
+                  : 1.0 - (_dragOffset / 200).clamp(0.0, 0.6),
         ),
         body: Transform.translate(
           offset: Offset(0, _dragOffset),
@@ -193,12 +202,14 @@ class _MapPhotoViewerState extends State<MapPhotoViewer> {
                 controller: _page,
                 itemCount: total,
                 onPageChanged: (i) => setState(() => _current = i),
-                itemBuilder: (context, i) => _PhotoPage(
-                  assetId: widget.assetIds[i],
-                  heroTag: (widget.heroTag != null && i == widget.initialIndex)
-                      ? widget.heroTag
-                      : null,
-                ),
+                itemBuilder:
+                    (context, i) => _PhotoPage(
+                      assetId: widget.assetIds[i],
+                      heroTag:
+                          (widget.heroTag != null && i == widget.initialIndex)
+                              ? widget.heroTag
+                              : null,
+                    ),
               ),
 
               // Top bar: close + counter
@@ -275,8 +286,9 @@ class _PhotoPageState extends State<_PhotoPage> {
   }
 
   Future<void> _loadFullRes() async {
-    final full =
-        await const ThumbnailChannel().getFullResolutionImage(widget.assetId);
+    final full = await const ThumbnailChannel().getFullResolutionImage(
+      widget.assetId,
+    );
     if (full != null && mounted) setState(() => _bytes = full);
   }
 
@@ -302,11 +314,7 @@ class _PhotoPageState extends State<_PhotoPage> {
     if (widget.heroTag != null) {
       image = Hero(tag: widget.heroTag!, child: image);
     }
-    return InteractiveViewer(
-      minScale: 1.0,
-      maxScale: 4.0,
-      child: image,
-    );
+    return InteractiveViewer(minScale: 1.0, maxScale: 4.0, child: image);
   }
 }
 

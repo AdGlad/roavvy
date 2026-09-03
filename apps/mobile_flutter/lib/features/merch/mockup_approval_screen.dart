@@ -205,9 +205,7 @@ class _MockupApprovalScreenState extends ConsumerState<MockupApprovalScreen> {
                         ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                         : const Text('Approve and buy'),
               ),

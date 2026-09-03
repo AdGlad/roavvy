@@ -669,13 +669,14 @@ class _CombinedGlobePainter extends CustomPainter {
 
   @override
   void paint(canvas, size) {
-    final heatmap = photoLocations.isEmpty
-        ? null
-        : GlobeHeatmapData.of(
-            photoLocations,
-            projection.scale,
-            size.shortestSide / 2,
-          );
+    final heatmap =
+        photoLocations.isEmpty
+            ? null
+            : GlobeHeatmapData.of(
+              photoLocations,
+              projection.scale,
+              size.shortestSide / 2,
+            );
     GlobePainter(
       polygons: polygons,
       visualStates: visualStates,

@@ -66,20 +66,23 @@ Future<ui.Rect?> _boundsForClipShape(
   ui.Rect? bounds;
   switch (shape) {
     case GridClipShape.animalSilhouette:
-      bounds = (await AnimalSilhouetteService.pathForClipCode(
-        'animal',
-        clipCode,
-      ))?.getBounds();
+      bounds =
+          (await AnimalSilhouetteService.pathForClipCode(
+            'animal',
+            clipCode,
+          ))?.getBounds();
     case GridClipShape.plantSilhouette:
-      bounds = (await AnimalSilhouetteService.pathForClipCode(
-        'plant',
-        clipCode,
-      ))?.getBounds();
+      bounds =
+          (await AnimalSilhouetteService.pathForClipCode(
+            'plant',
+            clipCode,
+          ))?.getBounds();
     case GridClipShape.landmarkSilhouette:
-      bounds = (await AnimalSilhouetteService.pathForClipCode(
-        'landmark',
-        clipCode,
-      ))?.getBounds();
+      bounds =
+          (await AnimalSilhouetteService.pathForClipCode(
+            'landmark',
+            clipCode,
+          ))?.getBounds();
     case GridClipShape.countryOutline:
     case GridClipShape.continentOutline:
       bounds =

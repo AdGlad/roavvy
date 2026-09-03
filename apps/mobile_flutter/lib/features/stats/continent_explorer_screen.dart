@@ -73,8 +73,7 @@ class ContinentExplorerScreen extends ConsumerWidget {
     // Total countries per continent (for progress denominator).
     final totalPerContinent = <String, int>{};
     for (final continent in kCountryContinent.values) {
-      totalPerContinent[continent] =
-          (totalPerContinent[continent] ?? 0) + 1;
+      totalPerContinent[continent] = (totalPerContinent[continent] ?? 0) + 1;
     }
 
     final continentCount = visitedContinents.length;
@@ -95,7 +94,8 @@ class ContinentExplorerScreen extends ConsumerWidget {
                 maxZoom: 6.0,
                 backgroundColor: _kOcean,
                 interactionOptions: InteractionOptions(
-                  flags: InteractiveFlag.pinchZoom |
+                  flags:
+                      InteractiveFlag.pinchZoom |
                       InteractiveFlag.drag |
                       InteractiveFlag.doubleTapZoom,
                 ),
@@ -209,9 +209,10 @@ class _ContinentPolygonLayerState extends State<_ContinentPolygonLayer>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.55, end: 0.80).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
+    _pulseAnim = Tween<double>(
+      begin: 0.55,
+      end: 0.80,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -244,11 +245,9 @@ class _ContinentPolygonLayerState extends State<_ContinentPolygonLayer>
         );
       } else {
         final continent = kCountryContinent[p.isoCode];
-        if (continent != null &&
-            widget.visitedContinents.contains(continent)) {
+        if (continent != null && widget.visitedContinents.contains(continent)) {
           // Country in a visited continent — use that continent's colour
-          final continentColor =
-              _continentColors[continent] ?? _kContinentGlow;
+          final continentColor = _continentColors[continent] ?? _kContinentGlow;
           continentPolygons.add(
             Polygon(
               points: points,
@@ -274,24 +273,25 @@ class _ContinentPolygonLayerState extends State<_ContinentPolygonLayer>
     // Gold countries pulse gently to draw attention.
     return AnimatedBuilder(
       animation: _pulseAnim,
-      builder: (_, __) => Stack(
-        children: [
-          PolygonLayer(polygonCulling: true, polygons: unvisitedPolygons),
-          PolygonLayer(polygonCulling: true, polygons: continentPolygons),
-          PolygonLayer(
-            polygonCulling: true,
-            polygons: [
-              for (final poly in countryPolygons)
-                Polygon(
-                  points: poly.points,
-                  color: _kCountryGold.withValues(alpha: _pulseAnim.value),
-                  borderColor: _kCountryBorder,
-                  borderStrokeWidth: 0.9,
-                ),
+      builder:
+          (_, __) => Stack(
+            children: [
+              PolygonLayer(polygonCulling: true, polygons: unvisitedPolygons),
+              PolygonLayer(polygonCulling: true, polygons: continentPolygons),
+              PolygonLayer(
+                polygonCulling: true,
+                polygons: [
+                  for (final poly in countryPolygons)
+                    Polygon(
+                      points: poly.points,
+                      color: _kCountryGold.withValues(alpha: _pulseAnim.value),
+                      borderColor: _kCountryBorder,
+                      borderStrokeWidth: 0.9,
+                    ),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
     );
   }
 }
@@ -318,14 +318,22 @@ class _Legend extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                children: _continentColors.values.map((c) => Padding(
-                  padding: const EdgeInsets.only(right: 2),
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-                  ),
-                )).toList(),
+                children:
+                    _continentColors.values
+                        .map(
+                          (c) => Padding(
+                            padding: const EdgeInsets.only(right: 2),
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: c,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
               ),
               const SizedBox(width: 6),
               const Text(
@@ -358,10 +366,7 @@ class _LegendItem extends StatelessWidget {
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
       const SizedBox(width: 6),
-      Text(
-        label,
-        style: const TextStyle(color: Colors.white, fontSize: 11),
-      ),
+      Text(label, style: const TextStyle(color: Colors.white, fontSize: 11)),
     ],
   );
 }
@@ -444,26 +449,26 @@ class _ContinentPanel extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: continents.map((continent) {
-              final visited = visitedContinents.contains(continent);
-              final count = countriesPerContinent[continent] ?? 0;
-              final total = totalPerContinent[continent] ?? 1;
-              final color =
-                  _continentColors[continent] ?? Colors.white;
-              final icon =
-                  _continentIcons[continent] ?? Icons.public_outlined;
-              final progress = count / total;
+            children:
+                continents.map((continent) {
+                  final visited = visitedContinents.contains(continent);
+                  final count = countriesPerContinent[continent] ?? 0;
+                  final total = totalPerContinent[continent] ?? 1;
+                  final color = _continentColors[continent] ?? Colors.white;
+                  final icon =
+                      _continentIcons[continent] ?? Icons.public_outlined;
+                  final progress = count / total;
 
-              return _ContinentChip(
-                continent: continent,
-                visited: visited,
-                count: count,
-                total: total,
-                progress: progress,
-                color: color,
-                icon: icon,
-              );
-            }).toList(),
+                  return _ContinentChip(
+                    continent: continent,
+                    visited: visited,
+                    count: count,
+                    total: total,
+                    progress: progress,
+                    color: color,
+                    icon: icon,
+                  );
+                }).toList(),
           ),
         ],
       ),
@@ -495,14 +500,16 @@ class _ContinentChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
       decoration: BoxDecoration(
-        color: visited
-            ? color.withValues(alpha: 0.18)
-            : Colors.white.withValues(alpha: 0.07),
+        color:
+            visited
+                ? color.withValues(alpha: 0.18)
+                : Colors.white.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: visited
-              ? color.withValues(alpha: 0.55)
-              : Colors.white.withValues(alpha: 0.15),
+          color:
+              visited
+                  ? color.withValues(alpha: 0.55)
+                  : Colors.white.withValues(alpha: 0.15),
         ),
       ),
       child: Row(
@@ -539,16 +546,17 @@ class _ContinentChip extends StatelessWidget {
                         tween: Tween(begin: 0, end: progress),
                         duration: const Duration(milliseconds: 800),
                         curve: Curves.easeOut,
-                        builder: (_, v, __) => FractionallySizedBox(
-                          widthFactor: v,
-                          child: Container(
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: color,
-                              borderRadius: BorderRadius.circular(2),
+                        builder:
+                            (_, v, __) => FractionallySizedBox(
+                              widthFactor: v,
+                              child: Container(
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                       ),
                     ],
                   ),

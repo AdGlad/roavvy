@@ -42,8 +42,12 @@ class TornMaskRenderer {
     final cached = _cache.get(key);
     if (cached != null) return cached;
 
-    final mask = _geometry.generate(recipe,
-        width: mw, height: mh, supersample: supersample);
+    final mask = _geometry.generate(
+      recipe,
+      width: mw,
+      height: mh,
+      supersample: supersample,
+    );
     final img = await _toImage(mask);
     _cache.put(key, img);
     return img;
@@ -94,8 +98,12 @@ class TornMaskRenderer {
     }
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
-        rgba, mask.width, mask.height, ui.PixelFormat.rgba8888,
-        completer.complete);
+      rgba,
+      mask.width,
+      mask.height,
+      ui.PixelFormat.rgba8888,
+      completer.complete,
+    );
     return completer.future;
   }
 

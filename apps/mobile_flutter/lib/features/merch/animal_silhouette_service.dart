@@ -158,8 +158,9 @@ class AnimalSilhouetteService {
     // category-agnostic (assets/silhouettes/{cc}_{slug}.svg).
     if (kBundledSilhouetteSlugs[cc] == slug) {
       try {
-        final data = await rootBundle
-            .load('assets/silhouettes/${cc.toLowerCase()}_$slug.svg');
+        final data = await rootBundle.load(
+          'assets/silhouettes/${cc.toLowerCase()}_$slug.svg',
+        );
         final path = _parseSvg(data.buffer.asUint8List());
         _pathCache[key] = path;
         if (_pathCache.length > _maxEntries) {
@@ -186,7 +187,8 @@ class AnimalSilhouetteService {
 
     final path = _parseSvg(svgBytes);
     _pathCache[key] = path;
-    if (_pathCache.length > _maxEntries) _pathCache.remove(_pathCache.keys.first);
+    if (_pathCache.length > _maxEntries)
+      _pathCache.remove(_pathCache.keys.first);
     return path;
   }
 
@@ -205,7 +207,9 @@ class AnimalSilhouetteService {
   static Future<Map<String, dynamic>> _loadSlugMap() async {
     if (_slugMap != null) return _slugMap!;
     try {
-      final raw = await rootBundle.loadString('assets/symbols/animal_slugs.json');
+      final raw = await rootBundle.loadString(
+        'assets/symbols/animal_slugs.json',
+      );
       _slugMap = json.decode(raw) as Map<String, dynamic>;
     } catch (_) {
       _slugMap = {};
@@ -219,9 +223,15 @@ class AnimalSilhouetteService {
   // silhouette downloaded once is available offline on every later launch,
   // without re-hitting Firebase Storage (bandwidth + egress cost).
 
-  static Future<File> _diskCacheFile(String category, String cc, String slug) async {
+  static Future<File> _diskCacheFile(
+    String category,
+    String cc,
+    String slug,
+  ) async {
     final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}/symbols_${category}_${cc.toLowerCase()}_$slug.svg');
+    return File(
+      '${dir.path}/symbols_${category}_${cc.toLowerCase()}_$slug.svg',
+    );
   }
 
   static Future<Uint8List?> _readDiskCache(
@@ -241,15 +251,19 @@ class AnimalSilhouetteService {
   /// bytes transferred). Best-effort: offline, a missing object, or a slow
   /// connection all resolve to false so the existing cache keeps serving —
   /// this check must never block or degrade offline usability.
-  static Future<bool> _isRemoteNewer(String category, String cc, String slug) async {
+  static Future<bool> _isRemoteNewer(
+    String category,
+    String cc,
+    String slug,
+  ) async {
     try {
       final file = await _diskCacheFile(category, cc, slug);
       final localModified = await file.lastModified();
-      final ref = FirebaseStorage.instance.ref('symbols/${category}s/$cc/$slug.svg');
-      final remoteUpdated = (await ref
-              .getMetadata()
-              .timeout(const Duration(seconds: 3)))
-          .updated;
+      final ref = FirebaseStorage.instance.ref(
+        'symbols/${category}s/$cc/$slug.svg',
+      );
+      final remoteUpdated =
+          (await ref.getMetadata().timeout(const Duration(seconds: 3))).updated;
       if (remoteUpdated == null) return false;
       return remoteUpdated.isAfter(localModified);
     } catch (_) {
@@ -271,9 +285,15 @@ class AnimalSilhouetteService {
 
   // ── Firebase Storage download ──────────────────────────────────────────────
 
-  static Future<Uint8List?> _downloadSvg(String cc, String slug, String category) async {
+  static Future<Uint8List?> _downloadSvg(
+    String cc,
+    String slug,
+    String category,
+  ) async {
     try {
-      final ref = FirebaseStorage.instance.ref('symbols/${category}s/$cc/$slug.svg');
+      final ref = FirebaseStorage.instance.ref(
+        'symbols/${category}s/$cc/$slug.svg',
+      );
       return await ref.getData(512 * 1024); // 512 KB max
     } catch (_) {
       return null;
@@ -323,7 +343,8 @@ class AnimalSilhouetteService {
 
       // Scale to fit 800×533, centred (matches CountryPathService convention).
       final bounds = preTransformed.getBounds();
-      if (bounds.isEmpty || bounds.width <= 0 || bounds.height <= 0) return null;
+      if (bounds.isEmpty || bounds.width <= 0 || bounds.height <= 0)
+        return null;
 
       const targetW = 800.0;
       const targetH = 533.0;
@@ -331,13 +352,14 @@ class AnimalSilhouetteService {
       final dx = (targetW - bounds.width * scale) / 2 - bounds.left * scale;
       final dy = (targetH - bounds.height * scale) / 2 - bounds.top * scale;
 
-      final matrix = Float64List(16)
-        ..[0] = scale
-        ..[5] = scale
-        ..[10] = 1.0
-        ..[15] = 1.0
-        ..[12] = dx
-        ..[13] = dy;
+      final matrix =
+          Float64List(16)
+            ..[0] = scale
+            ..[5] = scale
+            ..[10] = 1.0
+            ..[15] = 1.0
+            ..[12] = dx
+            ..[13] = dy;
 
       return preTransformed.transform(matrix);
     } catch (_) {

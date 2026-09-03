@@ -18,14 +18,13 @@ class DeterministicRng {
   /// Two sub-streams with different names are statistically independent, and
   /// the same name always reproduces the same sequence.
   DeterministicRng.stream(int seed, String name)
-      : _state = _mix((seed & _mask) ^ _fnv1a(name));
+    : _state = _mix((seed & _mask) ^ _fnv1a(name));
 
   static const int _mask = 0x7FFFFFFFFFFFFFFF; // 63-bit (avoid sign issues)
   int _state;
 
   /// A fresh independent sub-stream from this generator.
-  DeterministicRng stream(String name) =>
-      DeterministicRng.stream(_state, name);
+  DeterministicRng stream(String name) => DeterministicRng.stream(_state, name);
 
   /// Next raw 63-bit value.
   int _next() {
@@ -47,8 +46,7 @@ class DeterministicRng {
       max <= min ? min : min + nextInt(max - min + 1);
 
   /// Uniform double in `[min, max)`.
-  double nextRange(double min, double max) =>
-      min + nextDouble() * (max - min);
+  double nextRange(double min, double max) => min + nextDouble() * (max - min);
 
   /// Approx. standard normal (Box–Muller); clamped to ±3.5σ for stability.
   double nextGaussian() {

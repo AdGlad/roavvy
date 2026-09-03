@@ -15,8 +15,8 @@ class PhotoGpsFetchService {
   const PhotoGpsFetchService({
     required RoavvyDatabase db,
     required PhotoGpsRepository repo,
-  })  : _db = db,
-        _repo = repo;
+  }) : _db = db,
+       _repo = repo;
 
   static const int _kBatchSize = 50;
   static const Duration _kBatchDelay = Duration(milliseconds: 20);
@@ -36,8 +36,7 @@ class PhotoGpsFetchService {
     if (allAssetIds.isEmpty) return;
 
     final cached = await _repo.cachedAssetIds();
-    final uncached =
-        allAssetIds.where((id) => !cached.contains(id)).toList();
+    final uncached = allAssetIds.where((id) => !cached.contains(id)).toList();
     if (uncached.isEmpty) return;
 
     for (var i = 0; i < uncached.length; i += _kBatchSize) {
@@ -53,9 +52,9 @@ class PhotoGpsFetchService {
   }
 
   Future<List<String>> _loadAllAssetIds() async {
-    final rows = await (_db.select(_db.photoDateRecords)
-          ..where((t) => t.assetId.isNotNull()))
-        .get();
+    final rows =
+        await (_db.select(_db.photoDateRecords)
+          ..where((t) => t.assetId.isNotNull())).get();
     return rows.map((r) => r.assetId!).toList();
   }
 

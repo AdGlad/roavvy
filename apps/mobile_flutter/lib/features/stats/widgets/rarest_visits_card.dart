@@ -84,10 +84,15 @@ class RarestVisitsCard extends StatelessWidget {
             ),
 
             // ── Achievement nudge for 2+ ultra-rare ──────────────────────
-            if (hasUltraRare && rarest.where((r) => r.tier == RarityTier.ultraRare).length >= 2) ...[
+            if (hasUltraRare &&
+                rarest.where((r) => r.tier == RarityTier.ultraRare).length >=
+                    2) ...[
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF9B51E0).withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(10),

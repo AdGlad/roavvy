@@ -53,26 +53,31 @@ class TravelStoryData {
     bool yearFilter = true,
   }) {
     // ── Filter visits ──────────────────────────────────────────────────────
-    final visits = yearFilter
-        ? allVisits.where((v) => v.firstSeen?.year == year).toList()
-        : allVisits;
+    final visits =
+        yearFilter
+            ? allVisits.where((v) => v.firstSeen?.year == year).toList()
+            : allVisits;
 
     final codes = visits.map((v) => v.countryCode).toList();
     final allCodes = allVisits.map((v) => v.countryCode).toList();
 
     // ── Continent count ────────────────────────────────────────────────────
-    final continents = visits
-        .map((v) => kCountryContinent[v.countryCode])
-        .whereType<String>()
-        .toSet();
+    final continents =
+        visits
+            .map((v) => kCountryContinent[v.countryCode])
+            .whereType<String>()
+            .toSet();
     final continentCount = continents.length;
 
     // ── Trip count ─────────────────────────────────────────────────────────
-    final trips = yearFilter
-        ? allTrips
-            .where((t) => t.startedOn.year == year || t.endedOn.year == year)
-            .toList()
-        : allTrips;
+    final trips =
+        yearFilter
+            ? allTrips
+                .where(
+                  (t) => t.startedOn.year == year || t.endedOn.year == year,
+                )
+                .toList()
+            : allTrips;
     final tripCount = trips.length;
 
     // ── Identity ───────────────────────────────────────────────────────────
@@ -87,13 +92,14 @@ class TravelStoryData {
     if (unlockedAchievements.isNotEmpty) {
       // Rank by: continent > high country milestone > any merch achievement
       // Then filter to those unlocked in the target year (if yearFilter).
-      final eligible = kAchievements.where((a) {
-        if (a.merch == null) return false;
-        final unlockedAt = unlockedAchievements[a.id];
-        if (unlockedAt == null) return false;
-        if (yearFilter && unlockedAt.year != year) return false;
-        return true;
-      }).toList();
+      final eligible =
+          kAchievements.where((a) {
+            if (a.merch == null) return false;
+            final unlockedAt = unlockedAchievements[a.id];
+            if (unlockedAt == null) return false;
+            if (yearFilter && unlockedAt.year != year) return false;
+            return true;
+          }).toList();
 
       if (eligible.isNotEmpty) {
         // Priority: continentScope (most specific) > high progressTarget
@@ -130,7 +136,8 @@ class TravelStoryData {
     );
 
     // ── Hero country ───────────────────────────────────────────────────────
-    String heroCountryCode = effectiveCodes.isNotEmpty ? effectiveCodes.first : 'US';
+    String heroCountryCode =
+        effectiveCodes.isNotEmpty ? effectiveCodes.first : 'US';
     if (trips.isNotEmpty) {
       final lastTrip = trips.reduce(
         (a, b) => a.endedOn.isAfter(b.endedOn) ? a : b,

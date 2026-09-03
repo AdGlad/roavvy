@@ -130,7 +130,8 @@ class WorldLeapConfig {
 
   // ── Asset Paths ────────────────────────────────────────────────────────────
 
-  static const String quokkaAsset = 'assets/mobile_png/Quokka-Transparent-200.png';
+  static const String quokkaAsset =
+      'assets/mobile_png/Quokka-Transparent-200.png';
   static const String unescoAsset = 'assets/geodata/whs_sites.json';
 
   // ── Sound Assets ───────────────────────────────────────────────────────────

@@ -55,8 +55,10 @@ const double kMinGarmentContrastL = 0.30;
 /// The concrete pixel canvas the artwork occupies on the printfile for a given
 /// [ImageSize]. Large fills the whole printfile; smaller sizes fill a centred
 /// fraction of it (M190).
-Size printCanvasFor(ImageSize size) =>
-    Size(kPrintfileWidthPx * size.fillFraction, kPrintfileHeightPx * size.fillFraction);
+Size printCanvasFor(ImageSize size) => Size(
+  kPrintfileWidthPx * size.fillFraction,
+  kPrintfileHeightPx * size.fillFraction,
+);
 
 /// Flag-grid tile rects for [params], mapped onto the print canvas — the exact
 /// geometry the renderer would lay out (drives min-feature + coverage + the

@@ -72,35 +72,33 @@ class TornRecipe {
 
   /// Stable identity — the cache key for the generated mask.
   String get tornId => [
-        style.name,
-        for (final e in FlagEdge.values) edgeWeight(e).toStringAsFixed(3),
-        edgeDamageAmount.toStringAsFixed(3),
-        maxTearDepth.toStringAsFixed(3),
-        tearFrequency.toStringAsFixed(2),
-        largeTearProbability.toStringAsFixed(3),
-        notchScale.toStringAsFixed(3),
-        frayAmount.toStringAsFixed(3),
-        cornerDamage.toStringAsFixed(3),
-        asymmetry.toStringAsFixed(3),
-        seed,
-      ].join('|');
+    style.name,
+    for (final e in FlagEdge.values) edgeWeight(e).toStringAsFixed(3),
+    edgeDamageAmount.toStringAsFixed(3),
+    maxTearDepth.toStringAsFixed(3),
+    tearFrequency.toStringAsFixed(2),
+    largeTearProbability.toStringAsFixed(3),
+    notchScale.toStringAsFixed(3),
+    frayAmount.toStringAsFixed(3),
+    cornerDamage.toStringAsFixed(3),
+    asymmetry.toStringAsFixed(3),
+    seed,
+  ].join('|');
 
   Map<String, dynamic> toJson() => {
-        'style': style.name,
-        'edgeWeights': {
-          for (final e in edgeWeights.entries) e.key.name: e.value,
-        },
-        'edgeDamageAmount': edgeDamageAmount,
-        'maxTearDepth': maxTearDepth,
-        'tearFrequency': tearFrequency,
-        'largeTearProbability': largeTearProbability,
-        'notchScale': notchScale,
-        'frayAmount': frayAmount,
-        'cornerDamage': cornerDamage,
-        'asymmetry': asymmetry,
-        'seed': seed,
-        'tornId': tornId,
-      };
+    'style': style.name,
+    'edgeWeights': {for (final e in edgeWeights.entries) e.key.name: e.value},
+    'edgeDamageAmount': edgeDamageAmount,
+    'maxTearDepth': maxTearDepth,
+    'tearFrequency': tearFrequency,
+    'largeTearProbability': largeTearProbability,
+    'notchScale': notchScale,
+    'frayAmount': frayAmount,
+    'cornerDamage': cornerDamage,
+    'asymmetry': asymmetry,
+    'seed': seed,
+    'tornId': tornId,
+  };
 }
 
 /// A closed range `[min, max]`.
@@ -266,7 +264,12 @@ const Map<TearStyle, TornFamilySpec> kTornFamilies = {
   ),
   TearStyle.heavyEdgeDamage: TornFamilySpec(
     style: TearStyle.heavyEdgeDamage,
-    primaryEdges: {FlagEdge.top, FlagEdge.bottom, FlagEdge.left, FlagEdge.right},
+    primaryEdges: {
+      FlagEdge.top,
+      FlagEdge.bottom,
+      FlagEdge.left,
+      FlagEdge.right,
+    },
     edgeDamage: (0.55, 0.75),
     maxDepth: (0.20, 0.30),
     frequency: (5, 8),

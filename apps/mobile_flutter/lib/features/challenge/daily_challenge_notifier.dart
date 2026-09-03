@@ -144,7 +144,9 @@ class DailyChallengeNotifier
     if (current.progress.cluesRevealed >= 5) return;
 
     final newGuesses =
-        costGuess ? [...current.progress.guesses, ''] : current.progress.guesses;
+        costGuess
+            ? [...current.progress.guesses, '']
+            : current.progress.guesses;
     final updated = current.progress.copyWith(
       cluesRevealed: current.progress.cluesRevealed + 1,
       guesses: newGuesses,

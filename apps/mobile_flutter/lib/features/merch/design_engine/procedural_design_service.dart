@@ -58,8 +58,7 @@ class ProceduralDesignService {
     int count = 8,
     int poolSize = 60,
     double exploration = 0.35,
-    UserDesignPreferenceProfile profile =
-        UserDesignPreferenceProfile.neutral,
+    UserDesignPreferenceProfile profile = UserDesignPreferenceProfile.neutral,
     double prefBlend = 0.35,
   }) {
     // Generate a diverse candidate pool (larger than the final count so the
@@ -105,8 +104,7 @@ class ProceduralDesignService {
     int count = 8,
     int poolSize = 100,
     forge.DesignPreferences forgePrefs = const forge.DesignPreferences(),
-    UserDesignPreferenceProfile profile =
-        UserDesignPreferenceProfile.neutral,
+    UserDesignPreferenceProfile profile = UserDesignPreferenceProfile.neutral,
     double prefBlend = 0.35,
   }) {
     // 1. Generate a large candidate pool using the existing generator.
@@ -128,7 +126,9 @@ class ProceduralDesignService {
       final mobilePref = preferenceScorer.score(d.recipe, profile);
       final quality = d.quality.total;
       final combined = preferenceScorer.combined(
-        quality, mobilePref, prefBlend: prefBlend,
+        quality,
+        mobilePref,
+        prefBlend: prefBlend,
       );
 
       // Build a minimal forge recipe to get the forge preference score.
@@ -202,11 +202,11 @@ class ProceduralDesignService {
     DesignContext context, {
     int seed = 0,
     int poolSize = 60,
-  }) =>
-      generator.generate(context, seed: seed, poolSize: poolSize).stats;
+  }) => generator.generate(context, seed: seed, poolSize: poolSize).stats;
 }
 
 /// App-wide singleton. The service is const/stateless, so this is cheap and
 /// safe to read anywhere in the widget tree.
-final proceduralDesignServiceProvider =
-    Provider<ProceduralDesignService>((ref) => const ProceduralDesignService());
+final proceduralDesignServiceProvider = Provider<ProceduralDesignService>(
+  (ref) => const ProceduralDesignService(),
+);

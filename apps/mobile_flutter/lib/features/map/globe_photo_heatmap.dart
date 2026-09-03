@@ -76,20 +76,20 @@ class GlobeHeatmapData {
     double baseRadiusPx,
   ) {
     // Evenly-strided cap (the whole globe is always "in view").
-    final stride = locations.length <= _maxDrawPts
-        ? 1
-        : (locations.length / _maxDrawPts).ceil();
+    final stride =
+        locations.length <= _maxDrawPts
+            ? 1
+            : (locations.length / _maxDrawPts).ceil();
     final units = <(double, double, double)>[];
     for (int i = 0; i < locations.length; i += stride) {
-      units.add(
-        GlobeProjection.unitVector(locations[i].lat, locations[i].lng),
-      );
+      units.add(GlobeProjection.unitVector(locations[i].lat, locations[i].lng));
     }
     if (units.isEmpty) return GlobeHeatmapData._(const [], const []);
 
-    final dStride = units.length <= _maxDensityPts
-        ? 1
-        : (units.length / _maxDensityPts).ceil();
+    final dStride =
+        units.length <= _maxDensityPts
+            ? 1
+            : (units.length / _maxDensityPts).ceil();
     final densityPts = <(double, double, double)>[
       for (int i = 0; i < units.length; i += dStride) units[i],
     ];

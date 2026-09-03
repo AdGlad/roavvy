@@ -61,12 +61,18 @@ class UnescoNearbyService {
 
     for (final site in WorldHeritageLookupService.allSites) {
       final dist = DistanceUtils.haversineKm(
-        lat, lng, site.latitude, site.longitude,
+        lat,
+        lng,
+        site.latitude,
+        site.longitude,
       );
       if (dist > radiusKm) continue;
 
       final bearing = DistanceUtils.bearingDeg(
-        lat, lng, site.latitude, site.longitude,
+        lat,
+        lng,
+        site.latitude,
+        site.longitude,
       );
       final result = NearbySiteResult(
         site: site,

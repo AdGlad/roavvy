@@ -42,15 +42,20 @@ class TravelProfileAnalyzer {
 
     for (final t in trips) {
       final code = t.countryCode.toUpperCase();
-      photosByCode.update(code, (v) => v + t.photoCount,
-          ifAbsent: () => t.photoCount);
-      final continent = kCountryContinent[code] ?? kCountryContinent[t.countryCode];
+      photosByCode.update(
+        code,
+        (v) => v + t.photoCount,
+        ifAbsent: () => t.photoCount,
+      );
+      final continent =
+          kCountryContinent[code] ?? kCountryContinent[t.countryCode];
       if (continent != null) {
         continentByCode[code] = continent;
       }
-      earliest = (earliest == null || t.startedOn.isBefore(earliest))
-          ? t.startedOn
-          : earliest;
+      earliest =
+          (earliest == null || t.startedOn.isBefore(earliest))
+              ? t.startedOn
+              : earliest;
       latest =
           (latest == null || t.endedOn.isAfter(latest)) ? t.endedOn : latest;
       if (recentTrip == null || t.endedOn.isAfter(recentTrip.endedOn)) {
@@ -58,7 +63,8 @@ class TravelProfileAnalyzer {
       }
       totalPhotos += t.photoCount;
       if (clock.difference(t.endedOn).inDays <= _recentWindowDays) {
-        recentPhotos += (t.photoCount + 1); // +1 so photo-less trips still count
+        recentPhotos +=
+            (t.photoCount + 1); // +1 so photo-less trips still count
       }
     }
 
@@ -75,8 +81,10 @@ class TravelProfileAnalyzer {
     final isRecencyHeavy =
         totalWithPad > 0 && (recentPhotos / totalWithPad) >= 0.5;
 
-    final signatureCountries = allCodes.toList()
-      ..sort((a, b) => (photosByCode[b] ?? 0).compareTo(photosByCode[a] ?? 0));
+    final signatureCountries =
+        allCodes.toList()..sort(
+          (a, b) => (photosByCode[b] ?? 0).compareTo(photosByCode[a] ?? 0),
+        );
 
     final candidateSets = _candidateSets(
       allCodes: allCodes,
@@ -91,9 +99,10 @@ class TravelProfileAnalyzer {
     final persona = _persona(
       countryCount: allCodes.length,
       continentCount: continents.length,
-      dominantShare: dominantContinent == null || allCodes.isEmpty
-          ? 0.0
-          : (continentCount[dominantContinent] ?? 0) / allCodes.length,
+      dominantShare:
+          dominantContinent == null || allCodes.isEmpty
+              ? 0.0
+              : (continentCount[dominantContinent] ?? 0) / allCodes.length,
       isRecencyHeavy: isRecencyHeavy,
     );
 
@@ -136,65 +145,79 @@ class TravelProfileAnalyzer {
     final sets = <CountrySetOption>[];
 
     // All-time — always present.
-    sets.add(CountrySetOption(
-      source: MerchCountrySource.allTime,
-      label: 'All Countries',
-      codes: allCodes,
-    ));
+    sets.add(
+      CountrySetOption(
+        source: MerchCountrySource.allTime,
+        label: 'All Countries',
+        codes: allCodes,
+      ),
+    );
 
     // This year.
-    final thisYear = trips
-        .where((t) => t.endedOn.year == clock.year)
-        .map((t) => t.countryCode.toUpperCase())
-        .toSet()
-        .toList();
+    final thisYear =
+        trips
+            .where((t) => t.endedOn.year == clock.year)
+            .map((t) => t.countryCode.toUpperCase())
+            .toSet()
+            .toList();
     if (thisYear.isNotEmpty && thisYear.length != allCodes.length) {
-      sets.add(CountrySetOption(
-        source: MerchCountrySource.thisYear,
-        label: 'This Year',
-        codes: thisYear,
-      ));
+      sets.add(
+        CountrySetOption(
+          source: MerchCountrySource.thisYear,
+          label: 'This Year',
+          codes: thisYear,
+        ),
+      );
     }
 
     // Recent trip (its country).
     if (recentTrip != null) {
       final code = recentTrip.countryCode.toUpperCase();
       if (allCodes.length > 1) {
-        sets.add(CountrySetOption(
-          source: MerchCountrySource.recentTrip,
-          label: 'Recent Trip',
-          codes: [code],
-        ));
+        sets.add(
+          CountrySetOption(
+            source: MerchCountrySource.recentTrip,
+            label: 'Recent Trip',
+            codes: [code],
+          ),
+        );
       }
     }
 
     // Signature single country (most photos), if distinct from the above.
     if (allCodes.length > 1 && signatureCountries.isNotEmpty) {
       final top = signatureCountries.first;
-      final already = sets.any((s) => s.codes.length == 1 && s.codes.first == top);
+      final already = sets.any(
+        (s) => s.codes.length == 1 && s.codes.first == top,
+      );
       if (!already) {
-        sets.add(CountrySetOption(
-          source: MerchCountrySource.singleCountry,
-          label: top,
-          codes: [top],
-          scopeKey: top.toLowerCase(),
-        ));
+        sets.add(
+          CountrySetOption(
+            source: MerchCountrySource.singleCountry,
+            label: top,
+            codes: [top],
+            scopeKey: top.toLowerCase(),
+          ),
+        );
       }
     }
 
     // Dominant continent.
     if (dominantContinent != null) {
-      final codes = continentByCode.entries
-          .where((e) => e.value == dominantContinent)
-          .map((e) => e.key)
-          .toList();
+      final codes =
+          continentByCode.entries
+              .where((e) => e.value == dominantContinent)
+              .map((e) => e.key)
+              .toList();
       if (codes.length >= 3 && codes.length != allCodes.length) {
-        sets.add(CountrySetOption(
-          source: MerchCountrySource.allTime,
-          label: 'Your $dominantContinent',
-          codes: codes,
-          scopeKey: _continentKey(dominantContinent),
-        ));
+        sets.add(
+          CountrySetOption(
+            source: MerchCountrySource.allTime,
+            label: 'Your $dominantContinent',
+            codes: codes,
+            scopeKey: _continentKey(dominantContinent),
+          ),
+        );
       }
     }
 

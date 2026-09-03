@@ -228,24 +228,27 @@ class MapScreen extends ConsumerWidget {
       // Visited country → full-screen profile (ADR-009 revised).
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) =>
-              CountryProfileScreen(isoCode: code, visit: visit),
+          builder: (_) => CountryProfileScreen(isoCode: code, visit: visit),
         ),
       );
     } else {
       // Unvisited country → lightweight add sheet.
       showModalBottomSheet<bool>(
         context: context,
-        builder: (_) => CountryDetailSheet(
-          isoCode: code,
-          visit: null,
-          onAdd: () => ref.read(visitRepositoryProvider).saveAdded(
-                UserAddedCountry(
-                  countryCode: code,
-                  addedAt: DateTime.now().toUtc(),
-                ),
-              ),
-        ),
+        builder:
+            (_) => CountryDetailSheet(
+              isoCode: code,
+              visit: null,
+              onAdd:
+                  () => ref
+                      .read(visitRepositoryProvider)
+                      .saveAdded(
+                        UserAddedCountry(
+                          countryCode: code,
+                          addedAt: DateTime.now().toUtc(),
+                        ),
+                      ),
+            ),
       ).then((added) {
         if (added == true) ref.invalidate(effectiveVisitsProvider);
       });
@@ -336,7 +339,10 @@ class MapScreen extends ConsumerWidget {
         showPhotoGrid && !photoPanelExpanded && visitedByCode.isNotEmpty;
     final photoGridH =
         (showPhotoGrid
-            ? MapPhotoStrip.panelHeight(screenWidth, expanded: photoPanelExpanded)
+            ? MapPhotoStrip.panelHeight(
+              screenWidth,
+              expanded: photoPanelExpanded,
+            )
             : 0.0) +
         (showFlagStripAboveGrid ? _VisitedCountryFlagStrip.height : 0.0);
     final filteredVisits =
@@ -462,9 +468,12 @@ class MapScreen extends ConsumerWidget {
                       AnimatedSize(
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
-                        child: photoPanelExpanded
-                            ? const SizedBox.shrink()
-                            : _VisitedCountryFlagStrip(visits: filteredVisits),
+                        child:
+                            photoPanelExpanded
+                                ? const SizedBox.shrink()
+                                : _VisitedCountryFlagStrip(
+                                  visits: filteredVisits,
+                                ),
                       ),
                     const MapPhotoStrip(),
                   ] else if (visitedByCode.isNotEmpty)
@@ -1170,7 +1179,11 @@ class _YearInReviewBannerState extends ConsumerState<_YearInReviewBanner> {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.close, color: yirOnSurface.withValues(alpha: 0.54), size: 18),
+            icon: Icon(
+              Icons.close,
+              color: yirOnSurface.withValues(alpha: 0.54),
+              size: 18,
+            ),
             onPressed: _dismiss,
             tooltip: 'Dismiss',
           ),
@@ -1386,9 +1399,10 @@ class _GlobeWithHeroPin extends ConsumerStatefulWidget {
 }
 
 class _GlobeWithHeroPinState extends ConsumerState<_GlobeWithHeroPin> {
-  final _projectionNotifier = ValueNotifier<(GlobeProjection, Size)>(
-    (const GlobeProjection(), Size.zero),
-  );
+  final _projectionNotifier = ValueNotifier<(GlobeProjection, Size)>((
+    const GlobeProjection(),
+    Size.zero,
+  ));
   Timer? _heroCycleTimer;
 
   @override
@@ -1440,8 +1454,9 @@ class _GlobeWithHeroPinState extends ConsumerState<_GlobeWithHeroPin> {
         if (widget.showHeroPin)
           ValueListenableBuilder<(GlobeProjection, Size)>(
             valueListenable: _projectionNotifier,
-            builder: (context, value, _) =>
-                GlobeHeroPin(projection: value.$1, canvasSize: value.$2),
+            builder:
+                (context, value, _) =>
+                    GlobeHeroPin(projection: value.$1, canvasSize: value.$2),
           ),
       ],
     );
@@ -1495,11 +1510,16 @@ class _MapOverlayModeToggle extends ConsumerWidget {
         ),
         color: isHeatmap ? const Color(0xFFF2C94C) : Colors.white,
         iconSize: 22,
-        tooltip: isHeatmap
-            ? 'Showing photo heatmap — tap for UNESCO sites'
-            : 'Showing UNESCO sites — tap for photo heatmap',
-        onPressed: () => ref.read(mapOverlayModeProvider.notifier).state =
-            isHeatmap ? MapOverlayMode.heritage : MapOverlayMode.heatmap,
+        tooltip:
+            isHeatmap
+                ? 'Showing photo heatmap — tap for UNESCO sites'
+                : 'Showing UNESCO sites — tap for photo heatmap',
+        onPressed:
+            () =>
+                ref.read(mapOverlayModeProvider.notifier).state =
+                    isHeatmap
+                        ? MapOverlayMode.heritage
+                        : MapOverlayMode.heatmap,
       ),
     );
   }
@@ -1522,8 +1542,8 @@ class _MapViewToggle extends ConsumerWidget {
         color: Colors.white,
         iconSize: 22,
         tooltip: globeMode ? 'Switch to flat map' : 'Switch to globe',
-        onPressed: () =>
-            ref.read(globeModeProvider.notifier).state = !globeMode,
+        onPressed:
+            () => ref.read(globeModeProvider.notifier).state = !globeMode,
       ),
     );
   }
@@ -1605,11 +1625,12 @@ class _UnescoNearbyChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const UnescoNearbyExplorerScreen(),
-        ),
-      ),
+      onTap:
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const UnescoNearbyExplorerScreen(),
+            ),
+          ),
       child: Material(
         color: Colors.black45,
         borderRadius: BorderRadius.circular(20),
@@ -1618,8 +1639,11 @@ class _UnescoNearbyChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.account_balance_outlined,
-                  color: Colors.white, size: 16),
+              Icon(
+                Icons.account_balance_outlined,
+                color: Colors.white,
+                size: 16,
+              ),
               SizedBox(width: 6),
               Text(
                 'UNESCO Nearby',

@@ -246,10 +246,15 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
                   _SectionHeader('Map'),
                   SwitchListTile(
                     title: const Text('Show photos on map'),
-                    subtitle: const Text('Display your photos at their GPS location'),
+                    subtitle: const Text(
+                      'Display your photos at their GPS location',
+                    ),
                     value: ref.watch(showPhotoThumbnailsProvider),
-                    onChanged: (v) =>
-                        ref.read(showPhotoThumbnailsProvider.notifier).state = v,
+                    onChanged:
+                        (v) =>
+                            ref
+                                .read(showPhotoThumbnailsProvider.notifier)
+                                .state = v,
                   ),
                   _SectionHeader('Sharing'),
                   _shareToken != null

@@ -27,8 +27,7 @@ const String kProceduralGrammarVersion = '0.1.0';
 /// Two-flag blend patterns used by the generator. Excludes `none` and `radial`
 /// (the concentric-ring "dial" look, dropped by product preference).
 final List<FlagCombination> _kBlendModes = FlagCombination.values
-    .where((c) =>
-        c != FlagCombination.none && c != FlagCombination.radial)
+    .where((c) => c != FlagCombination.none && c != FlagCombination.radial)
     .toList(growable: false);
 
 /// A generated design plus its intrinsic quality. The renderable genome is
@@ -58,13 +57,13 @@ class GenerationStats {
   final double topQuality;
 
   Map<String, dynamic> toJson() => {
-        'produced': produced,
-        'rejected': rejected,
-        'survivors': survivors,
-        'rejectionReasons': rejectionReasons,
-        'meanQuality': meanQuality,
-        'topQuality': topQuality,
-      };
+    'produced': produced,
+    'rejected': rejected,
+    'survivors': survivors,
+    'rejectionReasons': rejectionReasons,
+    'meanQuality': meanQuality,
+    'topQuality': topQuality,
+  };
 }
 
 class GenerationResult {
@@ -112,14 +111,17 @@ class ProceduralDesignGenerator {
     final master = DeterministicRng(rootSeed);
     final families = eligibleFamilies(context);
     if (families.isEmpty) {
-      return const GenerationResult([], GenerationStats(
-        produced: 0,
-        rejected: 0,
-        survivors: 0,
-        rejectionReasons: {},
-        meanQuality: 0,
-        topQuality: 0,
-      ));
+      return const GenerationResult(
+        [],
+        GenerationStats(
+          produced: 0,
+          rejected: 0,
+          survivors: 0,
+          rejectionReasons: {},
+          meanQuality: 0,
+          topQuality: 0,
+        ),
+      );
     }
 
     final famWeights = [
@@ -137,9 +139,9 @@ class ProceduralDesignGenerator {
 
     for (var i = 0; i < poolSize; i++) {
       final crng = master.stream('cand$i');
-      final spec = families[crng.stream('family').pickWeightedIndex(famWeights)];
-      final recipeSeed =
-          (rootSeed ^ (i * 0x9E3779B1)) & 0x7FFFFFFF;
+      final spec =
+          families[crng.stream('family').pickWeightedIndex(famWeights)];
+      final recipeSeed = (rootSeed ^ (i * 0x9E3779B1)) & 0x7FFFFFFF;
       final recipe = _construct(spec, context, crng, recipeSeed);
       final reason = validateRecipe(recipe, context, constraints: constraints);
       if (reason != null) {
@@ -153,19 +155,25 @@ class ProceduralDesignGenerator {
 
     // Seed the pool with curated exemplars (proven looks, e.g. the torn-flag
     // tee) so they compete with grammar-sampled designs on quality + diversity.
-    for (final ex in curatedExemplars(context, rootSeed,
-        engineVersion: engineVersion, grammarVersion: grammarVersion)) {
+    for (final ex in curatedExemplars(
+      context,
+      rootSeed,
+      engineVersion: engineVersion,
+      grammarVersion: grammarVersion,
+    )) {
       if (validateRecipe(ex, context, constraints: constraints) == null) {
         scored.add(GeneratedDesign(ex, quality.score(ex, context)));
       }
     }
 
     // Discard weak; relax the floor if too few survive so we always return work.
-    var survivors = scored.where((d) => d.quality.total >= qualityFloor).toList();
+    var survivors =
+        scored.where((d) => d.quality.total >= qualityFloor).toList();
     if (survivors.length < count) {
       survivors = List.of(scored)
         ..sort((a, b) => b.quality.total.compareTo(a.quality.total));
-      survivors = survivors.take(math.max(count * 2, survivors.length)).toList();
+      survivors =
+          survivors.take(math.max(count * 2, survivors.length)).toList();
     }
 
     final selected = _selectDiverse(
@@ -175,13 +183,15 @@ class ProceduralDesignGenerator {
       master.stream('select'),
     );
 
-    final mean = scored.isEmpty
-        ? 0.0
-        : scored.map((d) => d.quality.total).reduce((a, b) => a + b) /
-            scored.length;
-    final top = scored.isEmpty
-        ? 0.0
-        : scored.map((d) => d.quality.total).reduce(math.max);
+    final mean =
+        scored.isEmpty
+            ? 0.0
+            : scored.map((d) => d.quality.total).reduce((a, b) => a + b) /
+                scored.length;
+    final top =
+        scored.isEmpty
+            ? 0.0
+            : scored.map((d) => d.quality.total).reduce(math.max);
 
     return GenerationResult(
       selected,
@@ -200,9 +210,10 @@ class ProceduralDesignGenerator {
   /// same request always reproduces, and different scopes never alias.
   int _deriveSeed(DesignContext ctx, int seed) =>
       (DeterministicRng.hashString(
-                  '$engineVersion|$grammarVersion|${ctx.scopeKey}') ^
-              (seed & 0x7FFFFFFF)) &
-          0x7FFFFFFF;
+            '$engineVersion|$grammarVersion|${ctx.scopeKey}',
+          ) ^
+          (seed & 0x7FFFFFFF)) &
+      0x7FFFFFFF;
 
   // ── Recipe construction ────────────────────────────────────────────────────
 
@@ -216,9 +227,10 @@ class ProceduralDesignGenerator {
 
     // Template (canonical first, weighted higher).
     final tRng = rng.stream('template');
-    final template = spec.templates[tRng.pickWeightedIndex([
-      for (var i = 0; i < spec.templates.length; i++) i == 0 ? 1.0 : 0.5,
-    ])];
+    final template =
+        spec.templates[tRng.pickWeightedIndex([
+          for (var i = 0; i < spec.templates.length; i++) i == 0 ? 1.0 : 0.5,
+        ])];
     final isGrid = template == CardTemplateType.grid;
 
     // Hero selection (signature country preferred, else deterministic).
@@ -227,21 +239,27 @@ class ProceduralDesignGenerator {
     if (n == 1) {
       hero = ctx.countryCodes.first;
     } else if (needsHero || spec.hierarchy == HierarchyMode.dominantAccent) {
-      final pool = ctx.signatureCountries.isNotEmpty
-          ? ctx.signatureCountries
-          : ctx.countryCodes;
+      final pool =
+          ctx.signatureCountries.isNotEmpty
+              ? ctx.signatureCountries
+              : ctx.countryCodes;
       hero = pool[rng.stream('hero').nextInt(pool.length)];
     }
 
     // Mask — filtered to what is legal for this count and resolvable via codes.
-    final mask = isGrid ? _pickMask(spec, ctx, hero, rng.stream('mask')) : GridClipShape.none;
+    final mask =
+        isGrid
+            ? _pickMask(spec, ctx, hero, rng.stream('mask'))
+            : GridClipShape.none;
     final maskCode = _maskCode(mask, ctx, hero);
 
     // Layout mode.
-    var layoutMode = isGrid
-        ? spec.layoutModes[
-            rng.stream('layout').nextInt(spec.layoutModes.length)]
-        : FlagGridLayoutMode.packedRow;
+    var layoutMode =
+        isGrid
+            ? spec.layoutModes[rng
+                .stream('layout')
+                .nextInt(spec.layoutModes.length)]
+            : FlagGridLayoutMode.packedRow;
     // E-006 (on-device pixels): `treemap`/`montage` pack into a rectangle and do
     // not honour coverGrid, so inside a clip they cluster to one side and leave
     // the shape half-empty. A clipped design must use a tiling layout that fills
@@ -253,7 +271,9 @@ class ProceduralDesignGenerator {
     }
 
     // Rows: from set size + orientation, clamped; hero families stay shallow.
-    final isPortrait = rng.stream('orient').chance(_portraitProb(spec, template));
+    final isPortrait = rng
+        .stream('orient')
+        .chance(_portraitProb(spec, template));
     final int rowCount;
     if (spec.hierarchy == HierarchyMode.uniform) {
       final aspect = isPortrait ? 1.35 : 0.72;
@@ -277,8 +297,10 @@ class ProceduralDesignGenerator {
     if (n == 1 && mask == GridClipShape.none) {
       resolvedRowCount = 1;
     } else if (mask != GridClipShape.none && n >= 4) {
-      final tileRows =
-          math.sqrt(n * (isPortrait ? 1.35 : 0.72)).round().clamp(2, 8);
+      final tileRows = math
+          .sqrt(n * (isPortrait ? 1.35 : 0.72))
+          .round()
+          .clamp(2, 8);
       resolvedRowCount = math.max(rowCount, tileRows);
     } else {
       resolvedRowCount = rowCount;
@@ -297,15 +319,17 @@ class ProceduralDesignGenerator {
     if (mask != GridClipShape.none && density == MerchDensity.sparse) {
       density = MerchDensity.balanced;
     }
-    final jitter = layoutMode == FlagGridLayoutMode.montage
-        ? rng.stream('jitter').nextRange(0.15, 0.5)
-        : rng.stream('jitter').nextRange(0.0, 0.22);
+    final jitter =
+        layoutMode == FlagGridLayoutMode.montage
+            ? rng.stream('jitter').nextRange(0.15, 0.5)
+            : rng.stream('jitter').nextRange(0.0, 0.22);
 
-    final stampMode = (template == CardTemplateType.passport)
-        ? (rng.stream('stamp').chance(0.5)
-            ? MerchStampMode.entryExit
-            : MerchStampMode.entryOnly)
-        : MerchStampMode.entryExit;
+    final stampMode =
+        (template == CardTemplateType.passport)
+            ? (rng.stream('stamp').chance(0.5)
+                ? MerchStampMode.entryExit
+                : MerchStampMode.entryOnly)
+            : MerchStampMode.entryExit;
 
     final imageSize = _pickImageSize(rng.stream('size'));
 
@@ -316,50 +340,56 @@ class ProceduralDesignGenerator {
     // Continuous treatment genes, seeded from the style's typical character +
     // jitter, so they're coherent but now first-class + learnable.
     final f = printStyleFacets(printStyle);
-    final distress =
-        (f.distress * rng.stream('trD').nextRange(0.7, 1.05)).clamp(0.0, 0.85);
-    final grain =
-        (f.texture * 0.7 * rng.stream('trG').nextRange(0.6, 1.1)).clamp(0.0, 0.6);
-    final halftone = f.printChar > 0.6
-        ? rng.stream('trH').nextRange(0.3, 0.7)
-        : rng.stream('trH').nextRange(0.0, 0.12);
-    final fade =
-        (f.distress * 0.5 * rng.stream('trF').nextRange(0.4, 1.0)).clamp(0.0, 0.5);
+    final distress = (f.distress * rng.stream('trD').nextRange(0.7, 1.05))
+        .clamp(0.0, 0.85);
+    final grain = (f.texture * 0.7 * rng.stream('trG').nextRange(0.6, 1.1))
+        .clamp(0.0, 0.6);
+    final halftone =
+        f.printChar > 0.6
+            ? rng.stream('trH').nextRange(0.3, 0.7)
+            : rng.stream('trH').nextRange(0.0, 0.12);
+    final fade = (f.distress * 0.5 * rng.stream('trF').nextRange(0.4, 1.0))
+        .clamp(0.0, 0.5);
     // R-FLAG-01 / R-COL-01: many flags shown full-colour with no muting treatment
     // clash (garish, reads as clutter). When a multi-country set (>=4) would land
     // full-colour AND the colour treatment isn't already taming the palette, unify
     // the flags to a single ink most of the time so they read as ONE designed
     // graphic. Single-flag heroes stay full-colour (R-FLAG-01 exception); some
     // variety is preserved by not forcing every case.
-    final wouldClash = ctx.countryCount >= 4 &&
-        colourTreatment == ColorTreatment.none;
-    final flagTreatment = (template == CardTemplateType.typography &&
-                rng.stream('flag').chance(0.3)) ||
-            (wouldClash && rng.stream('flagMulti').chance(0.75))
-        ? FlagTreatment.monochrome
-        : FlagTreatment.fullColour;
+    final wouldClash =
+        ctx.countryCount >= 4 && colourTreatment == ColorTreatment.none;
+    final flagTreatment =
+        (template == CardTemplateType.typography &&
+                    rng.stream('flag').chance(0.3)) ||
+                (wouldClash && rng.stream('flagMulti').chance(0.75))
+            ? FlagTreatment.monochrome
+            : FlagTreatment.fullColour;
 
     // Placement / crop / rotation / layering.
     final placement = _pickPlacement(spec, rng.stream('place'));
     final placementOffset = rng.stream('poff').nextRange(-0.12, 0.12);
-    final cropMode = rng.stream('crop').pickWeighted(
-      const [CropMode.contained, CropMode.inset, CropMode.bleed],
-      const [0.6, 0.3, 0.1],
-    );
-    final rotationDeg = spec.rotationMaxDeg <= 0
-        ? 0.0
-        : rng.stream('rot').nextRange(-spec.rotationMaxDeg, spec.rotationMaxDeg);
-    final layerMode = (mask != GridClipShape.none &&
-            rng.stream('layer').chance(0.5))
-        ? LayerMode.layered
-        : LayerMode.flat;
+    final cropMode = rng
+        .stream('crop')
+        .pickWeighted(
+          const [CropMode.contained, CropMode.inset, CropMode.bleed],
+          const [0.6, 0.3, 0.1],
+        );
+    final rotationDeg =
+        spec.rotationMaxDeg <= 0
+            ? 0.0
+            : rng
+                .stream('rot')
+                .nextRange(-spec.rotationMaxDeg, spec.rotationMaxDeg);
+    final layerMode =
+        (mask != GridClipShape.none && rng.stream('layer').chance(0.5))
+            ? LayerMode.layered
+            : LayerMode.flat;
 
     // Flag-merge genes — only for the duoBlend family (exactly two flags). Picks
     // from the full palette of blend patterns for variety.
     final isDuo = spec.family == CompositionFamily.duoBlend;
-    final combination = isDuo
-        ? rng.stream('combo').pick(_kBlendModes)
-        : FlagCombination.none;
+    final combination =
+        isDuo ? rng.stream('combo').pick(_kBlendModes) : FlagCombination.none;
     final weightA = isDuo ? rng.stream('wa').nextRange(0.35, 0.65) : 0.5;
     final rippleAmp = isDuo ? rng.stream('ramp').nextRange(0.0, 0.08) : 0.0;
     final rippleFreq = isDuo ? rng.stream('rfreq').nextRange(2.0, 6.0) : 3.0;
@@ -425,8 +455,13 @@ class ProceduralDesignGenerator {
     final legal = <GridClipShape>[
       for (final m in spec.masks)
         if (resolvable.contains(m) &&
-            _maskLegal(m, ctx.countryCount, ctx.dominantContinent,
-                ctx.dominantContinentShare, hero))
+            _maskLegal(
+              m,
+              ctx.countryCount,
+              ctx.dominantContinent,
+              ctx.dominantContinentShare,
+              hero,
+            ))
           m,
     ];
     if (legal.isEmpty) return GridClipShape.none;
@@ -439,7 +474,12 @@ class ProceduralDesignGenerator {
   }
 
   bool _maskLegal(
-      GridClipShape m, int n, String? continent, double continentShare, String? hero) {
+    GridClipShape m,
+    int n,
+    String? continent,
+    double continentShare,
+    String? hero,
+  ) {
     switch (m) {
       case GridClipShape.countryOutline:
         return n == 1 && hero != null;
@@ -461,17 +501,22 @@ class ProceduralDesignGenerator {
     }
   }
 
-  String? _maskCode(GridClipShape m, DesignContext ctx, String? hero) =>
-      switch (m) {
-        GridClipShape.countryOutline => hero ?? ctx.countryCodes.first,
-        GridClipShape.continentOutline =>
-          ctx.dominantContinent?.toLowerCase().replaceAll(' ', '_'),
-        // Composite "CC|slug" clipCode for the bundled silhouette.
-        GridClipShape.animalSilhouette => hero == null
-            ? null
-            : '${hero.toUpperCase()}|${kBundledSilhouetteSlugs[hero.toUpperCase()]}',
-        _ => null,
-      };
+  String? _maskCode(
+    GridClipShape m,
+    DesignContext ctx,
+    String? hero,
+  ) => switch (m) {
+    GridClipShape.countryOutline => hero ?? ctx.countryCodes.first,
+    GridClipShape.continentOutline => ctx.dominantContinent
+        ?.toLowerCase()
+        .replaceAll(' ', '_'),
+    // Composite "CC|slug" clipCode for the bundled silhouette.
+    GridClipShape.animalSilhouette =>
+      hero == null
+          ? null
+          : '${hero.toUpperCase()}|${kBundledSilhouetteSlugs[hero.toUpperCase()]}',
+    _ => null,
+  };
 
   double _portraitProb(CompositionFamilySpec spec, CardTemplateType t) {
     if (spec.family == CompositionFamily.singleHero) return 0.35;
@@ -485,21 +530,30 @@ class ProceduralDesignGenerator {
     // sparse scatter, so `large` gets no `sparse`.
     final weights = switch (c) {
       DesignDensityClass.solo => const [0.5, 0.5, 0.0],
-      DesignDensityClass.small => const [0.35, 0.65, 0.0], // was [.3,.6,.1] — no dense (R-NEG-01)
+      DesignDensityClass.small => const [
+        0.35,
+        0.65,
+        0.0,
+      ], // was [.3,.6,.1] — no dense (R-NEG-01)
       DesignDensityClass.medium => const [0.15, 0.6, 0.25],
-      DesignDensityClass.large => const [0.0, 0.5, 0.5], // was [.05,.45,.5] — no sparse (R-MERCH-02)
+      DesignDensityClass.large => const [
+        0.0,
+        0.5,
+        0.5,
+      ], // was [.05,.45,.5] — no sparse (R-MERCH-02)
       DesignDensityClass.massive => const [0.0, 0.35, 0.65],
     };
-    return rng.pickWeighted(
-      const [MerchDensity.sparse, MerchDensity.balanced, MerchDensity.dense],
-      weights,
-    );
+    return rng.pickWeighted(const [
+      MerchDensity.sparse,
+      MerchDensity.balanced,
+      MerchDensity.dense,
+    ], weights);
   }
 
   ImageSize _pickImageSize(DeterministicRng rng) => rng.pickWeighted(
-        const [ImageSize.small, ImageSize.medium, ImageSize.large],
-        const [0.15, 0.6, 0.25],
-      );
+    const [ImageSize.small, ImageSize.medium, ImageSize.large],
+    const [0.15, 0.6, 0.25],
+  );
 
   PrintStyleId _pickPrintStyle(DesignContext ctx, DeterministicRng rng) {
     const styles = PrintStyleId.values;
@@ -514,55 +568,56 @@ class ProceduralDesignGenerator {
   }
 
   static double _tornFlagBoost(PrintStyleId s) => switch (s) {
-        PrintStyleId.edgeTear => 4.0,
-        PrintStyleId.grunge => 1.8,
-        PrintStyleId.vintage => 1.6,
-        PrintStyleId.stamp => 1.4,
-        PrintStyleId.clean => 0.35, // fewer plain, untreated flags
-        _ => 1.0,
-      };
+    PrintStyleId.edgeTear => 4.0,
+    PrintStyleId.grunge => 1.8,
+    PrintStyleId.vintage => 1.6,
+    PrintStyleId.stamp => 1.4,
+    PrintStyleId.clean => 0.35, // fewer plain, untreated flags
+    _ => 1.0,
+  };
 
   ColorTreatment _colourFor(PrintStyleId s) => switch (s) {
-        PrintStyleId.clean => ColorTreatment.none,
-        PrintStyleId.vintage => ColorTreatment.vintageWarm,
-        PrintStyleId.retro => ColorTreatment.muted,
-        PrintStyleId.halftone => ColorTreatment.none,
-        PrintStyleId.stamp => ColorTreatment.monoInk,
-        PrintStyleId.grunge => ColorTreatment.muted,
-        PrintStyleId.riso => ColorTreatment.duotone,
-        PrintStyleId.newsprint => ColorTreatment.monoInk,
-        PrintStyleId.sunFaded => ColorTreatment.vintageWarm,
-        PrintStyleId.photocopy => ColorTreatment.monoInk,
-        PrintStyleId.edgeTear => ColorTreatment.none,
-        PrintStyleId.acidWash => ColorTreatment.muted,
-        PrintStyleId.rippedFlag => ColorTreatment.none,
-      };
+    PrintStyleId.clean => ColorTreatment.none,
+    PrintStyleId.vintage => ColorTreatment.vintageWarm,
+    PrintStyleId.retro => ColorTreatment.muted,
+    PrintStyleId.halftone => ColorTreatment.none,
+    PrintStyleId.stamp => ColorTreatment.monoInk,
+    PrintStyleId.grunge => ColorTreatment.muted,
+    PrintStyleId.riso => ColorTreatment.duotone,
+    PrintStyleId.newsprint => ColorTreatment.monoInk,
+    PrintStyleId.sunFaded => ColorTreatment.vintageWarm,
+    PrintStyleId.photocopy => ColorTreatment.monoInk,
+    PrintStyleId.edgeTear => ColorTreatment.none,
+    PrintStyleId.acidWash => ColorTreatment.muted,
+    PrintStyleId.rippedFlag => ColorTreatment.none,
+  };
 
   PlacementAnchor _pickPlacement(
-          CompositionFamilySpec spec, DeterministicRng rng) =>
-      switch (spec.hierarchy) {
-        HierarchyMode.dualZone =>
-          rng.chance(0.5) ? PlacementAnchor.topCenter : PlacementAnchor.bottomCenter,
-        HierarchyMode.singleFocal ||
-        HierarchyMode.radial ||
-        HierarchyMode.typeLed =>
-          PlacementAnchor.center,
-        _ => rng.pickWeighted(
-            const [PlacementAnchor.center, PlacementAnchor.topCenter],
-            const [0.7, 0.3],
-          ),
-      };
+    CompositionFamilySpec spec,
+    DeterministicRng rng,
+  ) => switch (spec.hierarchy) {
+    HierarchyMode.dualZone =>
+      rng.chance(0.5)
+          ? PlacementAnchor.topCenter
+          : PlacementAnchor.bottomCenter,
+    HierarchyMode.singleFocal ||
+    HierarchyMode.radial ||
+    HierarchyMode.typeLed => PlacementAnchor.center,
+    _ => rng.pickWeighted(
+      const [PlacementAnchor.center, PlacementAnchor.topCenter],
+      const [0.7, 0.3],
+    ),
+  };
 
   MerchCountrySource _sourceFor(DesignScope scope) => switch (scope) {
-        DesignScope.year => MerchCountrySource.thisYear,
-        DesignScope.trip => MerchCountrySource.recentTrip,
-        DesignScope.singleCountry => MerchCountrySource.singleCountry,
-        DesignScope.random ||
-        DesignScope.lifetime ||
-        DesignScope.region ||
-        DesignScope.multiCountry =>
-          MerchCountrySource.allTime,
-      };
+    DesignScope.year => MerchCountrySource.thisYear,
+    DesignScope.trip => MerchCountrySource.recentTrip,
+    DesignScope.singleCountry => MerchCountrySource.singleCountry,
+    DesignScope.random ||
+    DesignScope.lifetime ||
+    DesignScope.region ||
+    DesignScope.multiCountry => MerchCountrySource.allTime,
+  };
 
   // ── Selection (quality + diversity + controlled exploration) ────────────────
 

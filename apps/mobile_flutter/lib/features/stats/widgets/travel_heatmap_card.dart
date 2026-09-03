@@ -7,11 +7,11 @@ import '../../../core/country_names.dart';
 
 /// Continent → display colour.  Keys match [kCountryContinent].
 const Map<String, Color> kContinentHeatmapColors = {
-  'Africa':        Color(0xFFFF8C42),
-  'Asia':          Color(0xFFE74C3C),
-  'Europe':        Color(0xFF3498DB),
+  'Africa': Color(0xFFFF8C42),
+  'Asia': Color(0xFFE74C3C),
+  'Europe': Color(0xFF3498DB),
   'North America': Color(0xFF27AE60),
-  'Oceania':       Color(0xFF16A085),
+  'Oceania': Color(0xFF16A085),
   'South America': Color(0xFF8E44AD),
 };
 
@@ -47,8 +47,7 @@ String? dominantContinent(List<String> codes) {
   int bestCount = 0;
   for (final e in counts.entries) {
     if (e.value > bestCount ||
-        (e.value == bestCount &&
-            (best == null || e.key.compareTo(best) < 0))) {
+        (e.value == bestCount && (best == null || e.key.compareTo(best) < 0))) {
       best = e.key;
       bestCount = e.value;
     }
@@ -81,7 +80,18 @@ class _TravelHeatmapCardState extends State<TravelHeatmapCard> {
   static const _gap = 3.0;
 
   static const _months = [
-    'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D',
+    'J',
+    'F',
+    'M',
+    'A',
+    'M',
+    'J',
+    'J',
+    'A',
+    'S',
+    'O',
+    'N',
+    'D',
   ];
 
   // ── Data ───────────────────────────────────────────────────────────────────
@@ -370,14 +380,18 @@ class _HeatmapPainter extends CustomPainter {
         final col = m - 1;
         final left = col * (_cellW + _gap);
         final rect = RRect.fromLTRBR(
-          left, top, left + _cellW, top + _cellH,
+          left,
+          top,
+          left + _cellW,
+          top + _cellH,
           const Radius.circular(_r),
         );
         final key = (y, m);
         final continent = data[key];
-        final color = continent != null
-            ? (kContinentHeatmapColors[continent] ?? emptyColor)
-            : emptyColor;
+        final color =
+            continent != null
+                ? (kContinentHeatmapColors[continent] ?? emptyColor)
+                : emptyColor;
         final isSelected = selectedCell == key;
         canvas.drawRRect(
           rect,
@@ -424,8 +438,18 @@ class _CellCallout extends StatelessWidget {
   final double gap;
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   @override
@@ -437,10 +461,7 @@ class _CellCallout extends StatelessWidget {
     final top = row * (cellH + gap) - 6; // shift callout upward
 
     final theme = Theme.of(context);
-    final names = codes
-        .map((c) => kCountryNames[c] ?? c)
-        .toList()
-      ..sort();
+    final names = codes.map((c) => kCountryNames[c] ?? c).toList()..sort();
 
     return Positioned(
       left: left.clamp(0, double.infinity),
@@ -472,19 +493,25 @@ class _CellCallout extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 2),
-              ...names.take(5).map(
-                (n) => Text(
-                  n,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onInverseSurface.withValues(alpha: 0.85),
+              ...names
+                  .take(5)
+                  .map(
+                    (n) => Text(
+                      n,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onInverseSurface.withValues(
+                          alpha: 0.85,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
               if (names.length > 5)
                 Text(
                   '+${names.length - 5} more',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onInverseSurface.withValues(alpha: 0.6),
+                    color: theme.colorScheme.onInverseSurface.withValues(
+                      alpha: 0.6,
+                    ),
                   ),
                 ),
             ],

@@ -118,7 +118,9 @@ class _MemoryRevealSheetState extends ConsumerState<MemoryRevealSheet>
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.24),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -140,7 +142,12 @@ class _MemoryRevealSheetState extends ConsumerState<MemoryRevealSheet>
                     const SizedBox(height: 16),
                     Text(
                       'Tap to reveal your memory',
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38), fontSize: 14),
+                      style: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.38),
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 32),
                     FilledButton(

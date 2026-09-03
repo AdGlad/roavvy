@@ -26,10 +26,10 @@ class DebugAnalyticsLogger implements IAnalyticsLogger {
 // ── Event name constants (package-private) ────────────────────────────────────
 
 const String kEventGameStarted = 'wl_game_started';
-const String kEventLaunched    = 'wl_launched';
-const String kEventLanded      = 'wl_landed';
-const String kEventFailed      = 'wl_failed';
-const String kEventCompleted   = 'wl_completed';
+const String kEventLaunched = 'wl_launched';
+const String kEventLanded = 'wl_landed';
+const String kEventFailed = 'wl_failed';
+const String kEventCompleted = 'wl_completed';
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
@@ -41,11 +41,10 @@ class WorldLeapAnalyticsService {
   Future<void> logGameStarted({
     required String date,
     required String startCountryCode,
-  }) =>
-      _logger.logEvent(kEventGameStarted, {
-        'date': date,
-        'start_country': startCountryCode,
-      });
+  }) => _logger.logEvent(kEventGameStarted, {
+    'date': date,
+    'start_country': startCountryCode,
+  });
 
   /// Logged on every successful launch.
   Future<void> logLaunched(WorldLeapLaunch launch) =>
@@ -64,13 +63,12 @@ class WorldLeapAnalyticsService {
   Future<void> logFailed({
     required WorldLeapRun run,
     required String failureReason,
-  }) =>
-      _logger.logEvent(kEventFailed, {
-        'reason': failureReason,
-        'countries_visited': run.countryCount,
-        'total_score': run.totalScore,
-        'date': run.date,
-      });
+  }) => _logger.logEvent(kEventFailed, {
+    'reason': failureReason,
+    'countries_visited': run.countryCount,
+    'total_score': run.totalScore,
+    'date': run.date,
+  });
 
   /// Logged when a run ends successfully (player taps End Game).
   Future<void> logCompleted(WorldLeapRun run) =>

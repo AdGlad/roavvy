@@ -111,7 +111,8 @@ class _FlagParade extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Deduplicate by country code, preserve chronological order (earliest first).
-    final sorted = [...trips]..sort((a, b) => a.startedOn.compareTo(b.startedOn));
+    final sorted = [...trips]
+      ..sort((a, b) => a.startedOn.compareTo(b.startedOn));
     final seen = <String>{};
     final uniqueCountryCodes = <String>[];
     for (final t in sorted) {
@@ -169,16 +170,17 @@ class _FlagChip extends StatelessWidget {
         width: 28,
         height: 20,
         fit: BoxFit.cover,
-        placeholderBuilder: (_) => SizedBox(
-          width: 28,
-          height: 20,
-          child: Center(
-            child: Text(
-              flagEmoji(cc),
-              style: const TextStyle(fontSize: 12),
+        placeholderBuilder:
+            (_) => SizedBox(
+              width: 28,
+              height: 20,
+              child: Center(
+                child: Text(
+                  flagEmoji(cc),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
             ),
-          ),
-        ),
       ),
     );
   }

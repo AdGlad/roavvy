@@ -47,40 +47,40 @@ class MerchIdentityHeader extends ConsumerWidget {
             color: theme.colorScheme.onSurface.withValues(alpha: 0.12),
           ),
         ),
-        child: isLoading
-            ? const _ShimmerRow()
-            : Row(
-                children: [
-                  Text(
-                    identity.emoji,
-                    style: const TextStyle(fontSize: 28),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        identity.displayName,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: const Color(0xFFFFD700),
-                          fontWeight: FontWeight.w700,
+        child:
+            isLoading
+                ? const _ShimmerRow()
+                : Row(
+                  children: [
+                    Text(identity.emoji, style: const TextStyle(fontSize: 28)),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          identity.displayName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: const Color(0xFFFFD700),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _statsLabel(
-                          countryCount: visits.length,
-                          continentCount: continentCount,
-                          since: earliestYear,
+                        const SizedBox(height: 2),
+                        Text(
+                          _statsLabel(
+                            countryCount: visits.length,
+                            continentCount: continentCount,
+                            since: earliestYear,
+                          ),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.54,
+                            ),
+                          ),
                         ),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.54),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                      ],
+                    ),
+                  ],
+                ),
       ),
     );
   }
@@ -111,7 +111,9 @@ class _ShimmerRow extends StatelessWidget {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -123,7 +125,9 @@ class _ShimmerRow extends StatelessWidget {
               width: 100,
               height: 12,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -132,7 +136,9 @@ class _ShimmerRow extends StatelessWidget {
               width: 160,
               height: 10,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),

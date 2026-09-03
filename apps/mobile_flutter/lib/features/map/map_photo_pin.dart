@@ -23,7 +23,11 @@ const _kPinAnchorSize = 12.0;
 /// [computeMapGalleryPhotos] sequence — shared by the flat map's
 /// [PhotoPinLayer] and the globe's [GlobeHeroPin] so tapping the pin behaves
 /// identically on both views.
-void openMapPhotoViewer(BuildContext context, WidgetRef ref, PhotoLocation selected) {
+void openMapPhotoViewer(
+  BuildContext context,
+  WidgetRef ref,
+  PhotoLocation selected,
+) {
   final locations = ref.read(photoLocationsProvider).valueOrNull ?? const [];
   final sortAnchor = ref.read(mapGallerySortAnchorProvider);
   final viewport = sortAnchor == null ? ref.read(mapViewportProvider) : null;
@@ -248,8 +252,10 @@ class _PinThumbnailState extends State<_PinThumbnail> {
   }
 
   Future<void> _load() async {
-    final bytes =
-        await const ThumbnailChannel().getThumbnail(widget.assetId, size: 150);
+    final bytes = await const ThumbnailChannel().getThumbnail(
+      widget.assetId,
+      size: 150,
+    );
     if (bytes != null) {
       ThumbnailLruCache.instance.put(widget.assetId, bytes);
       if (mounted) setState(() => _bytes = bytes);
@@ -278,9 +284,14 @@ class _PinThumbnailState extends State<_PinThumbnail> {
         ),
         padding: EdgeInsets.all(widget.ringWidth),
         child: ClipOval(
-          child: bytes != null
-              ? Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true)
-              : const ColoredBox(color: Color(0xFFE0E0E0)),
+          child:
+              bytes != null
+                  ? Image.memory(
+                    bytes,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                  )
+                  : const ColoredBox(color: Color(0xFFE0E0E0)),
         ),
       ),
     );
@@ -343,14 +354,18 @@ class _AnchorDotsPainter extends CustomPainter {
             loc.lng <= bounds.east)
           loc,
     ];
-    final stride = inView.length <= PhotoAnchorDotsLayer._maxDots
-        ? 1
-        : (inView.length / PhotoAnchorDotsLayer._maxDots).ceil();
+    final stride =
+        inView.length <= PhotoAnchorDotsLayer._maxDots
+            ? 1
+            : (inView.length / PhotoAnchorDotsLayer._maxDots).ceil();
     for (int i = 0; i < inView.length; i += stride) {
       final loc = inView[i];
       if (loc.assetId == excludeAssetId) continue;
       final p = camera.latLngToScreenPoint(LatLng(loc.lat, loc.lng));
-      if (p.x < -8 || p.x > size.width + 8 || p.y < -8 || p.y > size.height + 8) {
+      if (p.x < -8 ||
+          p.x > size.width + 8 ||
+          p.y < -8 ||
+          p.y > size.height + 8) {
         continue;
       }
       final c = Offset(p.x, p.y);

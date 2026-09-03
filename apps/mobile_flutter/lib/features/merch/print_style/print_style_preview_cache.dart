@@ -20,8 +20,7 @@ class PrintStylePreviewCache {
     required String artworkHash,
     required String styleId,
     required int seed,
-  }) =>
-      '${artworkHash}_${styleId}_$seed';
+  }) => '${artworkHash}_${styleId}_$seed';
 
   /// Returns cached styled bytes for [key], refreshing its LRU position, or null.
   Uint8List? get(String key) {

@@ -78,7 +78,11 @@ abstract class CandidateGenerator {
 
 /// Genome perturbation for the evolutionary loop. Output must be normalized.
 abstract class Mutator {
-  DesignParams mutate(DesignParams params, TravelProfile profile, math.Random rng);
+  DesignParams mutate(
+    DesignParams params,
+    TravelProfile profile,
+    math.Random rng,
+  );
   DesignParams crossover(DesignParams a, DesignParams b, math.Random rng);
 }
 

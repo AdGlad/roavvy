@@ -94,6 +94,17 @@ abstract final class BundledGarments {
   static const tintBaseFront = 'assets/mockups/Grey-tshirt-front.jpeg';
   static const tintBaseBack = 'assets/mockups/Grey-tshirt-back.jpeg';
 
+  /// The garment photographs' pixel dimensions.
+  ///
+  /// A print area is normalised to the PHOTO, so its real shape is only known
+  /// once the photo's proportions are — a 0.42 × 0.56 region is not 3:4 on a
+  /// 487 × 640 shirt. The print file has to be cut to that same shape or a
+  /// design previews at one aspect and prints at another, and the two faces are
+  /// not photographed alike. `print_parity_test` holds these to the shipped
+  /// assets, so new photography cannot silently change the geometry.
+  static const tintBaseFrontSize = Size(513, 640);
+  static const tintBaseBackSize = Size(487, 640);
+
   /// Full printable areas, normalised to the garment photo. A design at the
   /// largest print size fills these exactly; smaller sizes fill a centred
   /// fraction. Calibrated against Printful's real DTG geometry (see the merch

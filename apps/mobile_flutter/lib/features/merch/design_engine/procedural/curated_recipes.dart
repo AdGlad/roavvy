@@ -30,9 +30,8 @@ List<ProceduralDesignRecipe> curatedExemplars(
   final n = codes.length;
   final cc = codes.first;
   final garment = context.garmentIsDark ? 'Black' : 'White';
-  final source = n == 1
-      ? MerchCountrySource.singleCountry
-      : MerchCountrySource.allTime;
+  final source =
+      n == 1 ? MerchCountrySource.singleCountry : MerchCountrySource.allTime;
 
   ProceduralDesignRecipe build({
     required CompositionFamily family,
@@ -60,54 +59,54 @@ List<ProceduralDesignRecipe> curatedExemplars(
     bool showTitle = true,
     bool showFooter = true,
     required int salt,
-  }) =>
-      ProceduralDesignRecipe(
-        engineVersion: engineVersion,
-        grammarVersion: grammarVersion,
-        seed: (seed ^ salt) & 0x7fffffff,
-        scopeKey: context.scopeKey,
-        generator: 'curated',
-        family: family,
-        hierarchy: hierarchy,
-        template: template,
-        layoutMode: layoutMode,
-        mask: mask,
-        maskCode: maskCode,
-        rowCount: rowCount,
-        countryCodes: codes,
-        heroCode: hero,
-        source: source,
-        density: density,
-        jitter: jitter,
-        stampMode: MerchStampMode.entryExit,
-        isPortrait: isPortrait,
-        imageSize: imageSize,
-        garmentColour: garment,
-        flagTreatment: flagTreatment,
-        colourTreatment: colour,
-        printStyle: style,
-        heroScale: heroScale,
-        placement: PlacementAnchor.center,
-        placementOffset: 0,
-        cropMode: CropMode.bleed,
-        rotationDeg: 0,
-        layerMode: LayerMode.flat,
-        combination: combination,
-        weightA: weightA,
-        distress: distress,
-        grain: grain,
-        halftone: halftone,
-        fade: fade,
-        showTitle: showTitle,
-        showFooter: showFooter,
-      );
+  }) => ProceduralDesignRecipe(
+    engineVersion: engineVersion,
+    grammarVersion: grammarVersion,
+    seed: (seed ^ salt) & 0x7fffffff,
+    scopeKey: context.scopeKey,
+    generator: 'curated',
+    family: family,
+    hierarchy: hierarchy,
+    template: template,
+    layoutMode: layoutMode,
+    mask: mask,
+    maskCode: maskCode,
+    rowCount: rowCount,
+    countryCodes: codes,
+    heroCode: hero,
+    source: source,
+    density: density,
+    jitter: jitter,
+    stampMode: MerchStampMode.entryExit,
+    isPortrait: isPortrait,
+    imageSize: imageSize,
+    garmentColour: garment,
+    flagTreatment: flagTreatment,
+    colourTreatment: colour,
+    printStyle: style,
+    heroScale: heroScale,
+    placement: PlacementAnchor.center,
+    placementOffset: 0,
+    cropMode: CropMode.bleed,
+    rotationDeg: 0,
+    layerMode: LayerMode.flat,
+    combination: combination,
+    weightA: weightA,
+    distress: distress,
+    grain: grain,
+    halftone: halftone,
+    fade: fade,
+    showTitle: showTitle,
+    showFooter: showFooter,
+  );
 
   final out = <ProceduralDesignRecipe>[];
 
   // ── Single country ─────────────────────────────────────────────────────────
   if (n == 1) {
     // Torn flag — full colour.
-    out.add(build(
+    out.add(
+      build(
         family: CompositionFamily.singleHero,
         hierarchy: HierarchyMode.singleFocal,
         hero: cc,
@@ -118,9 +117,12 @@ List<ProceduralDesignRecipe> curatedExemplars(
         // Reference torn tees carry no text; keep the flag clean.
         showTitle: false,
         showFooter: false,
-        salt: 0x7011));
+        salt: 0x7011,
+      ),
+    );
     // Torn flag — mono tattered.
-    out.add(build(
+    out.add(
+      build(
         family: CompositionFamily.singleHero,
         hierarchy: HierarchyMode.singleFocal,
         hero: cc,
@@ -132,9 +134,12 @@ List<ProceduralDesignRecipe> curatedExemplars(
         grain: 0.30,
         showTitle: false,
         showFooter: false,
-        salt: 0x7022));
+        salt: 0x7022,
+      ),
+    );
     // Country-outline flag (souvenir look).
-    out.add(build(
+    out.add(
+      build(
         family: CompositionFamily.singleHero,
         hierarchy: HierarchyMode.singleFocal,
         mask: GridClipShape.countryOutline,
@@ -145,10 +150,13 @@ List<ProceduralDesignRecipe> curatedExemplars(
         distress: 0.2,
         grain: 0.18,
         fade: 0.3,
-        salt: 0x7044));
+        salt: 0x7044,
+      ),
+    );
     // Ripped-through-fabric flag — the flag shows through a vertical torn gash
     // (portrait), rest transparent so the garment shows around it.
-    out.add(build(
+    out.add(
+      build(
         family: CompositionFamily.singleHero,
         hierarchy: HierarchyMode.singleFocal,
         hero: cc,
@@ -159,11 +167,14 @@ List<ProceduralDesignRecipe> curatedExemplars(
         grain: 0.25,
         showTitle: false,
         showFooter: false,
-        salt: 0x7099));
+        salt: 0x7099,
+      ),
+    );
     // National-animal flag — only when a bundled silhouette exists (local).
     final slug = kBundledSilhouetteSlugs[cc.toUpperCase()];
     if (slug != null) {
-      out.add(build(
+      out.add(
+        build(
           family: CompositionFamily.singleHero,
           hierarchy: HierarchyMode.singleFocal,
           mask: GridClipShape.animalSilhouette,
@@ -171,25 +182,31 @@ List<ProceduralDesignRecipe> curatedExemplars(
           hero: cc,
           heroScale: 0.9,
           style: PrintStyleId.clean,
-          salt: 0x7055));
+          salt: 0x7055,
+        ),
+      );
     }
   }
 
   // ── Two countries — dual heritage split ────────────────────────────────────
   if (n == 2) {
-    out.add(build(
+    out.add(
+      build(
         family: CompositionFamily.duoBlend,
         hierarchy: HierarchyMode.dualZone,
         hero: cc,
         combination: FlagCombination.diagonal,
         style: PrintStyleId.clean,
-        salt: 0x7066));
+        salt: 0x7066,
+      ),
+    );
   }
 
   // ── Several+ — heart of flags ──────────────────────────────────────────────
   if (n >= 5) {
     final rows = math.sqrt(n * 1.3).round().clamp(2, 8);
-    out.add(build(
+    out.add(
+      build(
         family: CompositionFamily.repetitionField,
         hierarchy: HierarchyMode.uniform,
         mask: GridClipShape.heart,
@@ -198,13 +215,16 @@ List<ProceduralDesignRecipe> curatedExemplars(
         density: MerchDensity.balanced,
         jitter: 0.2,
         style: PrintStyleId.clean,
-        salt: 0x7077));
+        salt: 0x7077,
+      ),
+    );
   }
 
   // ── Large collections — flag mosaic wall ───────────────────────────────────
   if (n >= 12) {
     final rows = math.sqrt(n * 0.7).round().clamp(3, 10);
-    out.add(build(
+    out.add(
+      build(
         family: CompositionFamily.repetitionField,
         hierarchy: HierarchyMode.uniform,
         layoutMode: FlagGridLayoutMode.treemap,
@@ -214,7 +234,9 @@ List<ProceduralDesignRecipe> curatedExemplars(
         distress: 0.2,
         grain: 0.2,
         fade: 0.25,
-        salt: 0x7088));
+        salt: 0x7088,
+      ),
+    );
   }
 
   return out;

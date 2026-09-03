@@ -57,9 +57,9 @@ class MerchReadyToDesignSection extends ConsumerWidget {
             padding: const EdgeInsets.only(right: 12, bottom: 10),
             child: Text(
               'Ready to design',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           SizedBox(
@@ -72,7 +72,9 @@ class MerchReadyToDesignSection extends ConsumerWidget {
                   (ctx, __) => Container(
                     width: 160,
                     decoration: BoxDecoration(
-                      color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.12),
+                      color: Theme.of(
+                        ctx,
+                      ).colorScheme.onSurface.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -93,9 +95,9 @@ class MerchReadyToDesignSection extends ConsumerWidget {
             padding: const EdgeInsets.only(right: 12, bottom: 10),
             child: Text(
               'Ready to design',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           SizedBox(
@@ -140,14 +142,16 @@ class MerchReadyToDesignSection extends ConsumerWidget {
     final sortedRows = [...unlockedRows]
       ..sort((a, b) => b.unlockedAt.compareTo(a.unlockedAt));
     for (final row in sortedRows) {
-      final a = kAchievements.where((a) => a.id == row.achievementId).firstOrNull;
+      final a =
+          kAchievements.where((a) => a.id == row.achievementId).firstOrNull;
       if (a == null || a.merch == null) continue;
       final codes = _codesForAchievement(a, allVisits);
       final template = _topTemplate(codes.length, achievement: a);
       addRec(
         _Rec(
           title: a.title,
-          scopeLabel: '${codes.length} ${codes.length == 1 ? "country" : "countries"}',
+          scopeLabel:
+              '${codes.length} ${codes.length == 1 ? "country" : "countries"}',
           codes: codes,
           allCodes: allVisits.map((v) => v.countryCode).toList(),
           allTrips: allTrips,
@@ -161,16 +165,18 @@ class MerchReadyToDesignSection extends ConsumerWidget {
 
     // 2. This-year travel
     final thisYear = DateTime.now().year;
-    final yearCodes = allVisits
-        .where((v) => v.firstSeen?.year == thisYear)
-        .map((v) => v.countryCode)
-        .toList();
+    final yearCodes =
+        allVisits
+            .where((v) => v.firstSeen?.year == thisYear)
+            .map((v) => v.countryCode)
+            .toList();
     if (yearCodes.isNotEmpty) {
       final template = _topTemplate(yearCodes.length);
       addRec(
         _Rec(
           title: '$thisYear Travels',
-          scopeLabel: '${yearCodes.length} ${yearCodes.length == 1 ? "country" : "countries"}',
+          scopeLabel:
+              '${yearCodes.length} ${yearCodes.length == 1 ? "country" : "countries"}',
           codes: yearCodes,
           allCodes: allVisits.map((v) => v.countryCode).toList(),
           allTrips: allTrips,
@@ -188,7 +194,8 @@ class MerchReadyToDesignSection extends ConsumerWidget {
       addRec(
         _Rec(
           title: 'Grand Tour',
-          scopeLabel: '${allCodes.length} ${allCodes.length == 1 ? "country" : "countries"}',
+          scopeLabel:
+              '${allCodes.length} ${allCodes.length == 1 ? "country" : "countries"}',
           codes: allCodes,
           allCodes: allCodes,
           allTrips: allTrips,
@@ -226,7 +233,9 @@ class MerchReadyToDesignSection extends ConsumerWidget {
       codeCount: count,
       achievement: achievement,
     );
-    return ranks.firstWhere((r) => !r.exclude, orElse: () => ranks.first).template;
+    return ranks
+        .firstWhere((r) => !r.exclude, orElse: () => ranks.first)
+        .template;
   }
 }
 
@@ -264,18 +273,19 @@ class _InspiredDesignCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder:
-              (_) => ShopCollectionOptionScreen(
-                label: rec.title,
-                codes: rec.codes,
-                allCodes: rec.allCodes,
-                trips: rec.allTrips,
-                featuredTemplate: rec.template,
-              ),
-        ),
-      ),
+      onTap:
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder:
+                  (_) => ShopCollectionOptionScreen(
+                    label: rec.title,
+                    codes: rec.codes,
+                    allCodes: rec.allCodes,
+                    trips: rec.allTrips,
+                    featuredTemplate: rec.template,
+                  ),
+            ),
+          ),
       child: Container(
         width: 160,
         decoration: BoxDecoration(

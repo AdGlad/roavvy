@@ -9,10 +9,7 @@ import 'procedural_recipe.dart';
 /// preference profile). Cheap: derived from the recipe's estimated principles,
 /// no rasterisation.
 class QualityScore {
-  const QualityScore({
-    required this.total,
-    required this.breakdown,
-  });
+  const QualityScore({required this.total, required this.breakdown});
 
   /// Aggregate in 0..1.
   final double total;
@@ -69,17 +66,21 @@ class RecipeQualityModel {
     } else {
       // Focal families: reward a clear dominant and a real size gap.
       final base = p[DesignPrinciple.visualHierarchy]!;
-      final gap = spec.heroRequiredWhenMulti && r.heroCode != null
-          ? (r.heroScale - (1 - r.heroScale) / r.countryCount).clamp(0.0, 1.0)
-          : 0.4;
+      final gap =
+          spec.heroRequiredWhenMulti && r.heroCode != null
+              ? (r.heroScale - (1 - r.heroScale) / r.countryCount).clamp(
+                0.0,
+                1.0,
+              )
+              : 0.4;
       hierarchy = (0.6 * base + 0.4 * gap).clamp(0.0, 1.0);
     }
 
-    final densityBalance =
-        dna.targets[DesignPrinciple.visualDensity]!
-            .closeness(p[DesignPrinciple.visualDensity]!);
-    final negativeSpace = dna.targets[DesignPrinciple.negativeSpace]!
-        .closeness(p[DesignPrinciple.negativeSpace]!);
+    final densityBalance = dna.targets[DesignPrinciple.visualDensity]!
+        .closeness(p[DesignPrinciple.visualDensity]!);
+    final negativeSpace = dna.targets[DesignPrinciple.negativeSpace]!.closeness(
+      p[DesignPrinciple.negativeSpace]!,
+    );
 
     // Family fit: does this family suit the scope + density, and is it on-DNA?
     final familyFit = (spec.scopeWeight(ctx.scope) *

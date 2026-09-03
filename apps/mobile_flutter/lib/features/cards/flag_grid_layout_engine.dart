@@ -174,10 +174,7 @@ class FlagGridLayoutEngine {
       final left = padding + (gridW - w) / 2;
       final top = originY + (gridH - h) / 2;
       return [
-        FlagGridTile(
-          code: codes.first,
-          rect: Rect.fromLTWH(left, top, w, h),
-        ),
+        FlagGridTile(code: codes.first, rect: Rect.fromLTWH(left, top, w, h)),
       ];
     }
 
@@ -186,7 +183,9 @@ class FlagGridLayoutEngine {
     // Then centre the flag block horizontally.
     int effectiveRepeat = flagRepeatCount;
     double originX = padding;
-    if (rowCount != null && codes.length == 1 && mode == FlagGridLayoutMode.packedRow) {
+    if (rowCount != null &&
+        codes.length == 1 &&
+        mode == FlagGridLayoutMode.packedRow) {
       final R = rowCount;
       // Actual row height that _scaleRowsToFit will produce (fills gridH).
       final rowH = (gridH - gutter * (R - 1)) / R;
@@ -215,9 +214,10 @@ class FlagGridLayoutEngine {
     }
 
     // Expand codes by repeat count and spread to avoid adjacency.
-    final expanded = effectiveRepeat > 1
-        ? _expandAndSpread(codes, effectiveRepeat)
-        : List<String>.from(codes);
+    final expanded =
+        effectiveRepeat > 1
+            ? _expandAndSpread(codes, effectiveRepeat)
+            : List<String>.from(codes);
 
     final grid = Size(gridW, gridH);
 
@@ -269,7 +269,8 @@ class FlagGridLayoutEngine {
     }
 
     // Deterministic seed: stable layout across repaints, varied (not sequential).
-    final seed = codes.fold<int>(17, (h, c) => h * 31 + c.hashCode) ^
+    final seed =
+        codes.fold<int>(17, (h, c) => h * 31 + c.hashCode) ^
         (repeat * 0x9e3779b9);
 
     // Non-adjacent spread (standard "reorganise so no two neighbours are equal"):
@@ -327,7 +328,9 @@ class FlagGridLayoutEngine {
     final n = codes.length;
     // Number of rows: use forced rowCount when provided (uniform rows), otherwise
     // aim for a visually square overall grid.
-    final R = rowCount ?? math.max(1, math.sqrt(n * grid.height / grid.width).round());
+    final R =
+        rowCount ??
+        math.max(1, math.sqrt(n * grid.height / grid.width).round());
 
     // Chunk into R sequential rows.
     final rows = _chunkIntoRows(codes, R);
@@ -437,10 +440,7 @@ class FlagGridLayoutEngine {
     final rng = math.Random(seed ^ codesHash ^ (n * 0x9e3779b9));
 
     // Coarse base grid roughly proportional to the canvas.
-    final cols = math.max(
-      1,
-      math.sqrt(n * grid.width / grid.height).round(),
-    );
+    final cols = math.max(1, math.sqrt(n * grid.width / grid.height).round());
     final rows = math.max(1, (n / cols).ceil());
     final cellW = grid.width / cols;
     final cellH = grid.height / rows;
@@ -459,10 +459,12 @@ class FlagGridLayoutEngine {
         for (int c = -1; c <= cols; c++) {
           final code = codes[k++ % n];
           final ar = _ar(code);
-          final cx = originX +
+          final cx =
+              originX +
               (c + 0.5) * cellW +
               (rng.nextDouble() - 0.5) * cellW * 0.4;
-          final cy = originY +
+          final cy =
+              originY +
               (r + 0.5) * cellH +
               (rng.nextDouble() - 0.5) * cellH * 0.4;
           final sizeVar = 0.9 + rng.nextDouble() * 0.4; // 0.90–1.30
@@ -491,10 +493,10 @@ class FlagGridLayoutEngine {
       final c = i % cols;
 
       // Cell centre + bounded jitter (< half a cell → cells stay separated).
-      final cx = originX + (c + 0.5) * cellW +
-          (rng.nextDouble() - 0.5) * cellW * 0.55;
-      final cy = originY + (r + 0.5) * cellH +
-          (rng.nextDouble() - 0.5) * cellH * 0.55;
+      final cx =
+          originX + (c + 0.5) * cellW + (rng.nextDouble() - 0.5) * cellW * 0.55;
+      final cy =
+          originY + (r + 0.5) * cellH + (rng.nextDouble() - 0.5) * cellH * 0.55;
 
       // Height from the cell, scaled up for overlap plus per-tile variation.
       final sizeVar = 0.8 + rng.nextDouble() * 0.5; // 0.80–1.30

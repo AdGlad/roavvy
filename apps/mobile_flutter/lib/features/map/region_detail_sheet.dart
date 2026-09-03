@@ -83,7 +83,9 @@ class _RegionDetailSheetContent extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.24),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.24),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -105,8 +107,13 @@ class _RegionDetailSheetContent extends StatelessWidget {
                         ),
                         Text(
                           '${data.visitedCount} of ${data.totalCount} countries',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54)),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.54),
+                          ),
                         ),
                       ],
                     ),
@@ -177,7 +184,9 @@ class _RegionDetailSheetContent extends StatelessWidget {
                   if (unvisitedInRegion.isNotEmpty) ...[
                     _SectionHeader(
                       label: 'Not yet visited (${unvisitedInRegion.length})',
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
                     ),
                     const SizedBox(height: 4),
                     ...unvisitedInRegion.map(
@@ -234,18 +243,24 @@ class _CountryTile extends StatelessWidget {
           Icon(
             visited ? Icons.check_circle : Icons.radio_button_unchecked,
             size: 16,
-            color: visited
-                ? const Color(0xFF388E3C)
-                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+            color:
+                visited
+                    ? const Color(0xFF388E3C)
+                    : Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.38),
           ),
           const SizedBox(width: 8),
           Text(
             name,
             style: TextStyle(
               fontSize: 14,
-              color: visited
-                  ? Theme.of(context).colorScheme.onSurface
-                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.54),
+              color:
+                  visited
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.54),
             ),
           ),
         ],

@@ -38,9 +38,10 @@ class ShopCollectionOptionScreen extends StatelessWidget {
   final CardTemplateType featuredTemplate;
 
   List<PulseMerchOption> _buildOptions() {
-    final ranks = MerchTemplateRanker.rankFor(codeCount: codes.length)
-        .where((r) => !r.exclude)
-        .toList();
+    final ranks =
+        MerchTemplateRanker.rankFor(
+          codeCount: codes.length,
+        ).where((r) => !r.exclude).toList();
 
     final continentKey = _kLabelToContinent[label];
 
@@ -52,27 +53,34 @@ class ShopCollectionOptionScreen extends StatelessWidget {
     // title. Swap it for the same wordbank-generated suggestion the
     // "New suggestion" button on the next screen offers, so the first
     // thing a player sees already reads like a real title.
-    final options = ranks
-        .map(
-          (r) => PulseMerchOption(
-            id: 'shop_${r.template.name}',
-            title: label == 'My Design'
-                ? MerchTitleWordbank.pickGeneric(codes.length, r.template.index)
-                : '$label · ${r.label}',
-            description: r.label,
-            scope: PulseMerchScope.allTime,
-            template: r.template,
-            codes: codes,
-            trips: trips,
-            jitter: 0.4,
-            stampSizeMultiplier: 1.0,
-            continentKey: continentKey,
-          ),
-        )
-        .toList();
+    final options =
+        ranks
+            .map(
+              (r) => PulseMerchOption(
+                id: 'shop_${r.template.name}',
+                title:
+                    label == 'My Design'
+                        ? MerchTitleWordbank.pickGeneric(
+                          codes.length,
+                          r.template.index,
+                        )
+                        : '$label · ${r.label}',
+                description: r.label,
+                scope: PulseMerchScope.allTime,
+                template: r.template,
+                codes: codes,
+                trips: trips,
+                jitter: 0.4,
+                stampSizeMultiplier: 1.0,
+                continentKey: continentKey,
+              ),
+            )
+            .toList();
 
     // Sort so featured template is first.
-    final featuredIdx = options.indexWhere((o) => o.template == featuredTemplate);
+    final featuredIdx = options.indexWhere(
+      (o) => o.template == featuredTemplate,
+    );
     if (featuredIdx > 0) {
       final featured = options.removeAt(featuredIdx);
       options.insert(0, featured);

@@ -51,9 +51,13 @@ class _CountriesListScreenState extends State<CountriesListScreen> {
             onSelected: (s) => setState(() => _sortOrder = s),
           ),
           Expanded(
-            child: _sortOrder == _SortOrder.alphabetical
-                ? _ContinentGroupedList(visits: widget.visits)
-                : _FlatSortedList(visits: widget.visits, sortOrder: _sortOrder),
+            child:
+                _sortOrder == _SortOrder.alphabetical
+                    ? _ContinentGroupedList(visits: widget.visits)
+                    : _FlatSortedList(
+                      visits: widget.visits,
+                      sortOrder: _sortOrder,
+                    ),
           ),
         ],
       ),
@@ -79,18 +83,19 @@ class _SortBar extends StatelessWidget {
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        children: _SortOrder.values.map((order) {
-          final isSelected = order == selected;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(_kSortLabels[order]!),
-              selected: isSelected,
-              onSelected: (_) => onSelected(order),
-              visualDensity: VisualDensity.compact,
-            ),
-          );
-        }).toList(),
+        children:
+            _SortOrder.values.map((order) {
+              final isSelected = order == selected;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(_kSortLabels[order]!),
+                  selected: isSelected,
+                  onSelected: (_) => onSelected(order),
+                  visualDensity: VisualDensity.compact,
+                ),
+              );
+            }).toList(),
       ),
     );
   }
@@ -167,8 +172,7 @@ class _ContinentHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    final color =
-        _kContinentColors[continent] ?? const Color(0xFF95A5A6);
+    final color = _kContinentColors[continent] ?? const Color(0xFF95A5A6);
     final emoji = kContinentEmoji[continent] ?? '';
 
     return Container(
@@ -183,9 +187,9 @@ class _ContinentHeaderDelegate extends SliverPersistentHeaderDelegate {
           Expanded(
             child: Text(
               continent,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           Container(
@@ -198,9 +202,9 @@ class _ContinentHeaderDelegate extends SliverPersistentHeaderDelegate {
             child: Text(
               '$count',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -276,22 +280,29 @@ class _CountryTile extends StatelessWidget {
       subtitle: Text(
         subtitle,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-      ),
-      trailing: visit.hasPhotoEvidence && photoCount > 0
-          ? _PhotoBadge(count: photoCount)
-          : visit.hasPhotoEvidence
-              ? null
-              : const Icon(Icons.add_circle_outline, size: 18, color: Colors.grey),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => CountryProfileScreen(
-            isoCode: visit.countryCode,
-            visit: visit,
-          ),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
+      trailing:
+          visit.hasPhotoEvidence && photoCount > 0
+              ? _PhotoBadge(count: photoCount)
+              : visit.hasPhotoEvidence
+              ? null
+              : const Icon(
+                Icons.add_circle_outline,
+                size: 18,
+                color: Colors.grey,
+              ),
+      onTap:
+          () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder:
+                  (_) => CountryProfileScreen(
+                    isoCode: visit.countryCode,
+                    visit: visit,
+                  ),
+            ),
+          ),
     );
   }
 
@@ -333,8 +344,8 @@ class _PhotoBadge extends StatelessWidget {
         Text(
           '$count',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );

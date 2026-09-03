@@ -103,7 +103,8 @@ class TornGeometryGenerator {
         final penLeft = x / w;
         final penRight = (w - 1 - x) / w;
         final tTB = x / (w - 1); // along-edge coord for top/bottom edges
-        final torn = top.tears(tTB, penTop, depthTop[x]) ||
+        final torn =
+            top.tears(tTB, penTop, depthTop[x]) ||
             bottom.tears(tTB, penBottom, depthBottom[x]) ||
             left.tears(tLR, penLeft, depL) ||
             right.tears(tLR, penRight, depR);
@@ -159,24 +160,24 @@ class _EdgeProfile {
     required int fibreBase,
     required double fibreCycles,
     required double fibreAmp,
-  })  : _depthBase = depthBase,
-        _depthCycles = depthCycles,
-        _gamma = gamma,
-        _scale = scale,
-        _bigBase = bigBase,
-        _bigCells = bigCells,
-        _bigProb = bigProb,
-        _bigMult = bigMult,
-        _cornerBoost = cornerBoost,
-        _strandBase = strandBase,
-        _strandCycles = strandCycles,
-        _warpBase = warpBase,
-        _warpAmp = warpAmp,
-        _warpCycles = warpCycles,
-        _taperPower = taperPower,
-        _fibreBase = fibreBase,
-        _fibreCycles = fibreCycles,
-        _fibreAmp = fibreAmp;
+  }) : _depthBase = depthBase,
+       _depthCycles = depthCycles,
+       _gamma = gamma,
+       _scale = scale,
+       _bigBase = bigBase,
+       _bigCells = bigCells,
+       _bigProb = bigProb,
+       _bigMult = bigMult,
+       _cornerBoost = cornerBoost,
+       _strandBase = strandBase,
+       _strandCycles = strandCycles,
+       _warpBase = warpBase,
+       _warpAmp = warpAmp,
+       _warpCycles = warpCycles,
+       _taperPower = taperPower,
+       _fibreBase = fibreBase,
+       _fibreCycles = fibreCycles,
+       _fibreAmp = fibreAmp;
 
   final int _depthBase;
   final double _depthCycles;
@@ -208,8 +209,8 @@ class _EdgeProfile {
       'torngeo:${recipe.style.name}:${edge.name}',
     );
     // Broad bays: a handful of them, scaling gently with tearFrequency.
-    final cycles =
-        (recipe.tearFrequency * 0.9 * rng.nextRange(0.85, 1.15)).clamp(2.0, 12.0);
+    final cycles = (recipe.tearFrequency * 0.9 * rng.nextRange(0.85, 1.15))
+        .clamp(2.0, 12.0);
     final gamma = rng.nextRange(1.8, 3.0);
     var scale =
         recipe.maxTearDepth * recipe.edgeWeight(edge) * recipe.edgeDamageAmount;
@@ -273,7 +274,8 @@ class _EdgeProfile {
   double _cornerBoostAt(double t) {
     if (_cornerBoost <= 0) return 0;
     final nearStart = t < _cornerFrac ? 1 - t / _cornerFrac : 0.0;
-    final nearEnd = t > 1 - _cornerFrac ? (t - (1 - _cornerFrac)) / _cornerFrac : 0.0;
+    final nearEnd =
+        t > 1 - _cornerFrac ? (t - (1 - _cornerFrac)) / _cornerFrac : 0.0;
     final ramp = nearStart > nearEnd ? nearStart : nearEnd;
     return _cornerBoost * ramp * ramp; // eased so corners bite, edges taper off
   }
@@ -284,7 +286,8 @@ class _EdgeProfile {
     if (dep <= 0 || pen >= dep) return false; // outside the damaged band
     // Anisotropic strand field: mostly a function of t (fingers run inward),
     // gently domain-warped so strands bend and split rather than comb straight.
-    final warp = _warpAmp *
+    final warp =
+        _warpAmp *
         (_fbm1(t * _warpCycles + pen * 3.0, _warpBase, octaves: 2) - 0.5);
     var sf = _valueNoise1((t + warp) * _strandCycles, _strandBase);
     // Fibre roughening: a per-column (t-only) high-freq jitter fuzzes the finger

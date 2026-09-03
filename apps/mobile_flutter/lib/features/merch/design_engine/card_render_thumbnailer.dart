@@ -52,9 +52,8 @@ class CardRenderThumbnailer implements DesignRenderer {
     this.assetsTimeout = const Duration(seconds: 10),
     this.suppressText = false,
     Future<void> Function()? frameYield,
-  })  : _cache = _LruByteCache(cacheCapacity),
-        _frameYield =
-            frameYield ?? (() => SchedulerBinding.instance.endOfFrame);
+  }) : _cache = _LruByteCache(cacheCapacity),
+       _frameYield = frameYield ?? (() => SchedulerBinding.instance.endOfFrame);
 
   /// Convenience constructor when the context is stable for the renderer's life.
   factory CardRenderThumbnailer.forContext(
@@ -64,15 +63,14 @@ class CardRenderThumbnailer implements DesignRenderer {
     Duration assetsTimeout = const Duration(seconds: 10),
     bool suppressText = false,
     Future<void> Function()? frameYield,
-  }) =>
-      CardRenderThumbnailer(
-        () => context,
-        pixelRatio: pixelRatio,
-        cacheCapacity: cacheCapacity,
-        assetsTimeout: assetsTimeout,
-        suppressText: suppressText,
-        frameYield: frameYield,
-      );
+  }) => CardRenderThumbnailer(
+    () => context,
+    pixelRatio: pixelRatio,
+    cacheCapacity: cacheCapacity,
+    assetsTimeout: assetsTimeout,
+    suppressText: suppressText,
+    frameYield: frameYield,
+  );
 
   final BuildContext Function() contextProvider;
   final double pixelRatio;
@@ -184,11 +182,11 @@ class CardRenderThumbnailer implements DesignRenderer {
   /// (mirrors M193 / `merchDefaultTextColor` and `_suggestGridTextColor`), so
   /// the artwork always contrasts against the shirt.
   static Color inkColorFor(String shirtColour) => switch (shirtColour) {
-        'White' => const Color(0xFF000000),
-        'Grey' => const Color(0xFF000000),
-        'Heather Grey' => const Color(0xFF000000),
-        _ => const Color(0xFFFFFFFF), // Black, Blue, Navy, Red → light ink
-      };
+    'White' => const Color(0xFF000000),
+    'Grey' => const Color(0xFF000000),
+    'Heather Grey' => const Color(0xFF000000),
+    _ => const Color(0xFFFFFFFF), // Black, Blue, Navy, Red → light ink
+  };
 }
 
 /// A tiny bounded LRU cache of PNG byte buffers keyed by content hash.

@@ -38,11 +38,9 @@ class _YearInReviewScreenState extends ConsumerState<YearInReviewScreen> {
   bool _sharing = false;
 
   Future<void> _openStory(YearInReviewData data) async {
-    final allVisits =
-        ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
+    final allVisits = ref.read(effectiveVisitsProvider).valueOrNull ?? const [];
     final allTrips = ref.read(tripListProvider).valueOrNull ?? const [];
-    final rows =
-        await ref.read(achievementRepositoryProvider).loadAllRows();
+    final rows = await ref.read(achievementRepositoryProvider).loadAllRows();
     final unlocked = {for (final r in rows) r.achievementId: r.unlockedAt};
     if (!mounted) return;
     final storyData = TravelStoryData.build(

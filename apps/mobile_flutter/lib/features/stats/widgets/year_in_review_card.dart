@@ -98,15 +98,16 @@ class YearInReviewCard extends StatelessWidget {
                   tween: Tween(begin: 0, end: thisYearCount.toDouble()),
                   duration: const Duration(milliseconds: 900),
                   curve: Curves.easeOut,
-                  builder: (_, v, __) => Text(
-                    '${v.round()}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 42,
-                      fontWeight: FontWeight.bold,
-                      height: 1,
-                    ),
-                  ),
+                  builder:
+                      (_, v, __) => Text(
+                        '${v.round()}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 42,
+                          fontWeight: FontWeight.bold,
+                          height: 1,
+                        ),
+                      ),
                 ),
                 const SizedBox(width: 8),
                 Padding(
@@ -128,27 +129,23 @@ class YearInReviewCard extends StatelessWidget {
               tween: Tween(begin: 0, end: progress),
               duration: const Duration(milliseconds: 1000),
               curve: Curves.easeOut,
-              builder: (_, v, __) => LinearProgressIndicator(
-                value: v,
-                minHeight: 6,
-                borderRadius: BorderRadius.circular(3),
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  hitTarget
-                      ? RoavvyColours.roavvyGold
-                      : Colors.white,
-                ),
-              ),
+              builder:
+                  (_, v, __) => LinearProgressIndicator(
+                    value: v,
+                    minHeight: 6,
+                    borderRadius: BorderRadius.circular(3),
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      hitTarget ? RoavvyColours.roavvyGold : Colors.white,
+                    ),
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
               hitTarget
                   ? 'You hit your goal of $effective countries — amazing!'
                   : '$remaining more ${remaining == 1 ? 'country' : 'countries'} to reach your $effective-country goal',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ],
         ),

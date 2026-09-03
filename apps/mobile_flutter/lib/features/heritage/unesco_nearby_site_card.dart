@@ -10,16 +10,16 @@ const _mint = Color(0xFF2ED8B6);
 const _coral = Color(0xFFFF6B6B);
 
 Color _categoryColor(String cat) => switch (cat.toLowerCase()) {
-      'natural' => _mint,
-      'mixed' => _coral,
-      _ => _gold,
-    };
+  'natural' => _mint,
+  'mixed' => _coral,
+  _ => _gold,
+};
 
 String _categoryIcon(String cat) => switch (cat.toLowerCase()) {
-      'natural' => '🌿',
-      'mixed' => '✨',
-      _ => '🏛',
-    };
+  'natural' => '🌿',
+  'mixed' => '✨',
+  _ => '🏛',
+};
 
 String _flagEmoji(String code) {
   if (code.length != 2) return '';
@@ -54,9 +54,10 @@ class UnescoNearbySiteCard extends StatelessWidget {
     final flag = _flagEmoji(site.countryCode);
     final catColor = _categoryColor(site.category);
     final catIcon = _categoryIcon(site.category);
-    final distStr = result.distanceKm < 1
-        ? '${(result.distanceKm * 1000).round()} m'
-        : '${result.distanceKm.toStringAsFixed(1)} km';
+    final distStr =
+        result.distanceKm < 1
+            ? '${(result.distanceKm * 1000).round()} m'
+            : '${result.distanceKm.toStringAsFixed(1)} km';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -123,11 +124,7 @@ class UnescoNearbySiteCard extends StatelessWidget {
                     // Distance + bearing
                     Row(
                       children: [
-                        Icon(
-                          Icons.navigation,
-                          size: 14,
-                          color: catColor,
-                        ),
+                        Icon(Icons.navigation, size: 14, color: catColor),
                         const SizedBox(width: 3),
                         Text(
                           '$distStr · ${result.bearingLabel}',
@@ -189,22 +186,21 @@ class _Thumbnail extends StatelessWidget {
     return SizedBox(
       width: 110,
       height: 110,
-      child: url != null && url.isNotEmpty
-          ? Image.network(
-              url,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _fallback(),
-            )
-          : _fallback(),
+      child:
+          url != null && url.isNotEmpty
+              ? Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _fallback(),
+              )
+              : _fallback(),
     );
   }
 
   Widget _fallback() => Container(
-        color: catColor.withValues(alpha: 0.15),
-        child: Center(
-          child: Text(catIcon, style: const TextStyle(fontSize: 36)),
-        ),
-      );
+    color: catColor.withValues(alpha: 0.15),
+    child: Center(child: Text(catIcon, style: const TextStyle(fontSize: 36))),
+  );
 }
 
 class _CategoryBadge extends StatelessWidget {
@@ -242,8 +238,9 @@ class _TravelTimeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
-    final color =
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45);
+    final color = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.45);
 
     return Row(
       children: [

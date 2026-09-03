@@ -60,8 +60,7 @@ class _PhotoGlobeOverlayState extends ConsumerState<PhotoGlobeOverlay> {
 
   List<Widget> _buildMarkers() {
     if (!ref.watch(showPhotoThumbnailsProvider)) return const [];
-    final locations =
-        ref.watch(photoLocationsProvider).valueOrNull ?? const [];
+    final locations = ref.watch(photoLocationsProvider).valueOrNull ?? const [];
     if (locations.isEmpty || widget.canvasSize == Size.zero) return const [];
 
     final centre = Offset(
@@ -72,8 +71,11 @@ class _PhotoGlobeOverlayState extends ConsumerState<PhotoGlobeOverlay> {
     // Project each photo location to screen space, skip back-facing points.
     final projected = <(Offset, String)>[];
     for (final loc in locations) {
-      final offset =
-          widget.projection.project(loc.lat, loc.lng, widget.canvasSize);
+      final offset = widget.projection.project(
+        loc.lat,
+        loc.lng,
+        widget.canvasSize,
+      );
       if (offset == null) continue;
       projected.add((offset, loc.assetId));
     }
@@ -81,8 +83,7 @@ class _PhotoGlobeOverlayState extends ConsumerState<PhotoGlobeOverlay> {
     // Select the 25 photos whose projected position is closest to screen centre
     // (i.e. roughly in the middle of the visible hemisphere).
     projected.sort(
-      (a, b) =>
-          (a.$1 - centre).distance.compareTo((b.$1 - centre).distance),
+      (a, b) => (a.$1 - centre).distance.compareTo((b.$1 - centre).distance),
     );
     final top = projected.take(25);
 
@@ -106,9 +107,7 @@ class _PhotoGlobeOverlayState extends ConsumerState<PhotoGlobeOverlay> {
     return AnimatedOpacity(
       opacity: isRotating ? 0.0 : 1.0,
       duration: const Duration(milliseconds: 300),
-      child: IgnorePointer(
-        child: Stack(children: markers),
-      ),
+      child: IgnorePointer(child: Stack(children: markers)),
     );
   }
 }
@@ -171,10 +170,7 @@ class _GlobeThumbnailMarkerState extends State<_GlobeThumbnailMarker> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.white, width: 1.5),
-        image: DecorationImage(
-          image: MemoryImage(bytes),
-          fit: BoxFit.cover,
-        ),
+        image: DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover),
       ),
     );
   }

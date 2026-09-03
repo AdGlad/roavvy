@@ -108,7 +108,13 @@ final _kGraticuleUnitLines = [
 // ── Cloud layer ──────────────────────────────────────────────────────────────
 
 class _CloudBlob {
-  const _CloudBlob(this.lat, this.lng, this.radiusFactor, this.opacity, this.driftSpeed);
+  const _CloudBlob(
+    this.lat,
+    this.lng,
+    this.radiusFactor,
+    this.opacity,
+    this.driftSpeed,
+  );
   final double lat, lng, radiusFactor, opacity, driftSpeed;
 }
 
@@ -521,7 +527,9 @@ class GlobePainter extends CustomPainter {
             Colors.white.withValues(alpha: blob.opacity),
             Colors.white.withValues(alpha: 0.0),
           ],
-        ).createShader(Rect.fromCircle(center: Offset.zero, radius: blobRadius)),
+        ).createShader(
+          Rect.fromCircle(center: Offset.zero, radius: blobRadius),
+        ),
       );
       canvas.save();
       canvas.translate(pt.dx, pt.dy);
@@ -575,12 +583,10 @@ class GlobePainter extends CustomPainter {
   }
 
   Color _fillColor(String isoCode, CountryVisualState state) => switch (state) {
-    CountryVisualState.newlyDiscovered =>
-      isDark ? _kNewFill : _kNewFillLight,
+    CountryVisualState.newlyDiscovered => isDark ? _kNewFill : _kNewFillLight,
     CountryVisualState.reviewed =>
       isDark ? _kReviewedFill : _kReviewedFillLight,
-    CountryVisualState.visited ||
-    CountryVisualState.target =>
+    CountryVisualState.visited || CountryVisualState.target =>
       isDark
           ? _depthFillColor(tripCounts[isoCode] ?? 0)
           : _depthFillColorLight(tripCounts[isoCode] ?? 0),
@@ -593,8 +599,8 @@ class GlobePainter extends CustomPainter {
       isDark ? _kNewBorder : _kNewBorderLight,
     CountryVisualState.reviewed ||
     CountryVisualState.visited ||
-    CountryVisualState.target =>
-      isDark ? _kVisitedBorder : _kVisitedBorderLight,
+    CountryVisualState
+        .target => isDark ? _kVisitedBorder : _kVisitedBorderLight,
     CountryVisualState.unvisited =>
       isDark ? _kUnvisitedBorder : _kUnvisitedBorderLight,
   };

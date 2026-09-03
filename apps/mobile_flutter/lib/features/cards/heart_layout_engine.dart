@@ -120,10 +120,11 @@ class MaskCalculator {
       //   x = 16 sin³(t)
       //   y = 13cos(t) − 5cos(2t) − 2cos(3t) − cos(4t)  (negated: +y is down)
       final hx = 16 * math.pow(math.sin(t), 3).toDouble();
-      final hy = -(13 * math.cos(t) -
-          5 * math.cos(2 * t) -
-          2 * math.cos(3 * t) -
-          math.cos(4 * t));
+      final hy =
+          -(13 * math.cos(t) -
+              5 * math.cos(2 * t) -
+              2 * math.cos(3 * t) -
+              math.cos(4 * t));
       xs[i] = hx;
       ys[i] = hy;
       if (hx < minX) minX = hx;
@@ -165,10 +166,7 @@ class MaskCalculator {
     double featherPx = 1.5,
   }) {
     if (featherPx <= 0) return;
-    canvas.saveLayer(
-      Offset.zero & size,
-      Paint()..blendMode = BlendMode.dstIn,
-    );
+    canvas.saveLayer(Offset.zero & size, Paint()..blendMode = BlendMode.dstIn);
     canvas.drawPath(
       clipPath,
       Paint()

@@ -312,8 +312,7 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
             ),
             if (progress.guesses.where((g) => g.isNotEmpty).isNotEmpty)
               _GuessHistory(
-                guesses:
-                    progress.guesses.where((g) => g.isNotEmpty).toList(),
+                guesses: progress.guesses.where((g) => g.isNotEmpty).toList(),
               ),
             if (!gameOver) ...[
               // Hot/cold chip — animated in after first wrong guess.
@@ -340,27 +339,25 @@ class _ChallengeBodyState extends ConsumerState<_ChallengeBody>
               ),
               // Remaining guess counter.
               Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 2,
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      guessesLeft == 1
-                          ? '1 guess left'
-                          : '$guessesLeft guesses left',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color:
-                            guessesLeft <= 1
-                                ? Theme.of(context).colorScheme.error
-                                : Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                      ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 2,
+                ),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    guessesLeft == 1
+                        ? '1 guess left'
+                        : '$guessesLeft guesses left',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color:
+                          guessesLeft <= 1
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
+              ),
               _HeritageSiteSearchInput(
                 sites: sites,
                 shakeAnimation: _shakeAnim,

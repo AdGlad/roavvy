@@ -74,7 +74,9 @@ abstract final class CardTextLayer {
       canvas.save();
       canvas.scale(scale);
       final toneFilter =
-          tone == null ? null : PrintStylePipeline.instance.toneColorFilter(tone);
+          tone == null
+              ? null
+              : PrintStylePipeline.instance.toneColorFilter(tone);
       final zone = Rect.fromLTWH(0, 0, logicalSize.width, logicalSize.height);
       if (toneFilter != null) {
         canvas.saveLayer(zone, Paint()..colorFilter = toneFilter);

@@ -40,7 +40,8 @@ class MerchOrderSummary {
   factory MerchOrderSummary.fromDoc(String id, Map<String, dynamic> data) {
     // Use stored design title if available; fall back to product type name.
     final variantId = data['variantId'] as String? ?? '';
-    final productName = data['title'] as String? ??
+    final productName =
+        data['title'] as String? ??
         data['designTitle'] as String? ??
         (variantId.contains('Poster') ? 'Travel Poster' : 'Travel T-shirt');
 
@@ -185,8 +186,19 @@ class _OrderCard extends ConsumerWidget {
 
   static String _fmt(DateTime dt) {
     const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${dt.day} ${months[dt.month]} ${dt.year}';
   }
@@ -202,11 +214,12 @@ class _OrderCard extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => _OrderDetailScreen(order: order),
-          ),
-        ),
+        onTap:
+            () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => _OrderDetailScreen(order: order),
+              ),
+            ),
         child: Row(
           children: [
             _OrderThumbnail(url: order.thumbnailUrl),
@@ -246,7 +259,6 @@ class _OrderCard extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 // ── Order detail screen ────────────────────────────────────────────────────────
@@ -286,19 +298,23 @@ class _OrderDetailScreen extends ConsumerWidget {
                           child: Image.network(
                             order.thumbnailUrl!,
                             fit: BoxFit.contain,
-                            loadingBuilder: (_, child, p) => p == null
-                                ? child
-                                : const Center(
-                                    child: CircularProgressIndicator(),
+                            loadingBuilder:
+                                (_, child, p) =>
+                                    p == null
+                                        ? child
+                                        : const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                            errorBuilder:
+                                (_, __, ___) => Container(
+                                  color:
+                                      theme.colorScheme.surfaceContainerHighest,
+                                  child: Icon(
+                                    Icons.dry_cleaning_outlined,
+                                    size: 80,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
-                            errorBuilder: (_, __, ___) => Container(
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              child: Icon(
-                                Icons.dry_cleaning_outlined,
-                                size: 80,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
+                                ),
                           ),
                         ),
                       ),
@@ -339,10 +355,7 @@ class _OrderDetailScreen extends ConsumerWidget {
                             value: _formatDate(order.createdAt),
                           ),
                           const SizedBox(height: 8),
-                          _DetailRow(
-                            label: 'Countries',
-                            value: '$n $noun',
-                          ),
+                          _DetailRow(label: 'Countries', value: '$n $noun'),
                         ],
                       ),
                     ),
@@ -380,37 +393,48 @@ class _OrderDetailScreen extends ConsumerWidget {
     if (!context.mounted) return;
 
     final ranks = MerchTemplateRanker.rankFor(codeCount: selectedCodes.length);
-    final template = ranks
-        .firstWhere((r) => !r.exclude, orElse: () => ranks.first)
-        .template;
+    final template =
+        ranks.firstWhere((r) => !r.exclude, orElse: () => ranks.first).template;
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LocalMockupPreviewScreen(
-          selectedCodes: selectedCodes,
-          allCodes: allCodes,
-          trips: trips,
-          initialTemplate: template,
-          initialPreset: MerchPreset(
-            id: 'design_again',
-            label: 'My Design',
-            config: MerchPresetConfig(
-              layout: template,
-              source: MerchCountrySource.allTime,
-              jitter: 0.4,
-              density: MerchDensity.balanced,
-              stampMode: MerchStampMode.entryExit,
+        builder:
+            (_) => LocalMockupPreviewScreen(
+              selectedCodes: selectedCodes,
+              allCodes: allCodes,
+              trips: trips,
+              initialTemplate: template,
+              initialPreset: MerchPreset(
+                id: 'design_again',
+                label: 'My Design',
+                config: MerchPresetConfig(
+                  layout: template,
+                  source: MerchCountrySource.allTime,
+                  jitter: 0.4,
+                  density: MerchDensity.balanced,
+                  stampMode: MerchStampMode.entryExit,
+                ),
+              ),
             ),
-          ),
-        ),
       ),
     );
   }
 
   String _formatDate(DateTime dt) {
     const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${dt.day} ${months[dt.month]} ${dt.year}';
   }
@@ -440,8 +464,9 @@ class _DetailRow extends StatelessWidget {
         trailing ??
             Text(
               value ?? '',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
       ],
     );

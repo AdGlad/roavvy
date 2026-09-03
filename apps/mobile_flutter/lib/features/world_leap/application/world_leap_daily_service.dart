@@ -89,9 +89,11 @@ class WorldLeapFirestoreDailyService implements IWorldLeapDailyService {
   final FirebaseFirestore _firestore;
   final SharedPreferences _prefs;
 
-  WorldLeapFirestoreDailyService(FirebaseFirestore firestore, SharedPreferences prefs)
-      : _firestore = firestore,
-        _prefs = prefs;
+  WorldLeapFirestoreDailyService(
+    FirebaseFirestore firestore,
+    SharedPreferences prefs,
+  ) : _firestore = firestore,
+      _prefs = prefs;
 
   // SharedPreferences key for cached start country: "wl_daily_YYYY-MM-DD"
   String _dailyKey(String date) => 'wl_daily_$date';
@@ -109,10 +111,11 @@ class WorldLeapFirestoreDailyService implements IWorldLeapDailyService {
 
     // ── 2. Firestore ──────────────────────────────────────────────────────────
     try {
-      final doc = await _firestore
-          .collection(WorldLeapConfig.dailyCollection)
-          .doc(date)
-          .get();
+      final doc =
+          await _firestore
+              .collection(WorldLeapConfig.dailyCollection)
+              .doc(date)
+              .get();
 
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
@@ -135,7 +138,9 @@ class WorldLeapFirestoreDailyService implements IWorldLeapDailyService {
   }
 
   Future<void> _cacheDaily(
-      String date, ({String code, String name}) country) async {
+    String date,
+    ({String code, String name}) country,
+  ) async {
     await _prefs.setString(_dailyKey(date), '${country.code}|${country.name}');
   }
 
@@ -145,8 +150,9 @@ class WorldLeapFirestoreDailyService implements IWorldLeapDailyService {
     final cached = _prefs.getString(WorldLeapConfig.localRunKey);
     if (cached != null) {
       try {
-        final run =
-            WorldLeapRun.fromJson(jsonDecode(cached) as Map<String, dynamic>);
+        final run = WorldLeapRun.fromJson(
+          jsonDecode(cached) as Map<String, dynamic>,
+        );
         if (run.userId == userId && run.date == date) return true;
       } catch (_) {
         // Corrupt cache — fall through.
@@ -156,10 +162,11 @@ class WorldLeapFirestoreDailyService implements IWorldLeapDailyService {
     // ── 2. Firestore ──────────────────────────────────────────────────────────
     try {
       final docId = '${userId}_$date';
-      final doc = await _firestore
-          .collection(WorldLeapConfig.runsCollection)
-          .doc(docId)
-          .get();
+      final doc =
+          await _firestore
+              .collection(WorldLeapConfig.runsCollection)
+              .doc(docId)
+              .get();
       return doc.exists;
     } catch (_) {
       // Offline — no local run found above, so treat as no existing run.

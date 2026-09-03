@@ -16,24 +16,24 @@ enum WorldLeapCameraMode {
 extension WorldLeapCameraModeX on WorldLeapCameraMode {
   /// Label shown on the toggle button.
   String get label => switch (this) {
-        WorldLeapCameraMode.stationary => 'Static',
-        WorldLeapCameraMode.birdseye => "Bird's-eye",
-        WorldLeapCameraMode.pov => 'POV',
-      };
+    WorldLeapCameraMode.stationary => 'Static',
+    WorldLeapCameraMode.birdseye => "Bird's-eye",
+    WorldLeapCameraMode.pov => 'POV',
+  };
 
   /// Icon for the toggle button.
   String get iconAsset => switch (this) {
-        WorldLeapCameraMode.stationary => 'location_on',
-        WorldLeapCameraMode.birdseye => 'satellite_alt',
-        WorldLeapCameraMode.pov => 'flight',
-      };
+    WorldLeapCameraMode.stationary => 'location_on',
+    WorldLeapCameraMode.birdseye => 'satellite_alt',
+    WorldLeapCameraMode.pov => 'flight',
+  };
 
   /// Next mode in the cycle: stationary → birdseye → pov → stationary.
   WorldLeapCameraMode get next => switch (this) {
-        WorldLeapCameraMode.stationary => WorldLeapCameraMode.birdseye,
-        WorldLeapCameraMode.birdseye => WorldLeapCameraMode.pov,
-        WorldLeapCameraMode.pov => WorldLeapCameraMode.stationary,
-      };
+    WorldLeapCameraMode.stationary => WorldLeapCameraMode.birdseye,
+    WorldLeapCameraMode.birdseye => WorldLeapCameraMode.pov,
+    WorldLeapCameraMode.pov => WorldLeapCameraMode.stationary,
+  };
 
   /// Whether the camera should track the projectile in this mode.
   bool get isTracking => this != WorldLeapCameraMode.stationary;
@@ -44,10 +44,10 @@ extension WorldLeapCameraModeX on WorldLeapCameraMode {
   ///   Bird's-eye : launch=2.0, apex=3.0, landing=3.5
   ///   POV        : launch=2.5, apex=4.5, landing=5.0
   double zoomAt(double t) => switch (this) {
-        // zoom(t) = 2.0 + 2.5t − t²
-        WorldLeapCameraMode.birdseye => 2.0 + 2.5 * t - t * t,
-        // zoom(t) = 2.5 + 5.5t − 3.0t²
-        WorldLeapCameraMode.pov => 2.5 + 5.5 * t - 3.0 * t * t,
-        WorldLeapCameraMode.stationary => 0, // unused
-      };
+    // zoom(t) = 2.0 + 2.5t − t²
+    WorldLeapCameraMode.birdseye => 2.0 + 2.5 * t - t * t,
+    // zoom(t) = 2.5 + 5.5t − 3.0t²
+    WorldLeapCameraMode.pov => 2.5 + 5.5 * t - 3.0 * t * t,
+    WorldLeapCameraMode.stationary => 0, // unused
+  };
 }

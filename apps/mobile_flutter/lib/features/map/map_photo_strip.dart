@@ -197,20 +197,22 @@ class _MapPhotoStripState extends ConsumerState<MapPhotoStrip> {
                 mainAxisSpacing: 2,
               ),
               itemCount: photos.length,
-              itemBuilder: (context, i) => _GridTile(
-                key: ValueKey(photos[i].assetId),
-                assetId: photos[i].assetId,
-                onTap: () {
-                  ref.read(selectedMapPhotoProvider.notifier).state = photos[i];
-                  Navigator.of(context).push(
-                    MapPhotoViewer.route(
-                      assetIds: assetIds,
-                      initialIndex: i,
-                      heroTag: 'map_photo_${photos[i].assetId}',
-                    ),
-                  );
-                },
-              ),
+              itemBuilder:
+                  (context, i) => _GridTile(
+                    key: ValueKey(photos[i].assetId),
+                    assetId: photos[i].assetId,
+                    onTap: () {
+                      ref.read(selectedMapPhotoProvider.notifier).state =
+                          photos[i];
+                      Navigator.of(context).push(
+                        MapPhotoViewer.route(
+                          assetIds: assetIds,
+                          initialIndex: i,
+                          heroTag: 'map_photo_${photos[i].assetId}',
+                        ),
+                      );
+                    },
+                  ),
             ),
           ),
         ],
@@ -248,8 +250,10 @@ class _GridTileState extends State<_GridTile> {
   }
 
   Future<void> _load() async {
-    final bytes =
-        await const ThumbnailChannel().getThumbnail(widget.assetId, size: 150);
+    final bytes = await const ThumbnailChannel().getThumbnail(
+      widget.assetId,
+      size: 150,
+    );
     if (bytes != null) ThumbnailLruCache.instance.put(widget.assetId, bytes);
     if (mounted) {
       setState(() => _bytes = bytes);
@@ -276,9 +280,10 @@ class _GridTileState extends State<_GridTile> {
       onTap: widget.onTap,
       // Hero tag enables the shared-element zoom from grid to full-screen viewer.
       // Only wrap when image is loaded so we don't animate a grey placeholder.
-      child: _bytes != null
-          ? Hero(tag: 'map_photo_${widget.assetId}', child: content)
-          : content,
+      child:
+          _bytes != null
+              ? Hero(tag: 'map_photo_${widget.assetId}', child: content)
+              : content,
     );
   }
 }

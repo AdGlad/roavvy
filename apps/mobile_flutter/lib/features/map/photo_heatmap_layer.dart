@@ -132,9 +132,8 @@ class _HeatmapPainter extends CustomPainter {
     if (pts.isEmpty) return;
 
     // Evenly-spaced subsample for the density pass (performance guard).
-    final stride = pts.length <= _maxDensityPts
-        ? 1
-        : (pts.length / _maxDensityPts).ceil();
+    final stride =
+        pts.length <= _maxDensityPts ? 1 : (pts.length / _maxDensityPts).ceil();
     final densityPts = <Offset>[
       for (int i = 0; i < pts.length; i += stride) pts[i],
     ];

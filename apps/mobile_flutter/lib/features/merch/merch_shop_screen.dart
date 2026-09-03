@@ -35,14 +35,17 @@ class MerchShopScreen extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.science_outlined),
               tooltip: 'Studio V2 (beta)',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => StudioV2App(
-                    onAddToCart: const StudioV2CartAdapter().addToCart,
-                    unavailableGarments: StudioV2CartAdapter.unstockedColours,
+              onPressed:
+                  () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder:
+                          (_) => StudioV2App(
+                            onAddToCart: const StudioV2CartAdapter().addToCart,
+                            unavailableGarments:
+                                StudioV2CartAdapter.unstockedColours,
+                          ),
+                    ),
                   ),
-                ),
-              ),
             ),
           IconButton(
             icon: Badge(
@@ -51,20 +54,22 @@ class MerchShopScreen extends ConsumerWidget {
               child: const Icon(Icons.shopping_bag_outlined),
             ),
             tooltip: 'Cart',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const MerchCartScreen(),
-              ),
-            ),
+            onPressed:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MerchCartScreen(),
+                  ),
+                ),
           ),
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined),
             tooltip: 'Order History',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const MerchOrdersScreen(),
-              ),
-            ),
+            onPressed:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MerchOrdersScreen(),
+                  ),
+                ),
           ),
         ],
       ),
@@ -92,8 +97,7 @@ class _DesignEntryBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final countryCount =
         ref.watch(effectiveVisitsProvider).valueOrNull?.length ?? 0;
-    final continentCount =
-        ref.watch(continentCountProvider).valueOrNull ?? 0;
+    final continentCount = ref.watch(continentCountProvider).valueOrNull ?? 0;
     final isLoading = ref.watch(effectiveVisitsProvider).isLoading;
 
     return Padding(
@@ -112,11 +116,12 @@ class _DesignEntryBanner extends ConsumerWidget {
           borderRadius: BorderRadius.circular(12),
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const MerchDesignEntryScreen(),
-              ),
-            ),
+            onTap:
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MerchDesignEntryScreen(),
+                  ),
+                ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
