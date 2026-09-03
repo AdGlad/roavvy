@@ -214,6 +214,55 @@ void main() {
     expect(controller.instantIndex, controller.instantPicks.length - 1);
   });
 
+  testWidgets('the deck swipes with a finger, at phone size', (tester) async {
+    // The touch path is the one that matters on a real phone, and it is a
+    // different pointer kind from the mouse — proving one says nothing about
+    // the other. Run it at phone dimensions, not the wide test viewport.
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: InstantWorkspace(
+            controller: controller,
+            onConfigure: () {},
+            onCustom: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(controller.instantIndex, 0);
+
+    final deck = find.byKey(const Key('v2-instant-deck'));
+    final touch = await tester.startGesture(
+      tester.getCenter(deck),
+      kind: PointerDeviceKind.touch,
+    );
+    for (var i = 0; i < 6; i++) {
+      await touch.moveBy(const Offset(-45, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await touch.up();
+    await tester.pumpAndSettle();
+    expect(controller.instantIndex, 1, reason: 'a finger swipe must page');
+
+    // …and back the other way.
+    final back = await tester.startGesture(
+      tester.getCenter(deck),
+      kind: PointerDeviceKind.touch,
+    );
+    for (var i = 0; i < 6; i++) {
+      await back.moveBy(const Offset(45, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await back.up();
+    await tester.pumpAndSettle();
+    expect(controller.instantIndex, 0);
+  });
+
   testWidgets('the deck accepts a mouse drag, not just touch', (tester) async {
     // Flutter's desktop scroll behaviour omits the mouse, which left the deck
     // completely unswipeable on macOS.

@@ -1,3 +1,170 @@
+# Next tasks (planner handoff — updated 2026-09-03)
+
+# PLAN — T-Shirt Experience, M175–M183
+
+Definition this plans against: `docs/product/tshirt-experience-definition.md`
+(14 screens, 4 modes, 10 rules). Illustrated: https://claude.ai/code/artifact/07d17cb1-fa64-41e1-abfd-6c0b107ffbe8
+
+**Framing.** All 14 screens already exist in some form — Studio V2 ships Instant, the seven
+Make-It-Yours steps, Fine Tune and Review; the M174 mockup canvas and the V1 commerce tail
+cover Placement, Size and Checkout. So this is NOT a build-out. Every milestone below closes
+a specific gap between what ships and what the definition promises, and each is named for the
+promise it makes true.
+
+**Sequencing rule.** Wave 1 items are file-disjoint and can run in parallel (worktree
+subagents, as Wave 1 of the previous initiative did). Wave 2 depends on Wave 1 landing.
+Wave 3 is independent of both and can be pulled forward whenever there is capacity.
+
+**Hard constraints (unchanged).** Never modify `features/merch` or `features/cards` except
+where a milestone names the file explicitly. `features/studio_v2` must not import
+`features/merch` (guarded by `v1_isolation_test.dart`) — shared code goes in
+`features/shared/`. Never delete image assets.
+
+---
+
+## WAVE 1 — parallel-safe, start together
+
+### M175 · Only offer shirts that can be made
+**Rule 10.** The palette offers eight colours; the store carries five variants, and two of
+those are mislabelled. Today Orange and Royal are blocked by name at add-to-cart, and Dark
+Heather / Sport Grey both resolve to one store heather, so one of them ships a visibly
+different shirt from the one chosen.
+
+- Enable Orange and Royal in **Printful first** (it fulfils; Shopify-only variants would pass
+  checkout and fail at fulfilment), let them sync, then wire the new GIDs.
+- Split the two greys, or drop one from the palette until a variant exists.
+- Replace the silent `tshirtGids[...] ?? tshirtGids.values.first` fallback with a loud failure.
+- Colour swatches for unstocked colours should not render at all, rather than being blocked
+  one screen later.
+
+Files: `merch_variant_lookup.dart` · `printDimensions.ts` (PRINTFUL_VARIANT_IDS) ·
+`studio_v2_cart_adapter.dart` · `studio_controller.dart` (garments).
+**Blocked on:** a human enabling the colours in Printful. Everything else is ready.
+Done when: every palette colour maps to a real variant, and a colour with no variant cannot
+appear on the swatch row.
+
+### M176 · Swipe through shirts, not names
+**S1.** The Instant deck shows each pick's name and position. The promise is swiping through
+ready-made shirts.
+
+- Eight live garment thumbnails in the deck, rendered at thumbnail size through the existing
+  `RenderService` cache.
+- Render lazily around the current index; never block first paint (the startup-settle guard
+  in `startup_idle_test.dart` is the tripwire).
+- Keep the name as a caption.
+
+Files: `instant_workspace.dart` · possibly `render_service.dart` (a thumbnail size tier).
+Depends on: nothing. Done when: the deck shows shirts, and the settle guard still passes.
+
+### M177 · The step contract, enforced
+**Rule 4.** The definition's "appears when" column is a contract with no test behind it. A
+control that leaks into the wrong context is the failure mode that makes depth feel like
+clutter, and it will regress silently.
+
+- Tests asserting: Travels only with trip history · Detail only for Flags · chest side only
+  when Fit = Chest · ribbon coverage only when Art = Ribbon · Fine Tune categories present
+  exactly per the table (Layout for Flags, Graphic for clipped-or-Passport, Text for Words).
+- Table-driven, so adding a category means adding a row.
+
+Files: new `test/features/studio_v2/step_contract_test.dart` · possibly small accessors on
+`StudioController`. Depends on: nothing. Pure test milestone — cannot break the app.
+
+---
+
+## WAVE 2 — after Wave 1
+
+### M178 · Buy from anywhere
+**Rule 3.** Buying is reachable from Instant and Review only; the definition says a confident
+person can leave at any point.
+
+- A persistent buy affordance in the frame, on every step.
+- One shared path — `buildGarmentCartRequest` already exists; no second copy.
+- Never a dead end: unstocked colour states the reason in place.
+
+Files: `studio_v2_screen.dart` (contested — coordinate with the phone-layout work) ·
+`instant_workspace.dart` · `review_workspace.dart`.
+Depends on: **M175** (buying must be truthful before it is everywhere).
+
+### M179 · Placement inside the journey
+**S12.** The M174 mockup canvas lives on the V1 merch screen the Studio hands off to. The
+definition places it as a step in the flow.
+
+- Bring the canvas into the V2 journey between Review and Size, or make the hand-off
+  continuous enough that it reads as one flow.
+- Carry the arranged transform through to the print file (`MerchImageProcessor` already
+  accepts it).
+- Resolve the uncommitted `printArea` wiring in `studio_v2_screen.dart` as part of this.
+
+Files: `studio_v2_screen.dart` · `studio_v2_cart_adapter.dart` ·
+`features/shared/garment_mockup/*`. Depends on: **M178** (shares the frame changes).
+
+### M180 · What you see is what prints
+**Rule 8.** Preview and print file are produced by different paths. Placement, colour and
+scale agreeing is currently an assumption.
+
+- Assert parity: the print file's placement, garment colour and artwork scale match the
+  preview for the same recipe.
+- Cover both faces and every print position.
+
+Files: `merch_image_processor.dart` · `render_service.dart` · new parity tests.
+Depends on: **M179** (parity is only meaningful once placement is final).
+
+---
+
+## WAVE 3 — independent, pull forward freely
+
+### M181 · Saved designs
+**S14 / rule 9.** `PersistentDesignLibrary` saves garments; nothing browses them. A
+reproducible design nobody can reopen is a promise with no payoff.
+
+- Browse saved designs, reopen one into the Studio exactly as saved, re-order it.
+Files: new `features/studio_v2/widgets/library_*.dart` · `prefs_persistence.dart`.
+
+### M182 · After the purchase
+**S14.** Order status through to delivery, and sharing the design — the shirt is a travel
+brag, not just a transaction. V1 has share and confirmation screens to reuse.
+Files: `merch_order_confirmation_screen.dart` · `merch_share_exporter.dart` (read-only reuse).
+
+### M183 · Garment photography
+The bundled shots are 513×640 — sized for the merch preview they were taken for, soft as a
+full-height Studio hero. Asset work, not code: reshoot or source at 2–3×, same framing
+(garment bounding boxes currently agree within 0.006 normalised, and the tint pipeline
+depends on that). The grey shirt is the tint base and matters most.
+Files: `assets/mockups/` · `garment_mockup_spec.dart` (paths only).
+
+---
+
+## Parallelisation map
+
+```
+Wave 1   M175 (commerce)   M176 (deck)   M177 (contract tests)     ← start together
+             |                 |
+             v                 |
+Wave 2   M178 (buy anywhere) <-'
+             |
+             v
+         M179 (placement) -> M180 (print parity)
+
+Wave 3   M181 (library)    M182 (after purchase)   M183 (photography)   ← anytime
+```
+
+File-disjoint sets for parallel work:
+- M175 → variant/commerce files + controller palette
+- M176 → `instant_workspace.dart` (+ render service)
+- M177 → tests only
+Only M178/M179 touch `studio_v2_screen.dart`, which currently also carries someone else's
+uncommitted phone-layout work — sequence those two rather than running them together.
+
+## Known blockers at time of writing
+- `apps/mobile_flutter/ios/Runner.xcodeproj/project.pbxproj` is in an unresolved conflict
+  (`UU`) from a popped stash — **git refuses all commits until it is resolved**.
+- `studio_v2_screen.dart` holds ~333 lines of in-flight phone-layout work plus two of my
+  one-line wirings (`printArea`, the Instant stage case).
+
+---
+
+# PREVIOUS HANDOFF (2026-08-20) — retained below
+
 # Next tasks (handoff — updated 2026-08-20)
 
 Branch: `fix/e006-clip-fill-designs` (E-006 commit `b0d5e1d9` pushed). Everything below is
