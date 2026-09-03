@@ -1,8 +1,8 @@
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart' hide Orientation;
-import 'package:design_forge/design_forge.dart' show Orientation;
 
 import '../commerce/garment_cart_request.dart';
+import '../../shared/garment_mockup/mockup_transform.dart';
 import '../studio_v2_theme.dart';
 
 /// **Review** workspace (M8) — the purchase-oriented final step. It consumes the
@@ -13,10 +13,17 @@ class ReviewWorkspace extends StatefulWidget {
     super.key,
     required this.controller,
     this.onAddToCart,
+    this.frontPlacement = MockupTransform.identity,
+    this.backPlacement = MockupTransform.identity,
   });
 
   final StudioController controller;
   final AddToCartCallback? onAddToCart;
+
+  /// What the Placement step arranged, per face — baked into the print files
+  /// by the shared builder so what was arranged is what gets printed.
+  final MockupTransform frontPlacement;
+  final MockupTransform backPlacement;
 
   @override
   State<ReviewWorkspace> createState() => _ReviewWorkspaceState();
@@ -26,19 +33,6 @@ class _ReviewWorkspaceState extends State<ReviewWorkspace> {
   StudioController get _c => widget.controller;
   bool _busy = false;
   bool _saved = false;
-
-  String get _frontPosition => switch (_c.frontFit) {
-    FrontFit.full => 'center',
-    FrontFit.chest => _c.chestRight ? 'right_chest' : 'left_chest',
-    FrontFit.none => 'none',
-  };
-  String get _backPosition => 'center';
-
-  double get _aspectRatio => switch (_c.current.composition.orientation) {
-    Orientation.portrait => 4 / 5,
-    Orientation.landscape => 5 / 4,
-    Orientation.square => 1.0,
-  };
 
   Future<void> _save() async {
     _c.saveGarment();
@@ -58,26 +52,13 @@ class _ReviewWorkspaceState extends State<ReviewWorkspace> {
       return;
     }
     setState(() => _busy = true);
-    final hero = _c.hero;
-    final service = _c.service;
-    final frontFace = _c.frontFace;
-    final hasFrontPrint = _c.frontFit != FrontFit.none;
-    final req = GarmentCartRequest(
-      garment: _c.garment,
-      renderBackArtwork:
-          () async => (await service.renderArtwork(hero)).pngBytes,
-      renderFrontArtwork:
-          hasFrontPrint
-              ? () async => (await service.renderArtwork(frontFace)).pngBytes
-              : null,
-      garmentColourHex: _c.hero.palette?.garmentColour,
-      garmentColourName: _c.garmentName,
-      selectedCountryCodes: _c.selectedCountryCodes.toList(),
-      trips: _c.context.trips,
-      frontPosition: _frontPosition,
-      backPosition: _backPosition,
-      aspectRatio: _aspectRatio,
-      title: _c.currentTitle.isEmpty ? null : _c.currentTitle,
+    // The one description of a garment order, shared with Instant's Buy it
+    // and the footer's Buy Now — a second hand-rolled copy is how the paths
+    // quietly start ordering different things.
+    final req = buildGarmentCartRequest(
+      _c,
+      frontPlacement: widget.frontPlacement,
+      backPlacement: widget.backPlacement,
     );
     try {
       await cb(context, req);

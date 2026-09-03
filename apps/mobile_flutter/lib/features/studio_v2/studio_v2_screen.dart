@@ -2,6 +2,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart' hide Orientation;
 
+import '../shared/garment_mockup/mockup_transform.dart';
 import 'commerce/garment_cart_request.dart';
 import 'host/studio_v2_trace.dart';
 import 'studio_v2_stage.dart';
@@ -14,6 +15,7 @@ import 'widgets/focus_workspace.dart';
 import 'widgets/front_workspace.dart';
 import 'widgets/garment_preview.dart';
 import 'widgets/instant_workspace.dart';
+import 'widgets/placement_workspace.dart';
 import 'widgets/review_workspace.dart';
 import 'widgets/shirt_preview.dart';
 import 'widgets/travels_workspace.dart';
@@ -45,6 +47,15 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   /// view preference — it never touches the recipe or the undo history.
   bool _onShirt = true;
 
+  /// Where the print sits on each face. Owned here rather than in the
+  /// workspace so an arrangement survives leaving the Placement step, and so
+  /// the checkout hand-off can bake it into the print file.
+  final _frontPlacement = MockupTransformController();
+  final _backPlacement = MockupTransformController();
+
+  MockupTransformController get _placement =>
+      _c.onFront ? _frontPlacement : _backPlacement;
+
   /// True while a buy is in flight, so the action cannot be double-tapped.
   bool _busyBuying = false;
   final List<StudioStage> _navHistory = [];
@@ -61,6 +72,8 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   @override
   void dispose() {
     _c.removeListener(_onControllerChanged);
+    _frontPlacement.dispose();
+    _backPlacement.dispose();
     super.dispose();
   }
 
@@ -171,6 +184,11 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                       // The front print moves — left chest by default — and the
                       // shirt has to show it where it will actually be.
                       printArea: _c.onFront ? _c.frontPrintRect() : null,
+                      // The hero becomes the placement surface at that step —
+                      // and only there, so a stray drag cannot rearrange a
+                      // print while someone is choosing a vibe.
+                      interactive: _stage == StudioStage.placement,
+                      transformController: _placement,
                     )
                     : GarmentPreview(
                       key: const Key('v2-garment-preview'),
@@ -378,7 +396,13 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       StudioStage.words => WordsWorkspace(controller: _c),
       StudioStage.front => FrontWorkspace(controller: _c),
       StudioStage.fineTune => FineTuneWorkspace(controller: _c),
+      StudioStage.placement => PlacementWorkspace(
+        controller: _c,
+        placement: _placement,
+      ),
       StudioStage.review => ReviewWorkspace(
+        frontPlacement: _frontPlacement.value,
+        backPlacement: _backPlacement.value,
         controller: _c,
         onAddToCart: widget.onAddToCart,
       ),
@@ -459,7 +483,14 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     }
     setState(() => _busyBuying = true);
     try {
-      await cb(context, buildGarmentCartRequest(_c));
+      await cb(
+        context,
+        buildGarmentCartRequest(
+          _c,
+          frontPlacement: _frontPlacement.value,
+          backPlacement: _backPlacement.value,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _busyBuying = false);
     }

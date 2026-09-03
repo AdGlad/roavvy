@@ -13,6 +13,7 @@ enum StudioStage {
   words,
   front,
   fineTune,
+  placement,
   review,
 }
 
@@ -28,6 +29,7 @@ extension StudioStageLabel on StudioStage {
     StudioStage.words => 'Words',
     StudioStage.front => 'Front',
     StudioStage.fineTune => 'Fine Tune',
+    StudioStage.placement => 'Placement',
     StudioStage.review => 'Review',
   };
 
@@ -44,6 +46,7 @@ extension StudioStageLabel on StudioStage {
     StudioStage.words => 'Add your title.',
     StudioStage.front => 'Configure the shirt front.',
     StudioStage.fineTune => 'Go deeper with precise controls.',
+    StudioStage.placement => 'Place the print on the shirt.',
     StudioStage.review => 'Review both sides and save.',
   };
 }

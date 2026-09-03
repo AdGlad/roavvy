@@ -16,22 +16,22 @@ enum QuokkaAnim {
   think;
 
   String get _asset => switch (this) {
-        QuokkaAnim.idle      => 'assets/lottie/quokka_idle.json',
-        QuokkaAnim.wave      => 'assets/lottie/quokka_wave.json',
-        QuokkaAnim.dance     => 'assets/lottie/quokka_dance.json',
-        QuokkaAnim.celebrate => 'assets/lottie/quokka_celebrate.json',
-        QuokkaAnim.walk      => 'assets/lottie/quokka_walk.json',
-        QuokkaAnim.point     => 'assets/lottie/quokka_point.json',
-        QuokkaAnim.think     => 'assets/lottie/quokka_think.json',
-      };
+    QuokkaAnim.idle => 'assets/lottie/quokka_idle.json',
+    QuokkaAnim.wave => 'assets/lottie/quokka_wave.json',
+    QuokkaAnim.dance => 'assets/lottie/quokka_dance.json',
+    QuokkaAnim.celebrate => 'assets/lottie/quokka_celebrate.json',
+    QuokkaAnim.walk => 'assets/lottie/quokka_walk.json',
+    QuokkaAnim.point => 'assets/lottie/quokka_point.json',
+    QuokkaAnim.think => 'assets/lottie/quokka_think.json',
+  };
 
   // True for looping animations, false for one-shot.
   bool get loops => switch (this) {
-        QuokkaAnim.idle  => true,
-        QuokkaAnim.walk  => true,
-        QuokkaAnim.think => true,
-        _                => false,
-      };
+    QuokkaAnim.idle => true,
+    QuokkaAnim.walk => true,
+    QuokkaAnim.think => true,
+    _ => false,
+  };
 }
 
 /// Displays the Roavvy quokka mascot playing a [QuokkaAnim] animation.

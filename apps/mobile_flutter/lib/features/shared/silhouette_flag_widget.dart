@@ -40,7 +40,8 @@ class _SilhouetteFlagWidgetState extends State<SilhouetteFlagWidget> {
   @override
   void didUpdateWidget(SilhouetteFlagWidget old) {
     super.didUpdateWidget(old);
-    if (old.isoCode != widget.isoCode || old.silhouetteId != widget.silhouetteId) {
+    if (old.isoCode != widget.isoCode ||
+        old.silhouetteId != widget.silhouetteId) {
       _load();
     }
   }
@@ -76,9 +77,10 @@ class _SilhouetteFlagWidgetState extends State<SilhouetteFlagWidget> {
       canvas.drawPicture(pictureInfo.picture);
       pictureInfo.picture.dispose();
       final picture = recorder.endRecording();
-      final imgH = src.height > 0
-          ? (size * src.height / src.width).round().clamp(1, 4096)
-          : size.round();
+      final imgH =
+          src.height > 0
+              ? (size * src.height / src.width).round().clamp(1, 4096)
+              : size.round();
       final image = await picture.toImage(size.round(), imgH);
       picture.dispose();
       return image;
@@ -139,14 +141,17 @@ class _SilhouetteMaskPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawCover(Canvas canvas, ui.Image image, Rect dst,
-      {BlendMode blendMode = BlendMode.srcOver}) {
+  void _drawCover(
+    Canvas canvas,
+    ui.Image image,
+    Rect dst, {
+    BlendMode blendMode = BlendMode.srcOver,
+  }) {
     final iw = image.width.toDouble();
     final ih = image.height.toDouble();
     if (iw <= 0 || ih <= 0) return;
-    final scale = iw / ih > dst.width / dst.height
-        ? dst.height / ih
-        : dst.width / iw;
+    final scale =
+        iw / ih > dst.width / dst.height ? dst.height / ih : dst.width / iw;
     final sw = dst.width / scale;
     final sh = dst.height / scale;
     canvas.drawImageRect(

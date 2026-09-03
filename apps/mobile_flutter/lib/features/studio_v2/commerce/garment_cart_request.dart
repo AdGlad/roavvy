@@ -4,6 +4,10 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/widgets.dart' hide Orientation;
 
+import '../../shared/garment_mockup/garment_mockup_spec.dart';
+import '../../shared/garment_mockup/mockup_transform.dart';
+import '../../shared/garment_mockup/placement_bake.dart';
+
 /// The V1-agnostic hand-off payload the Review step produces so a host-side
 /// commerce adapter can drop a Studio V2 design into the EXISTING merch cart /
 /// checkout / Printful flow.
@@ -82,21 +86,40 @@ typedef AddToCartCallback =
 
 /// Builds the cart hand-off from a live [StudioController] session.
 ///
-/// Shared so every route to the checkout — Review's "Add to cart" and Instant's
-/// "Buy it" — sends byte-identical inputs. A second hand-rolled copy is how the
-/// quick path quietly starts ordering something other than what the careful
-/// path orders.
-GarmentCartRequest buildGarmentCartRequest(StudioController c) {
+/// Shared so every route to the checkout — Review's "Add to cart", Instant's
+/// "Buy it" and the footer's Buy Now — sends byte-identical inputs. A second
+/// hand-rolled copy is how the quick path quietly starts ordering something
+/// other than what the careful path orders.
+///
+/// [frontPlacement] and [backPlacement] are what the traveller arranged on the
+/// Placement step. They are baked into the print files here rather than passed
+/// alongside them, because the fulfiller drops the image into a fixed printable
+/// area — so an arrangement that lives outside the image simply does not
+/// survive the hand-off. An identity placement changes nothing.
+GarmentCartRequest buildGarmentCartRequest(
+  StudioController c, {
+  MockupTransform frontPlacement = MockupTransform.identity,
+  MockupTransform backPlacement = MockupTransform.identity,
+}) {
   final hero = c.hero;
   final service = c.service;
   final frontFace = c.frontFace;
   final hasFrontPrint = c.frontFit != FrontFit.none;
   return GarmentCartRequest(
     garment: c.garment,
-    renderBackArtwork: () async => (await service.renderArtwork(hero)).pngBytes,
+    renderBackArtwork:
+        () async => bakePlacement(
+          (await service.renderArtwork(hero)).pngBytes,
+          backPlacement,
+          printAreaAspect: _printAspect(BundledGarments.backPrintArea),
+        ),
     renderFrontArtwork:
         hasFrontPrint
-            ? () async => (await service.renderArtwork(frontFace)).pngBytes
+            ? () async => bakePlacement(
+              (await service.renderArtwork(frontFace)).pngBytes,
+              frontPlacement,
+              printAreaAspect: _printAspect(c.frontPrintRect()),
+            )
             : null,
     garmentColourHex: hero.palette?.garmentColour,
     garmentColourName: c.garmentName,
@@ -116,3 +139,12 @@ GarmentCartRequest buildGarmentCartRequest(StudioController c) {
     title: c.currentTitle.isEmpty ? null : c.currentTitle,
   );
 }
+
+/// The printable area's width/height, used to shape the baked print file so a
+/// placement means the same thing on the shirt and in the file.
+double _printAspect(Rect r) =>
+    r.height <= 0 ? 1.0 : (r.width * _garmentAspect) / r.height;
+
+/// Print areas are expressed as fractions of the garment photograph, which is
+/// itself portrait — so a square-looking region is not a square rect.
+const double _garmentAspect = 3 / 4;

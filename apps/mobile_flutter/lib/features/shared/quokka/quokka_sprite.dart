@@ -20,33 +20,33 @@ enum QuokkaState {
   think;
 
   String get _asset => switch (this) {
-        QuokkaState.idle      => 'assets/mascot/quokka_idle.png',
-        QuokkaState.wave      => 'assets/mascot/quokka_wave.png',
-        QuokkaState.dance     => 'assets/mascot/quokka_dance.png',
-        QuokkaState.celebrate => 'assets/mascot/quokka_celebrate.png',
-        QuokkaState.walk      => 'assets/mascot/quokka_walk.png',
-        QuokkaState.point     => 'assets/mascot/quokka_point.png',
-        QuokkaState.think     => 'assets/mascot/quokka_think.png',
-      };
+    QuokkaState.idle => 'assets/mascot/quokka_idle.png',
+    QuokkaState.wave => 'assets/mascot/quokka_wave.png',
+    QuokkaState.dance => 'assets/mascot/quokka_dance.png',
+    QuokkaState.celebrate => 'assets/mascot/quokka_celebrate.png',
+    QuokkaState.walk => 'assets/mascot/quokka_walk.png',
+    QuokkaState.point => 'assets/mascot/quokka_point.png',
+    QuokkaState.think => 'assets/mascot/quokka_think.png',
+  };
 
   bool get loops => switch (this) {
-        QuokkaState.idle  => true,
-        QuokkaState.dance => true,
-        QuokkaState.walk  => true,
-        QuokkaState.point => true,
-        QuokkaState.think => true,
-        _                 => false,
-      };
+    QuokkaState.idle => true,
+    QuokkaState.dance => true,
+    QuokkaState.walk => true,
+    QuokkaState.point => true,
+    QuokkaState.think => true,
+    _ => false,
+  };
 
   Duration get duration => switch (this) {
-        QuokkaState.idle      => const Duration(milliseconds: 2800),
-        QuokkaState.wave      => const Duration(milliseconds: 1200),
-        QuokkaState.dance     => const Duration(milliseconds: 700),
-        QuokkaState.celebrate => const Duration(milliseconds: 900),
-        QuokkaState.walk      => const Duration(milliseconds: 600),
-        QuokkaState.point     => const Duration(milliseconds: 2000),
-        QuokkaState.think     => const Duration(milliseconds: 3000),
-      };
+    QuokkaState.idle => const Duration(milliseconds: 2800),
+    QuokkaState.wave => const Duration(milliseconds: 1200),
+    QuokkaState.dance => const Duration(milliseconds: 700),
+    QuokkaState.celebrate => const Duration(milliseconds: 900),
+    QuokkaState.walk => const Duration(milliseconds: 600),
+    QuokkaState.point => const Duration(milliseconds: 2000),
+    QuokkaState.think => const Duration(milliseconds: 3000),
+  };
 }
 
 /// Displays the Roavvy quokka mascot in the given [state].
@@ -118,19 +118,16 @@ class _QuokkaSpriteState extends State<QuokkaSprite>
       builder: (context, child) {
         final t = _spec.curve.transform(_ctrl.value);
         final scaleVal = 1.0 + (_spec.scaleDelta * _sin(t));
-        final yVal     = _spec.yDelta * _sin(t);
-        final xVal     = _spec.xDelta * _sin(t);
-        final rotVal   = _spec.rotDelta * _sin(t);
+        final yVal = _spec.yDelta * _sin(t);
+        final xVal = _spec.xDelta * _sin(t);
+        final rotVal = _spec.rotDelta * _sin(t);
 
         return Transform.scale(
           scale: scaleVal,
           alignment: Alignment.bottomCenter,
           child: Transform.translate(
             offset: Offset(xVal, yVal),
-            child: Transform.rotate(
-              angle: rotVal,
-              child: child,
-            ),
+            child: Transform.rotate(angle: rotVal, child: child),
           ),
         );
       },
@@ -164,70 +161,70 @@ class _MotionSpec {
   final Duration duration;
   final Curve curve;
   final double scaleDelta; // fraction, e.g. 0.02 = ±2%
-  final double yDelta;     // pixels
-  final double xDelta;     // pixels
-  final double rotDelta;   // radians
+  final double yDelta; // pixels
+  final double xDelta; // pixels
+  final double rotDelta; // radians
   final bool reverses;
 }
 
 _MotionSpec _specFor(QuokkaState s) => switch (s) {
-      // Idle: gentle breathing — subtle scale + tiny float
-      QuokkaState.idle => const _MotionSpec(
-          duration: Duration(milliseconds: 2800),
-          curve: Curves.easeInOut,
-          scaleDelta: 0.022,
-          yDelta: -2.5,
-        ),
+  // Idle: gentle breathing — subtle scale + tiny float
+  QuokkaState.idle => const _MotionSpec(
+    duration: Duration(milliseconds: 2800),
+    curve: Curves.easeInOut,
+    scaleDelta: 0.022,
+    yDelta: -2.5,
+  ),
 
-      // Wave: whole body sways gently left-right, once
-      QuokkaState.wave => const _MotionSpec(
-          duration: Duration(milliseconds: 1200),
-          curve: Curves.easeInOut,
-          rotDelta: -0.06,
-          yDelta: -3,
-          reverses: false,
-        ),
+  // Wave: whole body sways gently left-right, once
+  QuokkaState.wave => const _MotionSpec(
+    duration: Duration(milliseconds: 1200),
+    curve: Curves.easeInOut,
+    rotDelta: -0.06,
+    yDelta: -3,
+    reverses: false,
+  ),
 
-      // Dance: fast bouncy hop up/down
-      QuokkaState.dance => const _MotionSpec(
-          duration: Duration(milliseconds: 700),
-          curve: Curves.easeOut,
-          yDelta: -10,
-          scaleDelta: 0.04,
-        ),
+  // Dance: fast bouncy hop up/down
+  QuokkaState.dance => const _MotionSpec(
+    duration: Duration(milliseconds: 700),
+    curve: Curves.easeOut,
+    yDelta: -10,
+    scaleDelta: 0.04,
+  ),
 
-      // Celebrate: big pop then settles
-      QuokkaState.celebrate => const _MotionSpec(
-          duration: Duration(milliseconds: 900),
-          curve: Curves.elasticOut,
-          scaleDelta: 0.12,
-          yDelta: -14,
-          rotDelta: 0.04,
-          reverses: false,
-        ),
+  // Celebrate: big pop then settles
+  QuokkaState.celebrate => const _MotionSpec(
+    duration: Duration(milliseconds: 900),
+    curve: Curves.elasticOut,
+    scaleDelta: 0.12,
+    yDelta: -14,
+    rotDelta: 0.04,
+    reverses: false,
+  ),
 
-      // Walk: gentle side-to-side sway + bob
-      QuokkaState.walk => const _MotionSpec(
-          duration: Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
-          xDelta: 3.5,
-          yDelta: -4,
-          rotDelta: 0.03,
-        ),
+  // Walk: gentle side-to-side sway + bob
+  QuokkaState.walk => const _MotionSpec(
+    duration: Duration(milliseconds: 600),
+    curve: Curves.easeInOut,
+    xDelta: 3.5,
+    yDelta: -4,
+    rotDelta: 0.03,
+  ),
 
-      // Point: very subtle pulse, mostly static
-      QuokkaState.point => const _MotionSpec(
-          duration: Duration(milliseconds: 2000),
-          curve: Curves.easeInOut,
-          scaleDelta: 0.012,
-          yDelta: -1.5,
-        ),
+  // Point: very subtle pulse, mostly static
+  QuokkaState.point => const _MotionSpec(
+    duration: Duration(milliseconds: 2000),
+    curve: Curves.easeInOut,
+    scaleDelta: 0.012,
+    yDelta: -1.5,
+  ),
 
-      // Think: slow dreamy sway
-      QuokkaState.think => const _MotionSpec(
-          duration: Duration(milliseconds: 3000),
-          curve: Curves.easeInOut,
-          rotDelta: 0.04,
-          yDelta: -2,
-        ),
-    };
+  // Think: slow dreamy sway
+  QuokkaState.think => const _MotionSpec(
+    duration: Duration(milliseconds: 3000),
+    curve: Curves.easeInOut,
+    rotDelta: 0.04,
+    yDelta: -2,
+  ),
+};

@@ -17,11 +17,11 @@ class _QuokkaPreviewScreenState extends State<QuokkaPreviewScreen> {
   QuokkaState _current = QuokkaState.idle;
   bool _completed = false;
 
-  static const _bg     = Color(0xFF0D1B2A);
-  static const _card   = Color(0xFF1A2E42);
+  static const _bg = Color(0xFF0D1B2A);
+  static const _card = Color(0xFF1A2E42);
   static const _border = Color(0xFF1F4068);
-  static const _gold   = Color(0xFFf5c842);
-  static const _dim    = Color(0xFF5A7A9A);
+  static const _gold = Color(0xFFf5c842);
+  static const _dim = Color(0xFF5A7A9A);
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +61,9 @@ class _QuokkaPreviewScreenState extends State<QuokkaPreviewScreen> {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: _bg,
                         borderRadius: BorderRadius.circular(20),
@@ -79,7 +81,9 @@ class _QuokkaPreviewScreenState extends State<QuokkaPreviewScreen> {
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: _bg,
                         borderRadius: BorderRadius.circular(20),
@@ -88,11 +92,10 @@ class _QuokkaPreviewScreenState extends State<QuokkaPreviewScreen> {
                         _current.loops
                             ? 'looping'
                             : _completed
-                                ? 'done ✓'
-                                : 'playing…',
+                            ? 'done ✓'
+                            : 'playing…',
                         style: TextStyle(
-                          color:
-                              _completed ? const Color(0xFF66EE99) : _dim,
+                          color: _completed ? const Color(0xFF66EE99) : _dim,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -113,17 +116,19 @@ class _QuokkaPreviewScreenState extends State<QuokkaPreviewScreen> {
               padding: const EdgeInsets.all(16),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              children: QuokkaState.values.map((s) {
-                final selected = s == _current;
-                return _StateCard(
-                  state: s,
-                  selected: selected,
-                  onTap: () => setState(() {
-                    _current = s;
-                    _completed = false;
-                  }),
-                );
-              }).toList(),
+              children:
+                  QuokkaState.values.map((s) {
+                    final selected = s == _current;
+                    return _StateCard(
+                      state: s,
+                      selected: selected,
+                      onTap:
+                          () => setState(() {
+                            _current = s;
+                            _completed = false;
+                          }),
+                    );
+                  }).toList(),
             ),
           ),
         ],
@@ -143,11 +148,11 @@ class _StateCard extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  static const _bg     = Color(0xFF0D1B2A);
-  static const _card   = Color(0xFF1A2E42);
+  static const _bg = Color(0xFF0D1B2A);
+  static const _card = Color(0xFF1A2E42);
   static const _border = Color(0xFF1F4068);
-  static const _gold   = Color(0xFFf5c842);
-  static const _dim    = Color(0xFF5A7A9A);
+  static const _gold = Color(0xFFf5c842);
+  static const _dim = Color(0xFF5A7A9A);
 
   @override
   Widget build(BuildContext context) {

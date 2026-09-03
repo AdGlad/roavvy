@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../shared/garment_mockup/garment_mockup_canvas.dart';
 import '../../shared/garment_mockup/garment_mockup_spec.dart';
+import '../../shared/garment_mockup/mockup_transform.dart';
 import '../host/studio_v2_trace.dart';
 import '../host/studio_garments.dart';
 
@@ -13,10 +14,13 @@ import '../host/studio_garments.dart';
 /// the shared [RenderService], composited onto a garment recoloured to the
 /// design's own garment colour, with the fabric's folds falling across the ink.
 ///
-/// **Preview, not an editor.** Where the design sits is owned by the Studio's
-/// existing controls (Focus, artwork size, orientation) and its undo history —
-/// this widget only shows the result faithfully. Freehand drag/pinch placement
-/// lives one step later, on the order screen.
+/// **Preview by default, editor on request.** What the design *is* stays owned
+/// by the Studio's controls (Focus, artwork size, orientation) and its undo
+/// history. Where it SITS on the garment is the Placement step's business:
+/// pass a [transformController] and set [interactive], and this same hero
+/// becomes the drag/pinch/twist surface — the arrangement happens on the shirt
+/// the traveller has been looking at all along, not on a screen the flow
+/// escapes into.
 ///
 /// Every Studio garment colour renders exactly, including the three the
 /// photography doesn't cover, because [StudioGarments] tints a neutral shirt
@@ -30,6 +34,8 @@ class ShirtPreview extends StatefulWidget {
     this.printArea,
     this.longSide = 1024,
     this.placeholder,
+    this.interactive = false,
+    this.transformController,
   });
 
   final RenderService service;
@@ -44,6 +50,13 @@ class ShirtPreview extends StatefulWidget {
   final Rect? printArea;
 
   final int longSide;
+
+  /// Whether the artwork can be dragged, pinched and twisted on the garment.
+  final bool interactive;
+
+  /// Owns the placement when [interactive]. Held by the host so the arrangement
+  /// outlives a stage change and reaches the print file.
+  final MockupTransformController? transformController;
 
   /// Shown until the design has rendered. Defaults to a spinner, which suits
   /// the hero; a deck of eight thumbnails passes something quieter, because
@@ -185,8 +198,9 @@ class _ShirtPreviewState extends State<ShirtPreview> {
       // is neither what the design says nor what the printer produces, since
       // DTG lays a white underbase on coloured cloth.
       artworkBlendMode: ui.BlendMode.srcOver,
-      interactive: false,
-      showHud: false,
+      controller: widget.transformController,
+      interactive: widget.interactive,
+      showHud: widget.interactive,
     );
   }
 }
