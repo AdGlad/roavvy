@@ -47,13 +47,37 @@ Future<void> main() async {
     // trips (tripListProvider). Without this override roavvyDatabaseProvider
     // throws, tripListProvider errors, and StudioV2App hangs on a blank spinner.
     final db = RoavvyDatabase(driftDatabase(name: 'roavvy'));
+    // The Travels step hosts the real globe, which reads the bundled map data.
+    // Without these V2 boots fine and then throws the moment anyone reaches
+    // Travels.
+    final (countryGeo, regionGeo) =
+        await (
+          rootBundle.load('assets/geodata/ne_countries.bin'),
+          rootBundle.load('assets/geodata/ne_admin1.bin'),
+        ).wait;
+    // The globe asks the lookup engines for polygons; they assert if the map
+    // data has not been handed to them first.
+    initCountryLookup(countryGeo.buffer.asUint8List());
+    initRegionLookup(regionGeo.buffer.asUint8List());
     // ProviderScope so V2 can read real Roavvy travel data; the cart adapter
     // gives this dev entrypoint a working Review → cart hand-off.
-    runApp(ProviderScope(
-        overrides: [roavvyDatabaseProvider.overrideWithValue(db)],
+    runApp(
+      ProviderScope(
+        overrides: [
+          roavvyDatabaseProvider.overrideWithValue(db),
+          geodataBytesProvider.overrideWithValue(
+            countryGeo.buffer.asUint8List(),
+          ),
+          regionGeodataBytesProvider.overrideWithValue(
+            regionGeo.buffer.asUint8List(),
+          ),
+        ],
         child: StudioV2App(
-            onAddToCart: const StudioV2CartAdapter().addToCart,
-            unavailableGarments: StudioV2CartAdapter.unstockedColours)));
+          onAddToCart: const StudioV2CartAdapter().addToCart,
+          unavailableGarments: StudioV2CartAdapter.unstockedColours,
+        ),
+      ),
+    );
     return;
   }
   runZonedGuarded(
@@ -65,13 +89,14 @@ Future<void> main() async {
       try {
         // Start bundled-asset loads immediately (native only) so the disk I/O
         // overlaps with Firebase/plugin initialisation below.
-        final assetsFuture = kIsWeb
-            ? null
-            : (
-                rootBundle.load('assets/geodata/ne_countries.bin'),
-                rootBundle.load('assets/geodata/ne_admin1.bin'),
-                rootBundle.loadString('assets/geodata/whs_sites.json'),
-              ).wait;
+        final assetsFuture =
+            kIsWeb
+                ? null
+                : (
+                  rootBundle.load('assets/geodata/ne_countries.bin'),
+                  rootBundle.load('assets/geodata/ne_admin1.bin'),
+                  rootBundle.loadString('assets/geodata/whs_sites.json'),
+                ).wait;
 
         // Notification plugin init is local and independent of Firebase —
         // run both concurrently.
@@ -84,9 +109,10 @@ Future<void> main() async {
         _stage('firebase-and-notifications-ready');
 
         await FirebaseAppCheck.instance.activate(
-          appleProvider: kDebugMode
-              ? AppleProvider.debug
-              : AppleProvider.appAttestWithDeviceCheckFallback,
+          appleProvider:
+              kDebugMode
+                  ? AppleProvider.debug
+                  : AppleProvider.appAttestWithDeviceCheckFallback,
         );
         _stage('appcheck-activated');
 
