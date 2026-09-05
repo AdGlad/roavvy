@@ -24,87 +24,115 @@ class _TravelsWorkspaceState extends State<TravelsWorkspace> {
   @override
   Widget build(BuildContext context) {
     final dated = _c.hasTrips;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return LayoutBuilder(
+      builder: (context, box) {
+        // On a short screen (an SE, or any phone once the shirt has taken its
+        // share) the header and the list cannot both have what they want. The
+        // instruction line is the part that has done its job after the first
+        // visit; the controls and the countries stay.
+        final roomy = box.maxHeight >= 280;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Choose your travels',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Choose your travels',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (roomy) ...[
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Tap the places you want represented on your shirt.',
+                          style: TextStyle(fontSize: 12, color: Colors.white54),
+                        ),
+                      ],
+                    ],
                   ),
-                  SizedBox(height: 3),
-                  Text(
-                    'Tap the places you want represented on your shirt.',
-                    style: TextStyle(fontSize: 12, color: Colors.white54),
-                  ),
-                ],
-              ),
+                ),
+                _viewButton(),
+              ],
             ),
-            _viewButton(),
-          ],
-        ),
-        if (dated) ...[
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _segment(
+            if (dated) ...[
+              const SizedBox(height: 10),
+              Row(
                 children: [
-                  _seg(
-                    'travels-source-countries',
-                    'Countries',
-                    !_c.sourceTrips,
-                    () => _c.setSource(false),
+                  _segment(
+                    children: [
+                      _seg(
+                        'travels-source-countries',
+                        'Countries',
+                        !_c.sourceTrips,
+                        () => _c.setSource(false),
+                      ),
+                      _seg(
+                        'travels-source-trips',
+                        'Trips',
+                        _c.sourceTrips,
+                        () => _c.setSource(true),
+                      ),
+                    ],
                   ),
-                  _seg(
-                    'travels-source-trips',
-                    'Trips',
-                    _c.sourceTrips,
-                    () => _c.setSource(true),
+                  const Spacer(),
+                  Text(
+                    '${_c.selectedCountryCodes.length} selected',
+                    style: const TextStyle(fontSize: 12, color: Colors.white60),
                   ),
                 ],
               ),
-              const Spacer(),
-              Text(
-                '${_c.selectedCountryCodes.length} selected',
-                style: const TextStyle(fontSize: 12, color: Colors.white60),
+              _yearRange(),
+            ] else ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  // The count gives way before the actions do: "48 countries
+                  // selected" plus both buttons runs past an iPhone, and the
+                  // buttons are the part you came here to press.
+                  Flexible(
+                    child: Text(
+                      '${_c.selectedCountryCodes.length} countries selected',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white60,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  _textButton(
+                    'travels-select-all',
+                    'All',
+                    _c.selectAllCountries,
+                  ),
+                  _textButton('travels-clear', 'Clear', _c.clearCountries),
+                ],
               ),
             ],
-          ),
-          _yearRange(),
-        ] else ...[
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Text(
-                '${_c.selectedCountryCodes.length} countries selected',
-                style: const TextStyle(fontSize: 12, color: Colors.white60),
+            if (dated)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _textButton(
+                    'travels-select-all',
+                    'Select all',
+                    _c.selectAllCountries,
+                  ),
+                  _textButton('travels-clear', 'Clear', _c.clearCountries),
+                ],
               ),
-              const Spacer(),
-              _textButton('travels-select-all', 'All', _c.selectAllCountries),
-              _textButton('travels-clear', 'Clear', _c.clearCountries),
-            ],
-          ),
-        ],
-        if (dated)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              _textButton(
-                'travels-select-all',
-                'Select all',
-                _c.selectAllCountries,
-              ),
-              _textButton('travels-clear', 'Clear', _c.clearCountries),
-            ],
-          ),
-        const SizedBox(height: 6),
-        Expanded(child: _mapView ? _map() : _list()),
-      ],
+            const SizedBox(height: 6),
+            Expanded(child: _mapView ? _map() : _list()),
+          ],
+        );
+      },
     );
   }
 

@@ -510,46 +510,63 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     return Container(
       color: const Color(0xFF121317),
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
-      child: Row(
-        children: [
-          Flexible(
-            child: InkWell(
-              onTap: _showStages,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-                // The progress bar went when the footer gained a second
-                // action: on a phone the count says the same thing in far
-                // less width, and the two buttons matter more than a meter.
-                child: Text(
-                  'Step ${index + 1} of ${vis.length}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: Colors.white54),
+      child: LayoutBuilder(
+        builder:
+            (context, c) => Row(
+              children: [
+                // On a narrow phone the two actions and the step count cannot all
+                // fit. The count goes: it is a label, they are the reason anyone
+                // looks down here, and the step sheet still names where you are.
+                if (c.maxWidth >= 300) ...[
+                  Flexible(
+                    child: InkWell(
+                      onTap: _showStages,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 2,
+                        ),
+                        // The progress bar went when the footer gained a second
+                        // action: the count says the same thing in far less width.
+                        child: Text(
+                          'Step ${index + 1} of ${vis.length}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white54,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ] else
+                  const Spacer(),
+                // Rule 3: buying is reachable from everywhere, not gated behind
+                // the end of the flow. Someone who is happy at step two should not
+                // have to walk to step eleven to pay.
+                _buyButton(),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  key: const Key('v2-next'),
+                  onPressed: last ? null : _next,
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  iconAlignment: IconAlignment.end,
+                  label: Text(last ? 'Done' : 'Continue'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ),
-          const SizedBox(width: 10),
-          // Rule 3: buying is reachable from everywhere, not gated behind the
-          // end of the flow. Someone who is happy at step two should not have
-          // to walk to step eleven to pay.
-          _buyButton(),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            key: const Key('v2-next'),
-            onPressed: last ? null : _next,
-            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-            iconAlignment: IconAlignment.end,
-            label: Text(last ? 'Done' : 'Continue'),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

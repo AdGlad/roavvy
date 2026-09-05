@@ -35,42 +35,48 @@ class DetailWorkspace extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = controller.detail;
     final silShape = _silhouetteShapeFor(active);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text(
-          'DETAIL',
-          style: TextStyle(
-            fontSize: 11,
-            letterSpacing: 1.4,
-            color: StudioV2Theme.accent,
+    // The only workspace that did not scroll: seven shape chips wrap onto
+    // enough rows to run off the bottom of a short phone, and a silhouette
+    // picker can appear beneath them. Every other step scrolls; this one now
+    // does too.
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'DETAIL',
+            style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 1.4,
+              color: StudioV2Theme.accent,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Choose the shape your flags fill.',
-          style: TextStyle(fontSize: 13, color: Colors.white70),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final (d, label) in _details)
-              _chip(
-                'v2-detail-${d.name}',
-                label,
-                active == d,
-                () => controller.applyDetail(d),
-              ),
-          ],
-        ),
-        if (silShape != null) ...[
+          const SizedBox(height: 4),
+          const Text(
+            'Choose the shape your flags fill.',
+            style: TextStyle(fontSize: 13, color: Colors.white70),
+          ),
           const SizedBox(height: 12),
-          _silhouetteRow(context, silShape),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (d, label) in _details)
+                _chip(
+                  'v2-detail-${d.name}',
+                  label,
+                  active == d,
+                  () => controller.applyDetail(d),
+                ),
+            ],
+          ),
+          if (silShape != null) ...[
+            const SizedBox(height: 12),
+            _silhouetteRow(context, silShape),
+          ],
         ],
-      ],
+      ),
     );
   }
 
