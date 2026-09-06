@@ -12,6 +12,7 @@ import 'package:mobile_flutter/features/shared/garment_mockup/garment_mockup_spe
 import 'package:mobile_flutter/features/studio_v2/host/studio_garments.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_app.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_screen.dart';
+import 'package:mobile_flutter/features/studio_v2/studio_v2_stage.dart';
 import 'package:mobile_flutter/features/studio_v2/widgets/garment_preview.dart';
 import 'package:mobile_flutter/features/studio_v2/widgets/shirt_preview.dart';
 
@@ -192,10 +193,18 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      final key = GlobalKey<StudioV2ScreenState>();
       await tester.pumpWidget(
-        MaterialApp(home: StudioV2Screen(controller: controller)),
+        MaterialApp(home: StudioV2Screen(key: key, controller: controller)),
       );
       await tester.pump(); // the preview spinner never settles
+      // These are tests of the editing HERO. The studio opens on Instant,
+      // which is a product screen with its own full-bleed garment and no hero
+      // above a workspace — so step into the flow before looking for one.
+      // Words rather than Vibe: the style steps show a tray of alternative
+      // previews, and these tests count previews.
+      key.currentState!.goToStage(StudioStage.words);
+      await tester.pump();
     }
 
     testWidgets('opens on the shirt, not the flat artwork', (tester) async {

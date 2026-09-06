@@ -75,8 +75,12 @@ void main() {
       if (s == StudioStage.travels) continue;
       state.goToStage(s);
       await tester.pump();
+      // Instant is a product screen with its own Add to Cart, not the wizard
+      // footer — what matters is that no step is a dead end for buying.
       expect(
-        find.byKey(const Key('v2-buy-now')),
+        find.byKey(
+          Key(s == StudioStage.instant ? 'v2-instant-buy' : 'v2-buy-now'),
+        ),
         findsOneWidget,
         reason: 'no way to buy from ${s.label}',
       );
@@ -131,7 +135,10 @@ void main() {
   testWidgets('with no cart wired, Buy says so rather than doing nothing', (
     tester,
   ) async {
-    await pump(tester, withCart: false);
+    final state = await pump(tester, withCart: false);
+    // From a wizard step, so this exercises the footer action.
+    state.goToStage(StudioStage.vibe);
+    await tester.pump();
     await tester.tap(find.byKey(const Key('v2-buy-now')));
     await tester.pump();
     expect(find.textContaining('not available in this build'), findsOneWidget);

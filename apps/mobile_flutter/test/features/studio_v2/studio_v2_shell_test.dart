@@ -35,6 +35,11 @@ void main() {
       MaterialApp(home: StudioV2Screen(key: key, controller: controller)),
     );
     await tester.pump(); // don't settle — the preview spinner never settles
+    // This file is about the editing SHELL — hero, Tier-1 controls, workflow
+    // navigation. The studio opens on Instant, which is a product screen with
+    // none of that, so step into the flow first. Instant has its own tests.
+    key.currentState!.goToStage(StudioStage.words);
+    await tester.pump();
     return key.currentState!;
   }
 
@@ -54,6 +59,9 @@ void main() {
       // real map data. That is a different subsystem; the hero it sits under
       // is the same persistent frame proven by every other stage here.
       if (s == StudioStage.travels) continue;
+      // Instant is not part of this frame at all — it is a full-screen
+      // product view with its own garment, covered by its own tests.
+      if (s == StudioStage.instant) continue;
       // The stage list moved into a bottom sheet, so the chips only exist
       // while it is open. Drive navigation directly: what this test is about
       // is the hero surviving a stage change, not how the change is chosen.
@@ -170,7 +178,7 @@ void main() {
     // Workflow Back pops the STAGE only — the recipe is not reverted.
     await tester.tap(find.byKey(const Key('v2-workflow-back')));
     await tester.pump();
-    expect(state.stage, StudioStage.instant);
+    expect(state.stage, StudioStage.words, reason: 'back one step, not home');
     expect(controller.current.recipeId, r1);
     expect(controller.history.length, 1);
 
@@ -178,6 +186,6 @@ void main() {
     await tester.tap(find.byKey(const Key('v2-recipe-undo')));
     await tester.pump();
     expect(controller.current.recipeId, r0);
-    expect(state.stage, StudioStage.instant);
+    expect(state.stage, StudioStage.words);
   });
 }

@@ -116,6 +116,31 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   Widget build(BuildContext context) {
     v2bump('StudioV2Screen.build', detail: 'stage=${_stage.name}');
     final canUndo = _c.history.isNotEmpty;
+    // Instant is the front door, not step one of eleven. It owns the whole
+    // viewport — no hero/controls/workspace/footer split, no undo button, no
+    // step counter — because it is showing a finished product, and product
+    // screens do not wear a wizard's chrome. Every later stage keeps the
+    // frame below, and Customise is how you get there.
+    if (_stage == StudioStage.instant) {
+      return Scaffold(
+        backgroundColor: StudioV2Theme.canvas,
+        body: SafeArea(
+          child: InstantWorkspace(
+            controller: _c,
+            onAddToCart: widget.onAddToCart,
+            onOpenSaved: _showSavedDesigns,
+            onExit:
+                Navigator.of(context).canPop()
+                    ? () => Navigator.of(context).maybePop()
+                    : null,
+            // One way forward, carrying this exact design: Vibe is the first
+            // step that changes how a design LOOKS without regenerating it.
+            // (M12 reworks what sits behind this door.)
+            onCustomise: () => _goToStage(StudioStage.vibe),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFF0E0F12),
       appBar: AppBar(
@@ -383,14 +408,9 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     ),
     padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
     child: switch (_stage) {
-      StudioStage.instant => InstantWorkspace(
-        controller: _c,
-        onAddToCart: widget.onAddToCart,
-        // Configure keeps the pick and opens the steps that restyle it;
-        // Custom drops it and starts the flow at Direction.
-        onConfigure: () => _goToStage(StudioStage.vibe),
-        onCustom: () => _goToStage(StudioStage.direction),
-      ),
+      // Instant is handled above — it owns the whole screen rather than
+      // sitting in this frame — but the switch must stay exhaustive.
+      StudioStage.instant => const SizedBox.shrink(),
       StudioStage.travels => TravelsWorkspace(controller: _c),
       StudioStage.direction => DirectionWorkspace(controller: _c),
       StudioStage.detail =>

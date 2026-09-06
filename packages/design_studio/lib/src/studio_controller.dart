@@ -424,7 +424,28 @@ class StudioController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Commit the pick on screen as the design being worked on — what Configure
+  /// Deck pick [i] as it would appear on the shirt right now: the design
+  /// itself, already wearing the garment colour and print scale chosen.
+  ///
+  /// Browsing renders the neighbouring pages before they are settled on, and a
+  /// raw pick still carries whatever colour it was generated in — so without
+  /// this the shirt visibly changes colour as a swipe lands. Wraps like
+  /// [showInstant], so page −1 is the last design.
+  ///
+  /// Cheap and pure: it copies a recipe, it does not generate one.
+  DesignRecipe instantPreviewAt(int i) {
+    final deck = instantPicks;
+    if (deck.isEmpty) return _hero;
+    final index = i % deck.length;
+    return _carryGarment(deck[index < 0 ? index + deck.length : index], _hero);
+  }
+
+  /// The chest face for deck pick [i] — the same derivation the live front
+  /// uses, so Front/Back on a browsed shirt shows that shirt's own front
+  /// rather than the one belonging to the design last settled on.
+  DesignRecipe instantFrontAt(int i) => _ribbonOf(instantPreviewAt(i));
+
+  /// Commit the pick on screen as the design being worked on — what Customise
   /// and Buy both act through. Undoable, and it teaches the preference model.
   void takeInstant() {
     final deck = instantPicks;

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_app.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_screen.dart';
+import 'package:mobile_flutter/features/studio_v2/widgets/shirt_preview.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -50,7 +51,11 @@ void main() {
     (tester) async {
       await pumpPhone(tester);
       expect(find.byKey(const Key('v2-instant-deck')), findsOneWidget);
-      expect(find.byKey(const Key('v2-garment-preview')), findsOneWidget);
+      // The deck IS the shirt now. Instant used to show the design twice —
+      // a hero above, thumbnails below — which gave the screen two things
+      // that could disagree; there is one representation from M11 on.
+      expect(find.byKey(const Key('v2-garment-preview')), findsNothing);
+      expect(find.byType(ShirtPreview), findsWidgets);
       expect(controller.instantPicks, isNotEmpty);
     },
   );

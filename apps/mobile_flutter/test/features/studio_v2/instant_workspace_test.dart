@@ -1,5 +1,5 @@
-// Instant, on screen: swipe the deck, switch the shirt colour, and the three
-// ways out — buy, configure, custom.
+// M11 — Instant as a product screen: swipe finished shirts, dress them, and
+// leave by one of three doors (buy, customise, save).
 import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
@@ -38,12 +38,22 @@ class _NoopResolver implements AssetResolver {
   }) async => null;
 }
 
+class _MemoryStore implements DesignStore {
+  String? contents;
+  @override
+  Future<String?> read() async => contents;
+  @override
+  Future<void> write(String c) async => contents = c;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late StudioController controller;
+  late PersistentDesignLibrary library;
 
   setUp(() {
+    library = PersistentDesignLibrary(_MemoryStore());
     controller = StudioController(
       generator: LabShowcaseGenerator(
         silhouettesByShape: const {},
@@ -55,18 +65,20 @@ void main() {
         scopeKey: 'test:instant',
       ),
       initialSeed: 4,
+      library: library,
     );
   });
 
   tearDown(() => controller.dispose());
 
-  Future<({int configure, int custom, List<GarmentCartRequest> carts})> pump(
+  Future<({int customise, List<GarmentCartRequest> carts})> pump(
     WidgetTester tester, {
     bool withCart = true,
+    Size size = const Size(390, 844),
   }) async {
-    var configure = 0, custom = 0;
+    var customise = 0;
     final carts = <GarmentCartRequest>[];
-    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -75,8 +87,7 @@ void main() {
         home: Scaffold(
           body: InstantWorkspace(
             controller: controller,
-            onConfigure: () => configure++,
-            onCustom: () => custom++,
+            onCustomise: () => customise++,
             onAddToCart:
                 withCart ? (context, req) async => carts.add(req) : null,
           ),
@@ -84,233 +95,277 @@ void main() {
       ),
     );
     await tester.pump();
-    return (configure: configure, custom: custom, carts: carts);
+    return (customise: customise, carts: carts);
   }
 
-  testWidgets('opens on a ready design with all three ways out', (
-    tester,
-  ) async {
-    await pump(tester);
-    expect(find.byKey(const Key('v2-instant-deck')), findsOneWidget);
-    expect(find.byKey(const Key('v2-instant-buy')), findsOneWidget);
-    expect(find.byKey(const Key('v2-instant-configure')), findsOneWidget);
-    expect(find.byKey(const Key('v2-instant-custom')), findsOneWidget);
+  group('it opens on a finished shirt', () {
+    testWidgets('the garment is on screen with all three ways out', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(find.byKey(const Key('v2-instant-deck')), findsOneWidget);
+      expect(find.byKey(const Key('v2-instant-buy')), findsOneWidget);
+      expect(find.byKey(const Key('v2-instant-customise')), findsOneWidget);
+      expect(find.byKey(const Key('v2-instant-save')), findsOneWidget);
+      expect(find.byKey(const Key('v2-instant-title')), findsOneWidget);
+    });
+
+    testWidgets('there is ONE Customise, not Configure and Start custom', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(find.byKey(const Key('v2-instant-configure')), findsNothing);
+      expect(find.byKey(const Key('v2-instant-custom')), findsNothing);
+      expect(find.text('Customise'), findsOneWidget);
+    });
+
+    testWidgets('the shirt dominates the screen', (tester) async {
+      // The promise is "here is your shirt". A shirt in the bottom third of a
+      // configuration screen does not make it.
+      await pump(tester);
+      final deck = tester.getSize(find.byKey(const Key('v2-instant-deck')));
+      expect(
+        deck.height,
+        greaterThan(844 * 0.45),
+        reason: 'the garment should own most of the useful area',
+      );
+    });
+
+    testWidgets('no engine terminology reaches this screen', (tester) async {
+      await pump(tester);
+      for (final word in [
+        'Direction',
+        'Vibe',
+        'Focus',
+        'Fine Tune',
+        'Recipe',
+        'Seed',
+      ]) {
+        expect(
+          find.textContaining(word),
+          findsNothing,
+          reason: '"$word" is engine vocabulary, not a customer\'s',
+        );
+      }
+    });
+
+    testWidgets('one representation of the design, not two', (tester) async {
+      // A hero above a deck of the same design gives the page two things that
+      // can disagree with each other.
+      await pump(tester);
+      final shown = tester.widgetList<ShirtPreview>(find.byType(ShirtPreview));
+      expect(shown.map((p) => p.front).toSet(), hasLength(1));
+    });
   });
 
-  testWidgets('swiping the deck changes the design on the shirt', (
-    tester,
-  ) async {
-    await pump(tester);
-    expect(controller.instantIndex, 0);
-    final before = controller.hero.recipeId;
+  group('browsing finished designs', () {
+    testWidgets('a finger swipe pages forward and back', (tester) async {
+      await pump(tester);
+      expect(controller.instantIndex, 0);
+      final deck = find.byKey(const Key('v2-instant-deck'));
 
-    // Right-to-left: forward through the deck.
-    await tester.fling(
-      find.byKey(const Key('v2-instant-deck')),
-      const Offset(-300, 0),
-      1200,
-    );
-    await tester.pumpAndSettle();
-    expect(controller.instantIndex, 1);
-    expect(controller.hero.recipeId, isNot(before));
+      Future<void> swipe(double dx) async {
+        final g = await tester.startGesture(
+          tester.getCenter(deck),
+          kind: PointerDeviceKind.touch,
+        );
+        for (var i = 0; i < 6; i++) {
+          await g.moveBy(Offset(dx, 0));
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await g.up();
+        await tester.pumpAndSettle();
+      }
 
-    // Left-to-right: back again.
-    await tester.fling(
-      find.byKey(const Key('v2-instant-deck')),
-      const Offset(300, 0),
-      1200,
-    );
-    await tester.pumpAndSettle();
-    expect(controller.instantIndex, 0);
+      await swipe(-45);
+      expect(controller.instantIndex, 1);
+      await swipe(45);
+      expect(
+        controller.instantIndex,
+        0,
+        reason: 'browsing back must return to the same design',
+      );
+    });
+
+    testWidgets('a mouse drag works too, not just touch', (tester) async {
+      // Flutter's desktop scroll behaviour omits the mouse, which left the
+      // deck completely unswipeable on macOS.
+      await pump(tester);
+      final centre = tester.getCenter(find.byKey(const Key('v2-instant-deck')));
+      final mouse = await tester.startGesture(
+        centre,
+        kind: PointerDeviceKind.mouse,
+      );
+      for (var i = 0; i < 4; i++) {
+        await mouse.moveBy(const Offset(-70, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await mouse.up();
+      await tester.pumpAndSettle();
+      expect(controller.instantIndex, 1);
+    });
+
+    testWidgets('the arrows step the deck, and wrap', (tester) async {
+      await pump(tester);
+      await tester.tap(find.byKey(const Key('v2-instant-next')));
+      await tester.pumpAndSettle();
+      expect(controller.instantIndex, 1);
+
+      await tester.tap(find.byKey(const Key('v2-instant-prev')));
+      await tester.pumpAndSettle();
+      expect(controller.instantIndex, 0);
+
+      await tester.tap(find.byKey(const Key('v2-instant-prev')));
+      await tester.pumpAndSettle();
+      expect(controller.instantIndex, controller.instantPicks.length - 1);
+    });
+
+    testWidgets('only a page or two is rendered, never the whole deck', (
+      tester,
+    ) async {
+      // Eight full-size garment renders on open would put a shopping screen
+      // behind a spinner. The PageView must stay lazy.
+      await pump(tester);
+      final shown =
+          tester.widgetList<ShirtPreview>(find.byType(ShirtPreview)).length;
+      expect(shown, lessThan(controller.instantPicks.length));
+    });
+
+    testWidgets('a swipe never regenerates the deck, or renders past its '
+        'neighbours', (tester) async {
+      // The two ways a browse screen turns to treacle: rebuilding the whole
+      // deck on every drag frame, and holding a full-size render of all eight
+      // shirts at once. Neither may happen even mid-gesture.
+      await pump(tester);
+      final deckBefore = controller.instantPicks;
+      final idsBefore = [for (final p in deckBefore) p.recipeId];
+
+      final g = await tester.startGesture(
+        tester.getCenter(find.byKey(const Key('v2-instant-deck'))),
+        kind: PointerDeviceKind.touch,
+      );
+      for (var i = 0; i < 6; i++) {
+        await g.moveBy(const Offset(-45, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(
+          identical(controller.instantPicks, deckBefore),
+          isTrue,
+          reason: 'the deck was rebuilt mid-drag',
+        );
+        expect(
+          tester.widgetList<ShirtPreview>(find.byType(ShirtPreview)).length,
+          lessThanOrEqualTo(3),
+          reason: 'more than an adjacent-page buffer is rendering',
+        );
+      }
+      await g.up();
+      await tester.pumpAndSettle();
+
+      expect([for (final p in controller.instantPicks) p.recipeId], idsBefore);
+      expect(controller.instantIndex, 1);
+    });
+
+    testWidgets('browsing leaves the travel context alone', (tester) async {
+      await pump(tester);
+      final codes = [...controller.selectedCountryCodes];
+      await tester.tap(find.byKey(const Key('v2-instant-next')));
+      await tester.pumpAndSettle();
+      expect(controller.selectedCountryCodes, codes);
+    });
   });
 
-  testWidgets('the shirt colour can be switched from the page', (tester) async {
-    await pump(tester);
-    await tester.tap(find.byKey(const Key('v2-instant-garment-Red')));
-    await tester.pumpAndSettle();
-    expect(controller.current.palette?.garmentColour, '#FF1B2B');
+  group('dressing the shirt never redraws it', () {
+    testWidgets('the shirt colour preserves the design', (tester) async {
+      await pump(tester);
+      await tester.tap(find.byKey(const Key('v2-instant-next')));
+      await tester.pumpAndSettle();
+      final design = controller.hero;
+
+      await tester.tap(find.byKey(const Key('v2-instant-garment-Red')));
+      await tester.pumpAndSettle();
+      expect(controller.hero.palette?.garmentColour, '#FF1B2B');
+      expect(controller.hero.composition.family, design.composition.family);
+      expect(controller.hero.clip?.shapeId, design.clip?.shapeId);
+      expect(controller.hero.seed, design.seed);
+      expect(controller.instantIndex, 1, reason: 'still the same pick');
+    });
+
+    testWidgets('Front/Back shows the other side of the SAME design', (
+      tester,
+    ) async {
+      await pump(tester);
+      final back = controller.hero.recipeId;
+      await tester.tap(find.byKey(const Key('v2-instant-side-front')));
+      await tester.pumpAndSettle();
+      expect(controller.onFront, isTrue);
+      expect(controller.hero.recipeId, back, reason: 'the design is untouched');
+
+      await tester.tap(find.byKey(const Key('v2-instant-side-back')));
+      await tester.pumpAndSettle();
+      expect(controller.onFront, isFalse);
+      expect(controller.hero.recipeId, back);
+    });
   });
 
-  testWidgets('Buy hands the design straight to the cart', (tester) async {
-    final r = await pump(tester);
-    await tester.tap(find.byKey(const Key('v2-instant-buy')));
-    await tester.pumpAndSettle();
-    expect(r.carts, hasLength(1));
-    // The same payload the careful path sends — both faces and the garment.
-    final req = r.carts.single;
-    expect(req.garmentColourHex, controller.hero.palette?.garmentColour);
-    expect(req.renderBackArtwork, isNotNull);
+  group('the three doors', () {
+    testWidgets('Add to Cart hands the design straight to commerce', (
+      tester,
+    ) async {
+      final r = await pump(tester);
+      await tester.tap(find.byKey(const Key('v2-instant-buy')));
+      await tester.pumpAndSettle();
+      expect(r.carts, hasLength(1));
+      final req = r.carts.single;
+      expect(req.garmentColourHex, controller.hero.palette?.garmentColour);
+      expect(req.renderBackArtwork, isNotNull);
+    });
+
+    testWidgets('Add to Cart with none wired says so', (tester) async {
+      final r = await pump(tester, withCart: false);
+      await tester.tap(find.byKey(const Key('v2-instant-buy')));
+      await tester.pump();
+      expect(r.carts, isEmpty);
+      expect(find.textContaining('not available'), findsOneWidget);
+    });
+
+    testWidgets('Customise carries the browsed design across untouched', (
+      tester,
+    ) async {
+      await pump(tester);
+      await tester.tap(find.byKey(const Key('v2-instant-next')));
+      await tester.pumpAndSettle();
+      final chosen = controller.hero.recipeId;
+
+      await tester.tap(find.byKey(const Key('v2-instant-customise')));
+      await tester.pumpAndSettle();
+      expect(
+        controller.hero.recipeId,
+        chosen,
+        reason: 'Customise edits THIS design; it must not roll a new one',
+      );
+    });
+
+    testWidgets('Save keeps the design in the wardrobe', (tester) async {
+      await pump(tester);
+      expect(library.library.garments, isEmpty);
+      await tester.tap(find.byKey(const Key('v2-instant-save')));
+      await tester.pumpAndSettle();
+      expect(
+        library.library.garments.single.garment!.garmentId,
+        controller.garment.garmentId,
+      );
+    });
   });
 
-  testWidgets('Buy without a cart wired explains itself', (tester) async {
-    final r = await pump(tester, withCart: false);
-    await tester.tap(find.byKey(const Key('v2-instant-buy')));
-    await tester.pump();
-    expect(r.carts, isEmpty);
-    expect(find.textContaining('not available'), findsOneWidget);
-  });
-
-  testWidgets('Configure keeps the design and hands off', (tester) async {
-    await pump(tester);
-    await tester.fling(
-      find.byKey(const Key('v2-instant-deck')),
-      const Offset(-300, 0),
-      1200,
-    );
-    await tester.pumpAndSettle();
-    final chosen = controller.hero.recipeId;
-
-    await tester.tap(find.byKey(const Key('v2-instant-configure')));
-    await tester.pumpAndSettle();
-    expect(
-      controller.hero.recipeId,
-      chosen,
-      reason: 'Configure edits this design; it must not roll a new one',
-    );
-  });
-
-  testWidgets('the deck fits a narrow phone panel without overflowing', (
-    tester,
-  ) async {
-    // The reported failure: a 310-wide panel gave the deck card 40px of height
-    // and its stacked text needed 47, painting a striped overflow bar across
-    // the first thing anyone sees.
-    tester.view.physicalSize = const Size(310, 620);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: InstantWorkspace(
-            controller: controller,
-            onConfigure: () {},
-            onCustom: () {},
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('the arrows step the deck for anyone who cannot swipe', (
-    tester,
-  ) async {
-    // A mouse cannot swipe comfortably even once the drag is accepted.
-    await pump(tester);
-    expect(controller.instantIndex, 0);
-
-    await tester.tap(find.byKey(const Key('v2-instant-next')));
-    await tester.pumpAndSettle();
-    expect(controller.instantIndex, 1);
-
-    await tester.tap(find.byKey(const Key('v2-instant-prev')));
-    await tester.pumpAndSettle();
-    expect(controller.instantIndex, 0);
-
-    // …and back past the first, which wraps to the end.
-    await tester.tap(find.byKey(const Key('v2-instant-prev')));
-    await tester.pumpAndSettle();
-    expect(controller.instantIndex, controller.instantPicks.length - 1);
-  });
-
-  testWidgets('the deck swipes with a finger, at phone size', (tester) async {
-    // The touch path is the one that matters on a real phone, and it is a
-    // different pointer kind from the mouse — proving one says nothing about
-    // the other. Run it at phone dimensions, not the wide test viewport.
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: InstantWorkspace(
-            controller: controller,
-            onConfigure: () {},
-            onCustom: () {},
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    expect(controller.instantIndex, 0);
-
-    final deck = find.byKey(const Key('v2-instant-deck'));
-    final touch = await tester.startGesture(
-      tester.getCenter(deck),
-      kind: PointerDeviceKind.touch,
-    );
-    for (var i = 0; i < 6; i++) {
-      await touch.moveBy(const Offset(-45, 0));
-      await tester.pump(const Duration(milliseconds: 16));
+  group('it fits a phone', () {
+    for (final (label, size) in [
+      ('an iPhone 15', const Size(390, 844)),
+      ('an iPhone SE', const Size(375, 667)),
+    ]) {
+      testWidgets('nothing overflows on $label', (tester) async {
+        await pump(tester, size: size);
+        expect(tester.takeException(), isNull);
+      });
     }
-    await touch.up();
-    await tester.pumpAndSettle();
-    expect(controller.instantIndex, 1, reason: 'a finger swipe must page');
-
-    // …and back the other way.
-    final back = await tester.startGesture(
-      tester.getCenter(deck),
-      kind: PointerDeviceKind.touch,
-    );
-    for (var i = 0; i < 6; i++) {
-      await back.moveBy(const Offset(45, 0));
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    await back.up();
-    await tester.pumpAndSettle();
-    expect(controller.instantIndex, 0);
-  });
-
-  testWidgets('the deck accepts a mouse drag, not just touch', (tester) async {
-    // Flutter's desktop scroll behaviour omits the mouse, which left the deck
-    // completely unswipeable on macOS.
-    await pump(tester);
-    final centre = tester.getCenter(find.byKey(const Key('v2-instant-deck')));
-    final mouse = await tester.startGesture(
-      centre,
-      kind: PointerDeviceKind.mouse,
-    );
-    // Past the halfway point, so the page commits rather than springing back.
-    for (var i = 0; i < 7; i++) {
-      await mouse.moveBy(const Offset(-110, 0));
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    await mouse.up();
-    await tester.pumpAndSettle();
-    expect(controller.instantIndex, 1);
-  });
-
-  testWidgets('the deck shows shirts, not just names', (tester) async {
-    // The promise of the screen is swiping through ready-made shirts.
-    await pump(tester);
-    expect(find.byType(ShirtPreview), findsWidgets);
-  });
-
-  testWidgets('only the visible page renders a shirt, not all eight', (
-    tester,
-  ) async {
-    // Eight garment renders on open would put the studio behind a spinner. The
-    // PageView must stay lazy.
-    await pump(tester);
-    final shown =
-        tester.widgetList<ShirtPreview>(find.byType(ShirtPreview)).length;
-    expect(
-      shown,
-      lessThan(controller.instantPicks.length),
-      reason: 'the deck should build around the current page, not all of it',
-    );
-  });
-
-  testWidgets('Custom leaves the pick alone and hands off', (tester) async {
-    await pump(tester);
-    final before = controller.hero.recipeId;
-    await tester.tap(find.byKey(const Key('v2-instant-custom')));
-    await tester.pumpAndSettle();
-    // The workspace itself changes nothing — the host navigates to Direction,
-    // which is where a new design gets made.
-    expect(controller.hero.recipeId, before);
   });
 }

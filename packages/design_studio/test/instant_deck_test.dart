@@ -161,17 +161,64 @@ void main() {
     expect(c.instantName(c.hero), 'EUROPE 2026');
   });
 
-  test('Configure keeps the pick — Custom is what replaces it', () {
-    // Configure is expressed as "carry on with this design", so the recipe on
-    // screen must be untouched by the act of choosing to configure it.
+  test('Customise keeps the pick — it is the only way forward', () {
+    // Customise is "carry on with THIS design", so the recipe on screen must
+    // be untouched by the act of choosing to customise it. There is no second
+    // door that throws the pick away (M11 removed Configure + Start custom).
     final c = make();
     c.showInstant(2);
     final chosen = c.hero.recipeId;
     c.takeInstant();
     expect(c.hero.recipeId, chosen);
+  });
 
-    // Custom starts the flow at Direction, which mints a new design.
-    c.selectSubject(1);
-    expect(c.current.recipeId, isNot(chosen));
+  group('the pages either side of the one on screen', () {
+    test('a neighbour is that design wearing the colour already chosen', () {
+      // Neighbours render before they are settled on, and a raw pick still
+      // carries whatever colour it was generated in — so without this the
+      // shirt visibly changes colour as the swipe lands.
+      final c = make();
+      c.setGarment('#FF1B2B');
+      final next = c.instantPreviewAt(1);
+      expect(next.palette?.garmentColour, '#FF1B2B');
+      // …and it is genuinely the NEXT design, not the current one recoloured.
+      expect(next.composition.family, c.instantPicks[1].composition.family);
+      expect(next.clip?.shapeId, c.instantPicks[1].clip?.shapeId);
+    });
+
+    test('it wraps both ways, like swiping does', () {
+      final c = make();
+      final last = c.instantPicks.length - 1;
+      expect(
+        c.instantPreviewAt(-1).composition.family,
+        c.instantPicks[last].composition.family,
+      );
+      expect(
+        c.instantPreviewAt(last + 1).composition.family,
+        c.instantPicks[0].composition.family,
+      );
+    });
+
+    test('a neighbour has its OWN front, not the current design\'s', () {
+      final c = make();
+      expect(c.instantFrontAt(1).composition.family, DesignFamily.frontRibbon);
+      expect(
+        c.instantFrontAt(1).content.flags.length,
+        c.instantFrontAt(1).content.flags.length,
+      );
+    });
+
+    test('looking at a neighbour changes nothing', () {
+      // Rendering the page beside you must not move the deck, the selection,
+      // or the design on the shirt.
+      final c = make();
+      final hero = c.hero.recipeId;
+      final index = c.instantIndex;
+      c.instantPreviewAt(3);
+      c.instantFrontAt(3);
+      expect(c.hero.recipeId, hero);
+      expect(c.instantIndex, index);
+      expect(c.history, isEmpty);
+    });
   });
 }
