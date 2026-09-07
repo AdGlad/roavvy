@@ -244,12 +244,28 @@ class StudioController extends ChangeNotifier {
   bool get hasTrips => designContext.hasTrips;
   DateRange? get span => designContext.history.span;
 
-  /// The distinct visited countries the user can choose from — trip countries
-  /// when dated history exists, else the flat visited-country list. Deterministic
-  /// order (first-visited / declared order), lowercase.
-  List<String> get availableCountryCodes => designContext.hasTrips
-      ? TravelHistory(designContext.trips).countryCodes
-      : [for (final c in designContext.flagCodes) c.toLowerCase()];
+  /// The countries that can go on this shirt right now — trip countries
+  /// visited WITHIN the chosen year range when dated history exists, else the
+  /// flat visited-country list. Deterministic order (first-visited / declared
+  /// order), lowercase.
+  ///
+  /// Range-aware because the year range decides which travels the shirt
+  /// represents: a list that still offered countries outside the chosen years
+  /// would be offering something the design cannot include, and the picker
+  /// would be describing a different shirt from the one on screen. Narrowing
+  /// the range hides a country but does not deselect it, so widening again
+  /// brings it back exactly as it was.
+  List<String> get availableCountryCodes {
+    if (!designContext.hasTrips) {
+      return [for (final c in designContext.flagCodes) c.toLowerCase()];
+    }
+    final all = TravelHistory(designContext.trips);
+    final span = all.span;
+    // Before a range has been chosen, or when it covers everything, this is
+    // just the whole history.
+    if (span == null || _yearLo == 0) return all.countryCodes;
+    return all.inRange(DateRange.years(_yearLo, _yearHi)).countryCodes;
+  }
 
   /// The current travel selection (a subset of [availableCountryCodes]). Map and
   /// List selection both read/write THIS single set, so they stay in sync.

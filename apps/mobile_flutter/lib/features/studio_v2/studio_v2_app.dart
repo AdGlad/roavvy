@@ -94,12 +94,34 @@ Future<void> _ignoringFailure(Future<void> Function() work) async {
 /// Test/dev convenience: a controller over a fixed demo context (no Riverpod).
 /// The real app path uses [StudioV2App], which sources the context from live
 /// Roavvy travel data.
-StudioController buildStudioV2Controller() => buildStudioV2ControllerFor(
-  const DesignContext(
-    flagCodes: ['us', 'fr', 'jp', 'br', 'au', 'it', 'gr', 'th'],
-    scopeKey: 'studio_v2:demo',
-  ),
-);
+StudioController buildStudioV2Controller() =>
+    buildStudioV2ControllerFor(demoTravelContext);
+
+/// The stand-in travel history for dev and test runs.
+///
+/// The trips are DATED, and deliberately so: a simulator has no photo library
+/// to scan, so without them the Studio falls back to an undated country list —
+/// and every part of the app that depends on when someone travelled, the year
+/// range above all, silently disappears. A dev build that cannot show half the
+/// screen is not much of a test bed.
+final DesignContext demoTravelContext = DesignContext.fromTrips([
+  for (final (cc, year) in const [
+    ('us', 2016),
+    ('fr', 2017),
+    ('it', 2018),
+    ('gr', 2019),
+    ('jp', 2021),
+    ('th', 2022),
+    ('au', 2023),
+    ('br', 2024),
+  ])
+    Trip(
+      countryCode: cc,
+      startedOn: DateTime(year, 6, 1),
+      endedOn: DateTime(year, 6, 12),
+      photoCount: 40,
+    ),
+], scopeKey: 'studio_v2:demo');
 
 /// The developer-only V2 app root. Launched independently of production V1 via
 /// `--dart-define=STUDIO_V2=true` (see `main.dart`) or the dedicated entrypoint

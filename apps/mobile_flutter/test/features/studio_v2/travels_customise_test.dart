@@ -14,6 +14,7 @@ import 'package:mobile_flutter/features/map/globe_map_widget.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_app.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_screen.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_stage.dart';
+import 'package:mobile_flutter/features/studio_v2/widgets/shirt_preview.dart';
 import 'package:mobile_flutter/features/studio_v2/widgets/studio_workspace_shell.dart';
 import 'package:region_lookup/region_lookup.dart';
 
@@ -223,6 +224,98 @@ void main() {
         controller.selectedCountryCodes.length,
         controller.availableCountryCodes.length,
       );
+    });
+  });
+
+  group('the shirt keeps up with the selection', () {
+    testWidgets('toggling a country changes the shirt on screen', (
+      tester,
+    ) async {
+      await pumpTravels(tester);
+      ShirtPreview shirt() => tester.widget<ShirtPreview>(
+        find.byKey(const Key('v2-garment-preview')),
+      );
+      final before = shirt().recipe;
+
+      await tester.tap(
+        find.byKey(
+          Key('v2-travels-country-${controller.availableCountryCodes.first}'),
+        ),
+      );
+      await tester.pump();
+
+      final after = shirt().recipe;
+      expect(
+        after.recipeId,
+        isNot(before.recipeId),
+        reason: 'the preview must follow the selection, live',
+      );
+      expect(
+        after.content.flags.length,
+        isNot(before.content.flags.length),
+        reason: 'and it must be the flags that changed',
+      );
+      // …still the same design, only re-cut.
+      expect(after.composition.family, before.composition.family);
+    });
+
+    testWidgets('Clear then Select all returns the shirt to where it was', (
+      tester,
+    ) async {
+      await pumpTravels(tester);
+      ShirtPreview shirt() => tester.widget<ShirtPreview>(
+        find.byKey(const Key('v2-garment-preview')),
+      );
+      final before = shirt().recipe.recipeId;
+
+      await tester.tap(find.byKey(const Key('v2-travels-clear')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('v2-travels-select-all')));
+      await tester.pump();
+      expect(shirt().recipe.recipeId, before);
+    });
+  });
+
+  group('the year range decides which travels count', () {
+    test('narrowing the years narrows the countries on offer', () {
+      final c = buildStudioV2Controller();
+      addTearDown(c.dispose);
+      final all = c.availableCountryCodes.length;
+      expect(all, greaterThan(2), reason: 'the demo history should be dated');
+
+      final span = c.span!;
+      c.setYearRange(span.start!.year, span.start!.year + 1);
+      expect(
+        c.availableCountryCodes.length,
+        lessThan(all),
+        reason: 'a country visited outside the range is not on offer',
+      );
+    });
+
+    test('widening again brings a country back, still selected', () {
+      final c = buildStudioV2Controller();
+      addTearDown(c.dispose);
+      final span = c.span!;
+      final everything = c.availableCountryCodes;
+      c.setYearRange(span.start!.year, span.start!.year + 1);
+      final narrowed = c.availableCountryCodes;
+      final dropped = everything.firstWhere((cc) => !narrowed.contains(cc));
+
+      c.setYearRange(span.start!.year, span.end!.year);
+      expect(c.availableCountryCodes, everything);
+      expect(
+        c.isSelected(dropped),
+        isTrue,
+        reason: 'hiding a country by date must not deselect it',
+      );
+    });
+
+    testWidgets('the slider is on screen when the history is dated', (
+      tester,
+    ) async {
+      await pumpTravels(tester);
+      expect(find.byKey(const Key('v2-travels-year')), findsOneWidget);
+      expect(find.text('Year range'), findsOneWidget);
     });
   });
 
