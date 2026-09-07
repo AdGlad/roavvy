@@ -1025,7 +1025,7 @@ class StudioController extends ChangeNotifier {
       trips: trips,
       dateRange: range,
     );
-    _regenerateFaces();
+    _applyTravelToFaces();
   }
 
   /// A deterministic seed for the current effective selection: the same set of
@@ -1044,12 +1044,37 @@ class StudioController extends ChangeNotifier {
     return h;
   }
 
-  void _regenerateFaces() {
+  /// Re-cut the design for a changed travel selection.
+  ///
+  /// Customise EDITS the design already on the shirt — someone who liked a
+  /// design enough to customise it, then removed a country, must still be
+  /// looking at that design. So only the travel-dependent half of the recipe
+  /// moves: the flags, and the dated entries behind passport stamps and
+  /// timelines, both taken from a freshly generated recipe because building
+  /// them correctly is the generator's job. Everything creative — the family,
+  /// the clip, the palette treatment, the effects, the typography, the title —
+  /// is carried over from what was on screen.
+  ///
+  /// This replaced a full regeneration that took the best of a fresh pool. It
+  /// gave a well-made design, but not the one being edited: changing one
+  /// country silently swapped the shirt out from under the customer.
+  void _applyTravelToFaces() {
     final prev = _hero;
-    final pool = _gen.generate(_context,
-        seed: _selectionSeed(_context.flagCodes),
-        count: _preferences.sampleCount == 0 ? 1 : 6);
-    _hero = _carryGarment(_orderByPreference(pool).first, prev);
+    final recut = _gen
+        .generate(_context, seed: _selectionSeed(_context.flagCodes), count: 1)
+        .first;
+    _hero = prev.copyWith(
+      content: RecipeContent(
+        // Travel-dependent, so taken from the recut.
+        flags: recut.content.flags,
+        entries: recut.content.entries,
+        source: recut.content.source,
+        // Meta is where the customer's own words live — the title above all.
+        // Taking the recut's wholesale silently wiped a title the moment a
+        // country was toggled. Theirs wins; the recut only fills gaps.
+        meta: {...recut.content.meta, ...prev.content.meta},
+      ),
+    );
     _frontFace = _ribbonOf(_hero);
     notifyListeners();
   }

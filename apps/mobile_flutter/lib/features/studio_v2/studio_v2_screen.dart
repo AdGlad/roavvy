@@ -19,6 +19,7 @@ import 'widgets/placement_workspace.dart';
 import 'widgets/saved_designs_sheet.dart';
 import 'widgets/review_workspace.dart';
 import 'widgets/shirt_preview.dart';
+import 'widgets/studio_workspace_shell.dart';
 import 'widgets/travels_workspace.dart';
 import 'widgets/vibe_workspace.dart';
 import 'widgets/words_workspace.dart';
@@ -133,10 +134,27 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                 Navigator.of(context).canPop()
                     ? () => Navigator.of(context).maybePop()
                     : null,
-            // One way forward, carrying this exact design: Vibe is the first
-            // step that changes how a design LOOKS without regenerating it.
-            // (M12 reworks what sits behind this door.)
-            onCustomise: () => _goToStage(StudioStage.vibe),
+            // One way forward, carrying this exact design into the first
+            // Customise step. Travels edits the design rather than replacing
+            // it, so the shirt they chose is the shirt they keep editing.
+            onCustomise: () => _goToStage(StudioStage.travels),
+          ),
+        ),
+      );
+    }
+    // Travels is the first Customise step, and the first to use the shared
+    // editing frame: a compact garment above a sheet of controls, draggable to
+    // give the shirt the screen and back again. M13–M21 adopt it by passing
+    // their own controls in.
+    if (_stage == StudioStage.travels) {
+      return Scaffold(
+        backgroundColor: StudioV2Theme.canvas,
+        body: SafeArea(
+          bottom: false,
+          child: StudioWorkspaceShell(
+            header: _customiseHeader(),
+            preview: _customisePreview(),
+            controls: TravelsWorkspace(controller: _c),
           ),
         ),
       );
@@ -397,6 +415,77 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       minimumSize: const Size(0, 38),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
+  );
+
+  /// Customise navigation: out of the step, the wordmark, and on to the next.
+  /// Deliberately not the wizard app bar — no undo, no step counter, no menu.
+  Widget _customiseHeader() => Padding(
+    padding: const EdgeInsets.fromLTRB(6, 2, 14, 2),
+    child: Row(
+      children: [
+        IconButton(
+          key: const Key('v2-customise-back'),
+          tooltip: 'Back',
+          onPressed: _workflowBack,
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          color: Colors.white70,
+        ),
+        const Expanded(
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'roavvy',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                Icon(Icons.place, size: 17, color: StudioV2Theme.accent),
+              ],
+            ),
+          ),
+        ),
+        FilledButton(
+          key: const Key('v2-customise-next'),
+          onPressed: _next,
+          style: FilledButton.styleFrom(
+            backgroundColor: StudioV2Theme.accent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            shape: const StadiumBorder(),
+            textStyle: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          child: const Text('Next'),
+        ),
+      ],
+    ),
+  );
+
+  /// The design being edited, with the face switch beside it. Built once and
+  /// kept alive across sheet drags — sliding the sheet must reveal more of
+  /// this shirt, never re-render it.
+  Widget _customisePreview() => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Expanded(
+        child: ShirtPreview(
+          key: const Key('v2-garment-preview'),
+          service: _c.service,
+          recipe: _c.current,
+          front: _c.onFront,
+          printArea: _c.onFront ? _c.frontPrintRect() : null,
+        ),
+      ),
+      Padding(padding: const EdgeInsets.only(right: 8), child: _sideSelector()),
+    ],
   );
 
   Widget _workspace() => Container(

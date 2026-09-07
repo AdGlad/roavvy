@@ -5,280 +5,320 @@ import '../../../core/country_names.dart';
 import '../../map/globe_map_widget.dart';
 import '../studio_v2_theme.dart';
 
-/// Choose the travels represented by the shirt. Map and List are two views onto
-/// the same controller selection; the globe is the primary Roavvy experience.
-class TravelsWorkspace extends StatefulWidget {
+/// **Travels** — which journeys this shirt represents.
+///
+/// Countries, and only countries: a map to pick them on, a year range to bound
+/// them by, and the list itself. Map and list are two views onto the ONE
+/// selection the controller holds, so neither can disagree with the other.
+///
+/// This supplies control content only. The compact garment above it, the drag
+/// between compact and full-height, and the snap are the shell's
+/// ([StudioWorkspaceShell]) — every later step inherits them the same way.
+class TravelsWorkspace extends StatelessWidget {
   const TravelsWorkspace({super.key, required this.controller});
 
   final StudioController controller;
 
-  @override
-  State<TravelsWorkspace> createState() => _TravelsWorkspaceState();
-}
-
-class _TravelsWorkspaceState extends State<TravelsWorkspace> {
-  StudioController get _c => widget.controller;
-
-  bool _mapView = true;
+  StudioController get _c => controller;
 
   @override
   Widget build(BuildContext context) {
-    final dated = _c.hasTrips;
-    return LayoutBuilder(
-      builder: (context, box) {
-        // On a short screen (an SE, or any phone once the shirt has taken its
-        // share) the header and the list cannot both have what they want. The
-        // instruction line is the part that has done its job after the first
-        // visit; the controls and the countries stay.
-        final roomy = box.maxHeight >= 280;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Choose your travels',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (roomy) ...[
-                        const SizedBox(height: 3),
-                        const Text(
-                          'Tap the places you want represented on your shirt.',
-                          style: TextStyle(fontSize: 12, color: Colors.white54),
-                        ),
-                      ],
-                    ],
-                  ),
+    final codes = _c.availableCountryCodes;
+    final selected = _c.selectedCountryCodes;
+    // The map is a heavy widget with its own gesture arena. Building it in a
+    // const-keyed slot keeps it out of the list's recycling, so scrolling the
+    // countries never rebuilds the globe.
+    return _TravelsScope(
+      controller: _c,
+      child: CustomScrollView(
+        key: const Key('v2-travels-scroll'),
+        slivers: [
+          SliverToBoxAdapter(child: _question()),
+          const SliverToBoxAdapter(child: _MapCard()),
+          SliverToBoxAdapter(child: _yearRange(context)),
+          SliverToBoxAdapter(child: _countriesHeader(selected.length)),
+          SliverList.builder(
+            itemCount: codes.length,
+            itemBuilder:
+                (context, i) => _CountryRow(
+                  key: Key('v2-travels-country-${codes[i]}'),
+                  code: codes[i],
+                  selected: _c.isSelected(codes[i]),
+                  onTap: () => _c.toggleCountry(codes[i]),
                 ),
-                _viewButton(),
-              ],
-            ),
-            if (dated) ...[
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _segment(
-                    children: [
-                      _seg(
-                        'travels-source-countries',
-                        'Countries',
-                        !_c.sourceTrips,
-                        () => _c.setSource(false),
-                      ),
-                      _seg(
-                        'travels-source-trips',
-                        'Trips',
-                        _c.sourceTrips,
-                        () => _c.setSource(true),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${_c.selectedCountryCodes.length} selected',
-                    style: const TextStyle(fontSize: 12, color: Colors.white60),
-                  ),
-                ],
-              ),
-              _yearRange(),
-            ] else ...[
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  // The count gives way before the actions do: "48 countries
-                  // selected" plus both buttons runs past an iPhone, and the
-                  // buttons are the part you came here to press.
-                  Flexible(
-                    child: Text(
-                      '${_c.selectedCountryCodes.length} countries selected',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white60,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  _textButton(
-                    'travels-select-all',
-                    'All',
-                    _c.selectAllCountries,
-                  ),
-                  _textButton('travels-clear', 'Clear', _c.clearCountries),
-                ],
-              ),
-            ],
-            if (dated)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  _textButton(
-                    'travels-select-all',
-                    'Select all',
-                    _c.selectAllCountries,
-                  ),
-                  _textButton('travels-clear', 'Clear', _c.clearCountries),
-                ],
-              ),
-            const SizedBox(height: 6),
-            Expanded(child: _mapView ? _map() : _list()),
-          ],
-        );
-      },
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
     );
   }
 
-  Widget _viewButton() => TextButton.icon(
-    key: const Key('v2-travels-view-toggle'),
-    onPressed: () => setState(() => _mapView = !_mapView),
-    icon: Icon(_mapView ? Icons.list_rounded : Icons.public, size: 17),
-    label: Text(_mapView ? 'List' : 'Map'),
-    style: TextButton.styleFrom(foregroundColor: StudioV2Theme.accent),
+  Widget _question() => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: StudioV2Theme.accent,
+                shape: BoxShape.circle,
+              ),
+              child: const Text(
+                '1',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Travels',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'Which travels should this shirt represent?',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 14),
+      ],
+    ),
   );
 
-  Widget _yearRange() {
+  /// The years the trips span, when there are dated trips to span them.
+  Widget _yearRange(BuildContext context) {
     final span = _c.span;
     if (span == null) return const SizedBox.shrink();
     final minY = span.start!.year;
     final maxY = span.end!.year;
-    if (maxY <= minY) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: Text(
-          'Trips from $minY',
-          style: const TextStyle(fontSize: 12, color: Colors.white60),
-        ),
-      );
-    }
+    // A single year is not a range — showing a slider that cannot move is
+    // worse than showing nothing.
+    if (maxY <= minY) return const SizedBox.shrink();
     final lo = _c.yearLo.clamp(minY, maxY).toDouble();
     final hi = _c.yearHi.clamp(minY, maxY).toDouble();
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${_c.yearLo} – ${_c.yearHi}',
-            style: const TextStyle(fontSize: 12, color: Colors.white70),
+          const Text(
+            'Year range',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
-          RangeSlider(
-            key: const Key('v2-travels-year'),
-            min: minY.toDouble(),
-            max: maxY.toDouble(),
-            divisions: maxY - minY,
-            labels: RangeLabels('${lo.round()}', '${hi.round()}'),
-            values: RangeValues(lo, hi),
-            onChanged: (v) => _c.previewYear(v.start.round(), v.end.round()),
-            onChangeEnd: (v) => _c.setYearRange(v.start.round(), v.end.round()),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Text(
+                '${lo.round()}',
+                style: const TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: StudioV2Theme.accent,
+                    inactiveTrackColor: Colors.white12,
+                    thumbColor: Colors.white,
+                    overlayColor: StudioV2Theme.accent.withValues(alpha: 0.14),
+                    trackHeight: 3,
+                    rangeThumbShape: const RoundRangeSliderThumbShape(
+                      enabledThumbRadius: 11,
+                    ),
+                    showValueIndicator: ShowValueIndicator.never,
+                  ),
+                  child: RangeSlider(
+                    key: const Key('v2-travels-year'),
+                    min: minY.toDouble(),
+                    max: maxY.toDouble(),
+                    divisions: maxY - minY,
+                    values: RangeValues(lo, hi),
+                    // Cheap during the drag: labels move, nothing regenerates.
+                    onChanged:
+                        (v) => _c.previewYear(v.start.round(), v.end.round()),
+                    // The design is re-cut once, when the thumb is let go.
+                    onChangeEnd:
+                        (v) => _c.setYearRange(v.start.round(), v.end.round()),
+                  ),
+                ),
+              ),
+              Text(
+                '${hi.round()}',
+                style: const TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _list() {
-    final codes = _c.availableCountryCodes;
-    return ListView.builder(
-      key: const Key('v2-travels-list'),
-      itemCount: codes.length,
-      itemBuilder: (context, i) {
-        final cc = codes[i];
-        final selected = _c.isSelected(cc);
-        final name = kCountryNames[cc.toUpperCase()] ?? cc.toUpperCase();
-        return ListTile(
-          key: Key('v2-travels-country-$cc'),
-          dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-          leading: Text(_flagEmoji(cc), style: const TextStyle(fontSize: 22)),
-          title: Text(
-            name,
-            style: const TextStyle(fontSize: 14, color: Colors.white),
-          ),
-          trailing: Icon(
-            selected ? Icons.check_circle : Icons.circle_outlined,
-            color: selected ? StudioV2Theme.accent : Colors.white30,
-            size: 20,
-          ),
-          onTap: () => _c.toggleCountry(cc),
-        );
-      },
-    );
-  }
-
-  Widget _map() {
-    final visited = _c.availableCountryCodes.toSet();
-    return Container(
-      key: const Key('v2-travels-map'),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0C0F),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: GlobeMapWidget(
-        onCountryTap: (iso) {
-          final cc = iso.toLowerCase();
-          if (visited.contains(cc)) _c.toggleCountry(cc);
-        },
-      ),
-    );
-  }
-
-  Widget _segment({required List<Widget> children}) => Container(
-    padding: const EdgeInsets.all(3),
-    decoration: BoxDecoration(
-      color: StudioV2Theme.control,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Row(mainAxisSize: MainAxisSize.min, children: children),
-  );
-
-  Widget _seg(String id, String label, bool on, VoidCallback onTap) =>
-      GestureDetector(
-        key: Key('v2-$id'),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: on ? StudioV2Theme.accent.withValues(alpha: 0.16) : null,
-            border: Border.all(
-              color: on ? StudioV2Theme.accent : Colors.transparent,
-            ),
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: on ? StudioV2Theme.accent : Colors.white60,
+  Widget _countriesHeader(int count) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 18, 12, 6),
+    child: Row(
+      children: [
+        Flexible(
+          child: RichText(
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(
+              children: [
+                const TextSpan(
+                  text: 'Countries ',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                TextSpan(
+                  text: '($count selected)',
+                  style: const TextStyle(fontSize: 14, color: Colors.white54),
+                ),
+              ],
             ),
           ),
         ),
-      );
+        const Spacer(),
+        _action('v2-travels-select-all', 'Select all', _c.selectAllCountries),
+        _action('v2-travels-clear', 'Clear', _c.clearCountries),
+      ],
+    ),
+  );
 
-  Widget _textButton(String id, String label, VoidCallback onTap) => TextButton(
-    key: Key('v2-$id'),
+  Widget _action(String key, String label, VoidCallback onTap) => TextButton(
+    key: Key(key),
     onPressed: onTap,
     style: TextButton.styleFrom(
       foregroundColor: StudioV2Theme.accent,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      minimumSize: const Size(0, 30),
+      minimumSize: const Size(0, 34),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     ),
-    child: Text(label, style: const TextStyle(fontSize: 12)),
+    child: Text(
+      label,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+    ),
+  );
+}
+
+/// The globe, in its own widget so the country list rebuilding never rebuilds
+/// it. Selection is read from the controller it finds above it.
+class _MapCard extends StatelessWidget {
+  const _MapCard();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Container(
+      key: const Key('v2-travels-map'),
+      height: 210,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0C0F),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: StudioV2Theme.subtleBorder),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: _MapBody(),
+    ),
+  );
+}
+
+class _MapBody extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final c = _TravelsScope.of(context);
+    final visited = c.availableCountryCodes.toSet();
+    return GlobeMapWidget(
+      onCountryTap: (iso) {
+        final cc = iso.toLowerCase();
+        // Only somewhere they have actually been can be put on the shirt.
+        if (visited.contains(cc)) c.toggleCountry(cc);
+      },
+    );
+  }
+}
+
+/// One country: flag, name, and whether it is on the shirt.
+class _CountryRow extends StatelessWidget {
+  const _CountryRow({
+    super.key,
+    required this.code,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String code;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: StudioV2Theme.subtleBorder, width: 0.6),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(_flagEmoji(code), style: const TextStyle(fontSize: 26)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              kCountryNames[code.toUpperCase()] ?? code.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 16, color: Colors.white),
+            ),
+          ),
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: selected ? StudioV2Theme.accent : Colors.transparent,
+              borderRadius: BorderRadius.circular(7),
+              border: Border.all(
+                color: selected ? StudioV2Theme.accent : Colors.white24,
+                width: 1.6,
+              ),
+            ),
+            child:
+                selected
+                    ? const Icon(Icons.check, size: 18, color: Colors.white)
+                    : null,
+          ),
+        ],
+      ),
+    ),
   );
 
-  String _flagEmoji(String iso) {
+  static String _flagEmoji(String iso) {
     final code = iso.toUpperCase();
     if (code.length != 2) return '🏳️';
     return String.fromCharCodes([
-      for (final u in code.codeUnits) 0x1F1E6 + (u - 0x41),
+      0x1F1E6 + code.codeUnitAt(0) - 65,
+      0x1F1E6 + code.codeUnitAt(1) - 65,
     ]);
   }
+}
+
+/// Hands the controller down to the map without threading it through every
+/// intermediate widget, so the map can stay `const` and out of rebuilds.
+class _TravelsScope extends InheritedWidget {
+  const _TravelsScope({required this.controller, required super.child});
+
+  final StudioController controller;
+
+  static StudioController of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_TravelsScope>()!.controller;
+
+  @override
+  bool updateShouldNotify(_TravelsScope old) =>
+      !identical(old.controller, controller);
 }
