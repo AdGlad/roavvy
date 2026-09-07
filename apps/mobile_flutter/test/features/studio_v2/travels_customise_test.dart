@@ -9,6 +9,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/core/providers.dart';
+import 'package:mobile_flutter/features/map/country_visual_state.dart';
+import 'package:mobile_flutter/features/map/globe_map_widget.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_app.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_screen.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_stage.dart';
@@ -221,6 +223,43 @@ void main() {
         controller.selectedCountryCodes.length,
         controller.availableCountryCodes.length,
       );
+    });
+  });
+
+  group('the map shows THIS shirt, not the whole history', () {
+    testWidgets('selected and deselected countries are coloured differently', (
+      tester,
+    ) async {
+      // The globe normally colours from the user's entire visit history, which
+      // on this screen answers the wrong question: what matters is which of
+      // their countries are going on the shirt.
+      await pumpTravels(tester);
+      final scope = tester.element(find.byKey(const Key('v2-travels-map')));
+      Map<String, CountryVisualState> states() => ProviderScope.containerOf(
+        tester.element(find.byType(GlobeMapWidget)),
+      ).read(countryVisualStatesProvider);
+
+      final cc = controller.availableCountryCodes.first;
+      expect(states()[cc.toUpperCase()], CountryVisualState.newlyDiscovered);
+
+      controller.toggleCountry(cc);
+      await tester.pump();
+      expect(
+        states()[cc.toUpperCase()],
+        CountryVisualState.reviewed,
+        reason: 'somewhere they have been, but not on this shirt',
+      );
+      expect(scope, isNotNull);
+    });
+
+    testWidgets('a country never visited is not offered at all', (
+      tester,
+    ) async {
+      await pumpTravels(tester);
+      final states = ProviderScope.containerOf(
+        tester.element(find.byType(GlobeMapWidget)),
+      ).read(countryVisualStatesProvider);
+      expect(states.containsKey('AQ'), isFalse);
     });
   });
 

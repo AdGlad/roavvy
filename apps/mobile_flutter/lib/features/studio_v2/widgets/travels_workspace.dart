@@ -1,7 +1,9 @@
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/country_names.dart';
+import '../../map/country_visual_state.dart';
 import '../../map/globe_map_widget.dart';
 import '../studio_v2_theme.dart';
 
@@ -28,28 +30,25 @@ class TravelsWorkspace extends StatelessWidget {
     // The map is a heavy widget with its own gesture arena. Building it in a
     // const-keyed slot keeps it out of the list's recycling, so scrolling the
     // countries never rebuilds the globe.
-    return _TravelsScope(
-      controller: _c,
-      child: CustomScrollView(
-        key: const Key('v2-travels-scroll'),
-        slivers: [
-          SliverToBoxAdapter(child: _question()),
-          const SliverToBoxAdapter(child: _MapCard()),
-          SliverToBoxAdapter(child: _yearRange(context)),
-          SliverToBoxAdapter(child: _countriesHeader(selected.length)),
-          SliverList.builder(
-            itemCount: codes.length,
-            itemBuilder:
-                (context, i) => _CountryRow(
-                  key: Key('v2-travels-country-${codes[i]}'),
-                  code: codes[i],
-                  selected: _c.isSelected(codes[i]),
-                  onTap: () => _c.toggleCountry(codes[i]),
-                ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
-      ),
+    return CustomScrollView(
+      key: const Key('v2-travels-scroll'),
+      slivers: [
+        SliverToBoxAdapter(child: _question()),
+        SliverToBoxAdapter(child: _MapCard(controller: _c)),
+        SliverToBoxAdapter(child: _yearRange(context)),
+        SliverToBoxAdapter(child: _countriesHeader(selected.length)),
+        SliverList.builder(
+          itemCount: codes.length,
+          itemBuilder:
+              (context, i) => _CountryRow(
+                key: Key('v2-travels-country-${codes[i]}'),
+                code: codes[i],
+                selected: _c.isSelected(codes[i]),
+                onTap: () => _c.toggleCountry(codes[i]),
+              ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+      ],
     );
   }
 
@@ -205,38 +204,65 @@ class TravelsWorkspace extends StatelessWidget {
   );
 }
 
-/// The globe, in its own widget so the country list rebuilding never rebuilds
-/// it. Selection is read from the controller it finds above it.
+/// The map, showing THIS shirt's travels.
+///
+/// The globe normally colours countries from the user's whole visit history,
+/// which on this screen is the wrong question: what matters is which of their
+/// countries are going on the shirt. So its colouring provider is overridden
+/// with the Studio's own selection for the width of this widget — the globe
+/// itself is untouched, and the map tab elsewhere is unaffected.
+///
+///   * on the shirt      — brightest, gold with a white edge
+///   * been there, not on it — amber, clearly theirs but muted
+///   * everywhere else   — the ordinary unvisited navy
 class _MapCard extends StatelessWidget {
-  const _MapCard();
+  const _MapCard({required this.controller});
+
+  final StudioController controller;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Container(
-      key: const Key('v2-travels-map'),
-      height: 210,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0C0F),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: StudioV2Theme.subtleBorder),
+  Widget build(BuildContext context) {
+    final available = controller.availableCountryCodes;
+    final states = <String, CountryVisualState>{
+      for (final cc in available)
+        cc.toUpperCase():
+            controller.isSelected(cc)
+                ? CountryVisualState.newlyDiscovered
+                : CountryVisualState.reviewed,
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        key: const Key('v2-travels-map'),
+        height: 210,
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B0C0F),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: StudioV2Theme.subtleBorder),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ProviderScope(
+          overrides: [countryVisualStatesProvider.overrideWithValue(states)],
+          child: _MapBody(controller: controller),
+        ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: _MapBody(),
-    ),
-  );
+    );
+  }
 }
 
 class _MapBody extends StatelessWidget {
+  const _MapBody({required this.controller});
+
+  final StudioController controller;
+
   @override
   Widget build(BuildContext context) {
-    final c = _TravelsScope.of(context);
-    final visited = c.availableCountryCodes.toSet();
+    final visited = controller.availableCountryCodes.toSet();
     return GlobeMapWidget(
       onCountryTap: (iso) {
         final cc = iso.toLowerCase();
-        // Only somewhere they have actually been can be put on the shirt.
-        if (visited.contains(cc)) c.toggleCountry(cc);
+        // Only somewhere they have actually been can go on the shirt.
+        if (visited.contains(cc)) controller.toggleCountry(cc);
       },
     );
   }
@@ -306,19 +332,4 @@ class _CountryRow extends StatelessWidget {
       0x1F1E6 + code.codeUnitAt(1) - 65,
     ]);
   }
-}
-
-/// Hands the controller down to the map without threading it through every
-/// intermediate widget, so the map can stay `const` and out of rebuilds.
-class _TravelsScope extends InheritedWidget {
-  const _TravelsScope({required this.controller, required super.child});
-
-  final StudioController controller;
-
-  static StudioController of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_TravelsScope>()!.controller;
-
-  @override
-  bool updateShouldNotify(_TravelsScope old) =>
-      !identical(old.controller, controller);
 }
