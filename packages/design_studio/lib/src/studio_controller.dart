@@ -624,15 +624,45 @@ class StudioController extends ChangeNotifier {
   /// colour / artwork size / orientation forward — a Direction change never
   /// resets the Tier-1 controls or the active travel selection. Leaving Flags
   /// resets [detail] to Grid (Detail applies to Flags only).
+  /// Change what the design is ABOUT.
+  ///
+  /// Direction is the one axis whose whole job is to redraw the artwork, so a
+  /// new composition here is the point rather than a loss. What must survive
+  /// is everything the customer chose that is not about the subject: the
+  /// travels (untouched — this never rebuilds the context), the garment, and
+  /// the two that a bare regeneration used to throw away — the Vibe they
+  /// picked, and the title they typed.
   void selectSubject(int index) {
     if (index < 0 || index >= subjects.length || index == _subjectIndex) return;
     _subjectIndex = index;
     if (index != 0) _detail = StudioDetail.grid;
+    final prev = current;
+    final style = currentStyle;
     final (g, t, _) = subjects[index];
-    final pool = generator.withGenre(g, template: t).generate(_context,
+    var gen = generator.withGenre(g, template: t);
+    // Ask for the new subject IN the style already chosen, rather than
+    // restyling afterwards — the generator composes the two properly.
+    if (style != null) gen = gen.withStyle(style);
+    final pool = gen.generate(_context,
         seed: _selectionSeed(_context.flagCodes) + index,
         count: _preferences.sampleCount == 0 ? 1 : 6);
-    _commit(_carryGarment(_orderByPreference(pool).first, current));
+    _commit(_carryWords(_carryGarment(_orderByPreference(pool).first, prev),
+        prev));
+  }
+
+  /// Carry the customer's own words onto a freshly generated recipe. Their
+  /// title belongs to them, not to whichever subject is on screen.
+  DesignRecipe _carryWords(DesignRecipe next, DesignRecipe prev) {
+    final title = (prev.content.meta['title'] as String?)?.trim();
+    if (title == null || title.isEmpty) return next;
+    return next.copyWith(
+      content: RecipeContent(
+        flags: next.content.flags,
+        entries: next.content.entries,
+        source: next.content.source,
+        meta: {...next.content.meta, 'title': title},
+      ),
+    );
   }
 
   void onAlternativeTap(int index, DesignRecipe alt) {

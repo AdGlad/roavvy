@@ -77,10 +77,19 @@ void main() {
       await tester.pump();
       // Instant is a product screen with its own Add to Cart, not the wizard
       // footer — what matters is that no step is a dead end for buying.
+      if (s == StudioStage.instant) {
+        expect(find.byKey(const Key('v2-instant-buy')), findsOneWidget);
+        continue;
+      }
+      // Direction is a choice, not a place to buy from: it is about to redraw
+      // the artwork, so the shirt on offer while you are there is not the one
+      // you would receive. Next is the only way on.
+      if (s == StudioStage.direction) {
+        expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
+        continue;
+      }
       expect(
-        find.byKey(
-          Key(s == StudioStage.instant ? 'v2-instant-buy' : 'v2-buy-now'),
-        ),
+        find.byKey(const Key('v2-buy-now')),
         findsOneWidget,
         reason: 'no way to buy from ${s.label}',
       );

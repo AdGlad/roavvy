@@ -159,6 +159,50 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
         ),
       );
     }
+    // Direction has no garment. It redraws the artwork wholesale, so a preview
+    // would spend the screen showing the design about to be replaced — the
+    // cards themselves are the preview. Same header as Travels, no sheet.
+    if (_stage == StudioStage.direction) {
+      return Scaffold(
+        backgroundColor: StudioV2Theme.canvas,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _customiseHeader(),
+              const SizedBox(height: 6),
+              Expanded(
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    color: StudioV2Theme.card,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(22),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      // The same grab affordance the sheet steps show, so the
+                      // flow reads as one surface even where nothing drags.
+                      const SizedBox(
+                        height: 30,
+                        child: Center(
+                          child: Icon(
+                            Icons.keyboard_arrow_up_rounded,
+                            size: 26,
+                            color: Colors.white24,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: DirectionWorkspace(controller: _c)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFF0E0F12),
       appBar: AppBar(
