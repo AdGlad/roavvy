@@ -11,6 +11,26 @@ import 'render_service.dart';
 /// subject (Grid = plain flags; the rest are clipped).
 enum StudioDetail { grid, map, animals, plants, landmarks, heart, circle }
 
+/// One **Direction Detail** choice: how the chosen Direction is expressed.
+///
+/// Contextual by construction — the list comes from what the engine can
+/// actually do for the Direction on screen, so there is no universal set of
+/// options and no choice offered that the renderer cannot draw. A Direction
+/// with nothing meaningful to offer returns an empty list, and the step is
+/// skipped rather than shown empty.
+class DetailChoice {
+  const DetailChoice({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+  });
+
+  /// Stable identifier, used to select and to report what is selected.
+  final String id;
+  final String title;
+  final String subtitle;
+}
+
 /// How the FRONT artwork is printed on the shirt (mobile parity). Full = the
 /// centred full-front print; chest = a small chest print (left/right); none =
 /// a blank front (the main design lives on the back).
@@ -275,9 +295,13 @@ class StudioController extends ChangeNotifier {
 
   /// The generator bound to the current subject — every generate/re-roll goes
   /// through this so the whole design stays within the chosen subject.
+  /// A family chosen on the Detail step, overriding the Direction's default.
+  /// Route pins `journeys`; choosing Timeline there must actually stick.
+  DesignFamily? _detailFamily;
+
   LabShowcaseGenerator get _gen {
     final (g, t, _) = subjects[_subjectIndex];
-    return generator.withGenre(g, template: t);
+    return generator.withGenre(g, template: _detailFamily ?? t);
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -616,7 +640,111 @@ class StudioController extends ChangeNotifier {
   }
 
   /// Whether the Detail sub-step applies — only the Flags subject fills a shape.
-  bool get detailApplies => _subjectIndex == 0;
+  /// The Detail choices for the Direction on screen — empty when it has none.
+  ///
+  /// Every entry is backed by an existing engine capability:
+  ///   * **Flags** — the clip subjects [StudioDetail] already applies.
+  ///   * **Passport** — the two passport clip subjects in the genre's rotation
+  ///     ([ClipShape.passportPage], [ClipShape.passportStampOutline]).
+  ///   * **Route** and **Milestones** — the [DesignFamily]s their data genre
+  ///     declares in [LabGenre.families].
+  ///   * **World** and **Words** — nothing: World IS the word-cloud family and
+  ///     Words IS the single typographic subject, so there is no sibling to
+  ///     choose between. Both skip this step.
+  List<DetailChoice> get detailChoices => switch (_subjectIndex) {
+        0 => const [
+            DetailChoice(
+                id: 'grid', title: 'Grid', subtitle: 'Clean and modern'),
+            DetailChoice(
+                id: 'circle', title: 'Circle', subtitle: 'Circular composition'),
+            DetailChoice(
+                id: 'map', title: 'Map', subtitle: 'Flags in map layout'),
+            DetailChoice(
+                id: 'heart', title: 'Heart', subtitle: 'Flags in a heart'),
+            DetailChoice(
+                id: 'animals', title: 'Animals', subtitle: 'Native wildlife'),
+            DetailChoice(
+                id: 'plants', title: 'Plants', subtitle: 'Native flora'),
+            DetailChoice(
+                id: 'landmarks',
+                title: 'Landmarks',
+                subtitle: 'Famous places'),
+          ],
+        1 => const [
+            DetailChoice(
+                id: 'passportPage',
+                title: 'Passport page',
+                subtitle: 'Stamps on the page'),
+            DetailChoice(
+                id: 'passportStampOutline',
+                title: 'Single stamp',
+                subtitle: 'One bold stamp'),
+          ],
+        2 => const [
+            DetailChoice(
+                id: 'journeys', title: 'Route', subtitle: 'Paths you travelled'),
+            DetailChoice(
+                id: 'timeline', title: 'Timeline', subtitle: 'Trips in order'),
+          ],
+        5 => const [
+            DetailChoice(
+                id: 'badge', title: 'Badge', subtitle: 'Earned emblem'),
+            DetailChoice(
+                id: 'achievements',
+                title: 'Achievements',
+                subtitle: 'What you unlocked'),
+            DetailChoice(id: 'stats', title: 'Stats', subtitle: 'Your numbers'),
+          ],
+        _ => const [],
+      };
+
+  /// Whether the Direction on screen has a Detail step at all.
+  bool get detailApplies => detailChoices.isNotEmpty;
+
+  /// Which Detail is currently in effect, or null before one is chosen.
+  String? get currentDetailId {
+    if (_subjectIndex == 0) return _detail.name;
+    if (_subjectIndex == 1) return current.clip?.shapeId;
+    return (_detailFamily ?? current.composition.family).name;
+  }
+
+  /// Apply the Detail choice named [id]. Unknown ids are ignored rather than
+  /// guessed at — a Detail the engine cannot draw must never reach a design.
+  void applyDetailChoice(String id) {
+    if (!detailChoices.any((c) => c.id == id)) return;
+    if (_subjectIndex == 0) {
+      final d = StudioDetail.values.firstWhere((v) => v.name == id);
+      applyDetail(d);
+      return;
+    }
+    if (_subjectIndex == 1) {
+      final shape = ClipShape.fromId(id);
+      final code = _context.flagCodes.isNotEmpty
+          ? _context.flagCodes.first.toLowerCase()
+          : 'us';
+      _commit(current.copyWith(clip: Clip.shape(shape, code: code)));
+      return;
+    }
+    _applyDetailFamily(DesignFamily.fromId(id));
+  }
+
+  /// Re-cut the design onto a sibling family of the same Direction.
+  ///
+  /// Direction Detail chooses a creative subtype, so a new composition is the
+  /// point — but the Vibe, the garment and the customer's title are not the
+  /// subtype's to change, exactly as when the Direction itself changes.
+  void _applyDetailFamily(DesignFamily family) {
+    _detailFamily = family;
+    final prev = current;
+    final style = currentStyle;
+    var gen = generator.withGenre(subjects[_subjectIndex].$1, template: family);
+    if (style != null) gen = gen.withStyle(style);
+    final pool = gen.generate(_context,
+        seed: _selectionSeed(_context.flagCodes) + family.index,
+        count: _preferences.sampleCount == 0 ? 1 : 6);
+    _commit(
+        _carryWords(_carryGarment(_orderByPreference(pool).first, prev), prev));
+  }
 
   /// Direction: select the design SUBJECT directly by [index] into [subjects]
   /// (Flags / Passport / Route / World / Words / Milestones). Regenerates the
@@ -635,6 +763,8 @@ class StudioController extends ChangeNotifier {
   void selectSubject(int index) {
     if (index < 0 || index >= subjects.length || index == _subjectIndex) return;
     _subjectIndex = index;
+    // A Detail belongs to the Direction that offered it.
+    _detailFamily = null;
     if (index != 0) _detail = StudioDetail.grid;
     final prev = current;
     final style = currentStyle;

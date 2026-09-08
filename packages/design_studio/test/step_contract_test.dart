@@ -76,21 +76,42 @@ void main() {
     });
   });
 
-  group('Detail — only under Flags', () {
-    test('Flags offers it', () {
+  group('Detail — contextual, and only where there is a choice', () {
+    test('Flags offers its shapes', () {
       final c = make();
       c.selectSubject(indexOfSubject(LabGenre.flags));
       expect(c.detailApplies, isTrue);
+      expect(c.detailChoices.map((d) => d.id), contains('heart'));
     });
 
-    test('every other subject does not', () {
+    test('a subject offers only what its own genre supports', () {
+      // Each Direction's Detail comes from real engine capability, so no two
+      // Directions share a set and none borrows another's options.
+      final sets = <String, List<String>>{};
       for (var i = 0; i < StudioController.subjects.length; i++) {
-        final (genre, _, label) = StudioController.subjects[i];
-        if (genre == LabGenre.flags) continue;
+        final label = StudioController.subjects[i].$3;
         final c = make();
         c.selectSubject(i);
+        sets[label] = [for (final d in c.detailChoices) d.id];
+      }
+      expect(sets['Passport'], isNot(contains('heart')));
+      expect(sets['Milestones'], isNot(contains('grid')));
+      expect(sets['Route'], ['journeys', 'timeline']);
+
+      final offered =
+          sets.values.where((v) => v.isNotEmpty).map((v) => v.join());
+      expect(offered.toSet().length, offered.length,
+          reason: 'two Directions must not offer the same Detail set');
+    });
+
+    test('a subject with no sibling to choose between skips the step', () {
+      // World IS the word-cloud family; Words IS the one typographic subject.
+      for (final label in ['World', 'Words']) {
+        final c = make();
+        c.selectSubject(
+            StudioController.subjects.indexWhere((s) => s.$3 == label));
         expect(c.detailApplies, isFalse,
-            reason: '$label is not a shape choice for flags');
+            reason: '$label has nothing to offer here');
       }
     });
   });
@@ -193,8 +214,7 @@ void main() {
       // Away from the ribbon the front is a different design entirely, so
       // coverage has nothing to act on.
       c.setFrontArt(FrontArt.matchBack);
-      expect(c.frontFace.composition.family,
-          isNot(DesignFamily.frontRibbon));
+      expect(c.frontFace.composition.family, isNot(DesignFamily.frontRibbon));
     });
   });
 }

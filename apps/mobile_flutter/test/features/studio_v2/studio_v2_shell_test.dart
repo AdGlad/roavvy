@@ -63,7 +63,11 @@ void main() {
       // frame at all — Instant and Direction have no hero above a workspace,
       // and Travels has its own draggable one. Each is covered by its own
       // tests; this file is about the wizard shell that the rest still use.
-      if (s == StudioStage.instant || s == StudioStage.direction) continue;
+      if (s == StudioStage.instant ||
+          s == StudioStage.direction ||
+          s == StudioStage.detail) {
+        continue;
+      }
       // The stage list moved into a bottom sheet, so the chips only exist
       // while it is open. Drive navigation directly: what this test is about
       // is the hero surviving a stage change, not how the change is chosen.

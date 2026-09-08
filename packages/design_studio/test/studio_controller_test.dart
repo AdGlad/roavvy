@@ -231,7 +231,10 @@ void main() {
     a.selectSubject(5);
     expect(a.subjectIndex, 5);
     expect(a.subjectLabel, 'Milestones');
-    expect(a.detailApplies, isFalse);
+    // Milestones has its own Detail choices (its data families), but not the
+    // flag shapes — the Flags-only StudioDetail resets.
+    expect(a.detailChoices.map((d) => d.id),
+        ['badge', 'achievements', 'stats']);
     expect(a.detail, StudioDetail.grid); // reset off Flags
     expect(a.current.palette?.garmentColour, '#6B7350'); // garment preserved
 

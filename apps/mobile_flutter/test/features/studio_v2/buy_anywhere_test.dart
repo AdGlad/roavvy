@@ -81,10 +81,10 @@ void main() {
         expect(find.byKey(const Key('v2-instant-buy')), findsOneWidget);
         continue;
       }
-      // Direction is a choice, not a place to buy from: it is about to redraw
-      // the artwork, so the shirt on offer while you are there is not the one
-      // you would receive. Next is the only way on.
-      if (s == StudioStage.direction) {
+      // Direction and its Detail are choices, not places to buy from: both are
+      // about to redraw the artwork, so the shirt on offer while you are there
+      // is not the one you would receive. Next is the only way on.
+      if (s == StudioStage.direction || s == StudioStage.detail) {
         expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
         continue;
       }

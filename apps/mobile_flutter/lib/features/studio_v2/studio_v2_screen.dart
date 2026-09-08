@@ -159,10 +159,11 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
         ),
       );
     }
-    // Direction has no garment. It redraws the artwork wholesale, so a preview
-    // would spend the screen showing the design about to be replaced — the
-    // cards themselves are the preview. Same header as Travels, no sheet.
-    if (_stage == StudioStage.direction) {
+    // Direction and its Detail have no garment. Both redraw the artwork
+    // wholesale, so a preview would spend the screen showing the design about
+    // to be replaced — the cards themselves are the preview. Same header as
+    // Travels, no sheet.
+    if (_stage == StudioStage.direction || _stage == StudioStage.detail) {
       return Scaffold(
         backgroundColor: StudioV2Theme.canvas,
         body: SafeArea(
@@ -193,7 +194,12 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                           ),
                         ),
                       ),
-                      Expanded(child: DirectionWorkspace(controller: _c)),
+                      Expanded(
+                        child:
+                            _stage == StudioStage.direction
+                                ? DirectionWorkspace(controller: _c)
+                                : DetailWorkspace(controller: _c),
+                      ),
                     ],
                   ),
                 ),
@@ -541,15 +547,13 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     ),
     padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
     child: switch (_stage) {
-      // Instant is handled above — it owns the whole screen rather than
-      // sitting in this frame — but the switch must stay exhaustive.
+      // Instant, Direction and Detail are handled above — each owns its whole
+      // screen rather than sitting in this frame — but the switch must stay
+      // exhaustive.
       StudioStage.instant => const SizedBox.shrink(),
+      StudioStage.direction => const SizedBox.shrink(),
+      StudioStage.detail => const SizedBox.shrink(),
       StudioStage.travels => TravelsWorkspace(controller: _c),
-      StudioStage.direction => DirectionWorkspace(controller: _c),
-      StudioStage.detail =>
-        _c.detailApplies
-            ? DetailWorkspace(controller: _c)
-            : _detailNotApplicable(),
       StudioStage.vibe => VibeWorkspace(controller: _c),
       StudioStage.focus => FocusWorkspace(controller: _c),
       StudioStage.colour => ColourWorkspace(controller: _c),
@@ -567,22 +571,6 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
         onAddToCart: widget.onAddToCart,
       ),
     },
-  );
-
-  Widget _detailNotApplicable() => const Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        'Detail',
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-      ),
-      SizedBox(height: 6),
-      Text(
-        'Shape choices are available for Flags designs.',
-        style: TextStyle(fontSize: 13, color: Colors.white60),
-      ),
-    ],
   );
 
   /// Buy what is on the shirt right now, from any step.

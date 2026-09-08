@@ -274,8 +274,11 @@ void main() {
     });
 
     testWidgets('a direction with no detail skips the step', (tester) async {
+      // World IS the word-cloud family — there is no sibling to choose
+      // between, so the Detail step has nothing to ask. (Passport, Route and
+      // Milestones all DO have choices; see the M14 tests.)
       final state = await pumpDirection(tester);
-      await tester.tap(find.byKey(const Key('v2-direction-passport')));
+      await tester.tap(find.byKey(const Key('v2-direction-world')));
       await tester.pump();
       expect(controller.detailApplies, isFalse);
 
