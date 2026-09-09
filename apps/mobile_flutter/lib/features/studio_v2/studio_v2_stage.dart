@@ -8,11 +8,13 @@ enum StudioStage {
   direction,
   detail,
   vibe,
+  // Fine Tune follows Vibe: once the look is chosen, the dials that adjust it
+  // are the next thing wanted. M17–M19 deepen its groups from here.
+  fineTune,
   focus,
   colour,
   words,
   front,
-  fineTune,
   placement,
   review,
 }

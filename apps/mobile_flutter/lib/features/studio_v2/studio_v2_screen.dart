@@ -10,7 +10,7 @@ import 'studio_v2_theme.dart';
 import 'widgets/colour_workspace.dart';
 import 'widgets/detail_workspace.dart';
 import 'widgets/direction_workspace.dart';
-import 'widgets/fine_tune_workspace.dart';
+import 'widgets/fine_tune_panel.dart';
 import 'widgets/focus_workspace.dart';
 import 'widgets/front_workspace.dart';
 import 'widgets/garment_preview.dart';
@@ -138,6 +138,31 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
             // Customise step. Travels edits the design rather than replacing
             // it, so the shirt they chose is the shirt they keep editing.
             onCustomise: () => _goToStage(StudioStage.travels),
+          ),
+        ),
+      );
+    }
+    // Fine Tune keeps the shirt: every control here changes how the design
+    // looks, and a dial you cannot see the effect of is not a dial. It uses
+    // the shared editing frame, so the shirt can still take the screen.
+    if (_stage == StudioStage.fineTune) {
+      return Scaffold(
+        backgroundColor: StudioV2Theme.canvas,
+        body: SafeArea(
+          bottom: false,
+          child: StudioWorkspaceShell(
+            header: _customiseHeader(),
+            preview: _customisePreview(),
+            controls: Column(
+              children: [
+                _stepHeading(
+                  '5',
+                  'Fine Tune',
+                  'Adjust the details to make it your own.',
+                ),
+                Expanded(child: FineTunePanel(controller: _c)),
+              ],
+            ),
           ),
         ),
       );
@@ -472,6 +497,49 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     ),
   );
 
+  /// The numbered step heading the Customise screens share.
+  Widget _stepHeading(String number, String title, String helper) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+    child: Row(
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: StudioV2Theme.accent,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            number,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                helper,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Colors.white54),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
   /// Customise navigation: out of the step, the wordmark, and on to the next.
   /// Deliberately not the wizard app bar — no undo, no step counter, no menu.
   Widget _customiseHeader() => Padding(
@@ -564,7 +632,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       StudioStage.colour => ColourWorkspace(controller: _c),
       StudioStage.words => WordsWorkspace(controller: _c),
       StudioStage.front => FrontWorkspace(controller: _c),
-      StudioStage.fineTune => FineTuneWorkspace(controller: _c),
+      StudioStage.fineTune => const SizedBox.shrink(),
       StudioStage.placement => PlacementWorkspace(
         controller: _c,
         placement: _placement,

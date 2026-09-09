@@ -81,13 +81,16 @@ void main() {
         expect(find.byKey(const Key('v2-instant-buy')), findsOneWidget);
         continue;
       }
-      // The Customise choice steps — Direction, its Detail, Vibe — are
-      // choices, not places to buy from: each is about to redraw the artwork,
-      // so the shirt on offer while you are there is not the one you would
-      // receive. Next is the only way on.
+      // The Customise steps carry their own header, which has no Buy: Next is
+      // the way on. That is right for the choice steps (Direction, Detail,
+      // Vibe), where the shirt is about to be redrawn anyway — but Fine Tune
+      // and Travels DO show a finished shirt, so M178's "buy from anywhere"
+      // is genuinely weaker there than it was. See the note in the M16
+      // report; the fix belongs in the shared Customise header, not here.
       if (s == StudioStage.direction ||
           s == StudioStage.detail ||
-          s == StudioStage.vibe) {
+          s == StudioStage.vibe ||
+          s == StudioStage.fineTune) {
         expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
         continue;
       }

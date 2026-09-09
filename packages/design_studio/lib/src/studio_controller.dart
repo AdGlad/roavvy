@@ -40,6 +40,59 @@ enum FrontFit { full, chest, none }
 /// complement of the back, or a copy of the main (back) design.
 enum FrontArt { ribbon, complement, matchBack }
 
+/// The three Fine Tune panels. Deliberately few and stable: M17–M19 deepen
+/// what sits inside them, so a control added later needs a group, not a new
+/// screen.
+enum FineTuneGroup { layout, graphics, colour }
+
+extension FineTuneGroupLabel on FineTuneGroup {
+  String get label => switch (this) {
+        FineTuneGroup.layout => 'Layout & Composition',
+        FineTuneGroup.graphics => 'Graphics',
+        FineTuneGroup.colour => 'Colour, Effects & Print',
+      };
+}
+
+/// One tunable parameter of the CURRENT design.
+///
+/// A description, not a widget: it names the recipe field behind it, the range
+/// it moves in, and how to read and write it. The screen renders whatever list
+/// it is given, so adding a control in a later milestone means adding an entry
+/// here — never another branch in the UI.
+class FineTuneControl {
+  const FineTuneControl({
+    required this.id,
+    required this.label,
+    required this.group,
+    required this.read,
+    required this.write,
+    this.min = 0,
+    this.max = 1,
+    this.divisions,
+    this.asPercent = true,
+    this.unit = '',
+  });
+
+  final String id;
+  final String label;
+  final FineTuneGroup group;
+
+  /// Current value, read straight off the recipe.
+  final double Function(DesignRecipe r) read;
+
+  /// The recipe this control's value would produce — pure, so the caller
+  /// decides whether it lands live or as an undo step.
+  final DesignRecipe Function(DesignRecipe r, double v) write;
+
+  final double min;
+  final double max;
+  final int? divisions;
+
+  /// Shown as 0–100% rather than a raw number.
+  final bool asPercent;
+  final String unit;
+}
+
 /// The Refine ("Fine Tune") categories — the storyboard's category menu.
 enum RefineCategory {
   finish,
@@ -656,7 +709,9 @@ class StudioController extends ChangeNotifier {
             DetailChoice(
                 id: 'grid', title: 'Grid', subtitle: 'Clean and modern'),
             DetailChoice(
-                id: 'circle', title: 'Circle', subtitle: 'Circular composition'),
+                id: 'circle',
+                title: 'Circle',
+                subtitle: 'Circular composition'),
             DetailChoice(
                 id: 'map', title: 'Map', subtitle: 'Flags in map layout'),
             DetailChoice(
@@ -666,9 +721,7 @@ class StudioController extends ChangeNotifier {
             DetailChoice(
                 id: 'plants', title: 'Plants', subtitle: 'Native flora'),
             DetailChoice(
-                id: 'landmarks',
-                title: 'Landmarks',
-                subtitle: 'Famous places'),
+                id: 'landmarks', title: 'Landmarks', subtitle: 'Famous places'),
           ],
         1 => const [
             DetailChoice(
@@ -682,7 +735,9 @@ class StudioController extends ChangeNotifier {
           ],
         2 => const [
             DetailChoice(
-                id: 'journeys', title: 'Route', subtitle: 'Paths you travelled'),
+                id: 'journeys',
+                title: 'Route',
+                subtitle: 'Paths you travelled'),
             DetailChoice(
                 id: 'timeline', title: 'Timeline', subtitle: 'Trips in order'),
           ],
@@ -776,8 +831,8 @@ class StudioController extends ChangeNotifier {
     final pool = gen.generate(_context,
         seed: _selectionSeed(_context.flagCodes) + index,
         count: _preferences.sampleCount == 0 ? 1 : 6);
-    _commit(_carryWords(_carryGarment(_orderByPreference(pool).first, prev),
-        prev));
+    _commit(
+        _carryWords(_carryGarment(_orderByPreference(pool).first, prev), prev));
   }
 
   /// Carry the customer's own words onto a freshly generated recipe. Their
@@ -948,6 +1003,173 @@ class StudioController extends ChangeNotifier {
       effects: p.$2,
       palette: pal.copyWith(vintageGrade: p.$3, strategy: p.$4 ?? pal.strategy),
     ));
+  }
+
+  /// The Fine Tune controls that can actually change the design on screen.
+  ///
+  /// Contextual by derivation, not by a table of Direction/Vibe special cases:
+  /// each control declares the recipe field it edits, and it is offered only
+  /// when that field exists on THIS recipe. A design with no clip has no
+  /// Graphics controls because there is no clip to scale or rotate — showing
+  /// them greyed out would be offering something the renderer would ignore.
+  ///
+  /// M17–M19 extend this list; the screen renders whatever it is handed.
+  List<FineTuneControl> fineTuneControls() {
+    final r = current;
+    final clip = r.clip;
+    // 'none' is the absence of a clip wearing a name — Flags/Grid has one.
+    final hasClip = clip != null && clip.shapeId != 'none';
+    // Arranging needs more than one thing to arrange.
+    final arranges = r.content.flags.length > 1;
+    return [
+      if (arranges) ...[
+        FineTuneControl(
+          id: 'jitter',
+          label: 'Scatter',
+          group: FineTuneGroup.layout,
+          read: (r) => r.composition.jitter,
+          write: (r, v) =>
+              r.copyWith(composition: r.composition.copyWith(jitter: v)),
+        ),
+        FineTuneControl(
+          id: 'copies',
+          label: 'Repeats',
+          group: FineTuneGroup.layout,
+          min: 1,
+          max: 4,
+          divisions: 3,
+          asPercent: false,
+          read: (r) => r.composition.copiesPerCountry.toDouble(),
+          write: (r, v) => r.copyWith(
+              composition: r.composition.copyWith(copiesPerCountry: v.round())),
+        ),
+      ],
+      if (hasClip) ...[
+        FineTuneControl(
+          id: 'clipScale',
+          label: 'Size',
+          group: FineTuneGroup.graphics,
+          min: 0.5,
+          max: 1.5,
+          read: (r) => r.clip!.scale,
+          write: (r, v) => r.copyWith(clip: r.clip!.copyWith(scale: v)),
+        ),
+        FineTuneControl(
+          id: 'clipRotation',
+          label: 'Rotation',
+          group: FineTuneGroup.graphics,
+          min: -45,
+          max: 45,
+          asPercent: false,
+          unit: '°',
+          read: (r) => r.clip!.rotationDeg,
+          write: (r, v) => r.copyWith(clip: r.clip!.copyWith(rotationDeg: v)),
+        ),
+        FineTuneControl(
+          id: 'clipFeather',
+          label: 'Softness',
+          group: FineTuneGroup.graphics,
+          read: (r) => r.clip!.feather,
+          write: (r, v) => r.copyWith(clip: r.clip!.copyWith(feather: v)),
+        ),
+      ],
+      FineTuneControl(
+        id: 'vintageGrade',
+        label: 'Aged',
+        group: FineTuneGroup.colour,
+        read: (r) => r.palette?.vintageGrade ?? 0,
+        write: (r, v) => r.copyWith(
+            palette: (r.palette ?? const Palette()).copyWith(vintageGrade: v)),
+      ),
+      FineTuneControl(
+        id: 'distress',
+        label: 'Distressed',
+        group: FineTuneGroup.colour,
+        read: (r) => r.effects?.distress ?? 0,
+        write: (r, v) => r.copyWith(
+            effects: (r.effects ?? const Effects()).copyWith(distress: v)),
+      ),
+      FineTuneControl(
+        id: 'grain',
+        label: 'Grain',
+        group: FineTuneGroup.colour,
+        read: (r) => r.effects?.grain ?? 0,
+        write: (r, v) => r.copyWith(
+            effects: (r.effects ?? const Effects()).copyWith(grain: v)),
+      ),
+      FineTuneControl(
+        id: 'halftone',
+        label: 'Halftone',
+        group: FineTuneGroup.colour,
+        read: (r) => r.effects?.halftone ?? 0,
+        write: (r, v) => r.copyWith(
+            effects: (r.effects ?? const Effects()).copyWith(halftone: v)),
+      ),
+    ];
+  }
+
+  /// The groups that have something in them. An empty panel is not a panel.
+  List<FineTuneGroup> fineTuneGroups() {
+    final used = {for (final c in fineTuneControls()) c.group};
+    return [
+      for (final g in FineTuneGroup.values)
+        if (used.contains(g)) g
+    ];
+  }
+
+  /// The design as it was before the current continuous edit began.
+  DesignRecipe? _editBase;
+
+  /// Start a continuous edit (a slider touched). The drag itself edits live;
+  /// this remembers where to undo back to.
+  void beginEdit() => _editBase ??= current;
+
+  /// End it: everything the drag did becomes ONE undo step, rather than one
+  /// per frame.
+  void endEdit() {
+    final base = _editBase;
+    _editBase = null;
+    if (base == null || base.recipeId == current.recipeId) return;
+    _history.add(base);
+    _observe(current, PreferenceSignal.styleChosen);
+  }
+
+  /// Put the Fine Tune parameters back where the design started, leaving the
+  /// travels, Direction, Detail, Vibe, garment and title exactly as they are.
+  ///
+  /// A reset of the dials, not of the design: it re-cuts the current subject
+  /// in the current style and keeps only the tuned fields from that, so
+  /// nothing the customer chose earlier in the flow is touched.
+  void resetFineTune() {
+    final prev = current;
+    var gen = _gen;
+    final style = currentStyle;
+    if (style != null) gen = gen.withStyle(style);
+    final fresh = gen
+        .generate(_context, seed: _selectionSeed(_context.flagCodes), count: 1)
+        .first;
+    var next = prev.copyWith(
+      composition: prev.composition.copyWith(
+        jitter: fresh.composition.jitter,
+        copiesPerCountry: fresh.composition.copiesPerCountry,
+      ),
+      // A generated recipe may carry no effects at all; that IS the default,
+      // so reset must take it rather than keep what the sliders did.
+      effects: fresh.effects ?? const Effects(),
+      palette: (prev.palette ?? const Palette())
+          .copyWith(vintageGrade: fresh.palette?.vintageGrade ?? 0),
+    );
+    final clip = prev.clip;
+    if (clip != null && fresh.clip != null) {
+      next = next.copyWith(
+        clip: clip.copyWith(
+          scale: fresh.clip!.scale,
+          rotationDeg: fresh.clip!.rotationDeg,
+          feather: fresh.clip!.feather,
+        ),
+      );
+    }
+    _commit(next);
   }
 
   /// Which Refine categories apply to the current design (contextual).

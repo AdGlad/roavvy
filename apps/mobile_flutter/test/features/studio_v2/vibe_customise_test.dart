@@ -260,7 +260,7 @@ void main() {
       final state = await pumpVibe(tester);
       await tester.tap(find.byKey(const Key('v2-customise-next')));
       await tester.pump();
-      expect(state.stage, StudioStage.focus);
+      expect(state.stage, StudioStage.fineTune);
     });
 
     testWidgets('Back returns to Detail when Detail was shown', (tester) async {
