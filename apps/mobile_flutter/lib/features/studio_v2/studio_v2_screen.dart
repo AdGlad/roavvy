@@ -145,7 +145,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     // Fine Tune keeps the shirt: every control here changes how the design
     // looks, and a dial you cannot see the effect of is not a dial. It uses
     // the shared editing frame, so the shirt can still take the screen.
-    if (_stage == StudioStage.fineTune) {
+    if (_stage == StudioStage.fineTune || _stage == StudioStage.layout) {
       return Scaffold(
         backgroundColor: StudioV2Theme.canvas,
         body: SafeArea(
@@ -155,12 +155,27 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
             preview: _customisePreview(),
             controls: Column(
               children: [
-                _stepHeading(
-                  '5',
-                  'Fine Tune',
-                  'Adjust the details to make it your own.',
+                if (_stage == StudioStage.fineTune)
+                  _stepHeading(
+                    '5',
+                    'Fine Tune',
+                    'Adjust the details to make it your own.',
+                  )
+                else
+                  _stepHeading(
+                    '6',
+                    'Layout & Composition',
+                    'Arrange the elements to get the perfect look.',
+                  ),
+                Expanded(
+                  child: FineTunePanel(
+                    controller: _c,
+                    only:
+                        _stage == StudioStage.layout
+                            ? FineTuneGroup.layout
+                            : null,
+                  ),
                 ),
-                Expanded(child: FineTunePanel(controller: _c)),
               ],
             ),
           ),
@@ -633,6 +648,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       StudioStage.words => WordsWorkspace(controller: _c),
       StudioStage.front => FrontWorkspace(controller: _c),
       StudioStage.fineTune => const SizedBox.shrink(),
+      StudioStage.layout => const SizedBox.shrink(),
       StudioStage.placement => PlacementWorkspace(
         controller: _c,
         placement: _placement,

@@ -90,7 +90,8 @@ void main() {
       if (s == StudioStage.direction ||
           s == StudioStage.detail ||
           s == StudioStage.vibe ||
-          s == StudioStage.fineTune) {
+          s == StudioStage.fineTune ||
+          s == StudioStage.layout) {
         expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
         continue;
       }

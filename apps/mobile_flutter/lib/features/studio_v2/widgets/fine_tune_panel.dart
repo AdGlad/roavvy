@@ -14,18 +14,35 @@ import '../studio_v2_theme.dart';
 /// M17–M19 deepen the groups by adding entries to that list; this screen
 /// renders whatever it is handed and has no knowledge of any Direction or Vibe.
 class FineTunePanel extends StatelessWidget {
-  const FineTunePanel({super.key, required this.controller});
+  const FineTunePanel({super.key, required this.controller, this.only});
 
   final StudioController controller;
+
+  /// Show just one group, at full depth (M17–M19). Null shows every group
+  /// that applies, which is the M16 overview.
+  final FineTuneGroup? only;
 
   @override
   Widget build(BuildContext context) {
     final controls = controller.fineTuneControls();
-    final groups = controller.fineTuneGroups();
+    final choices = controller.fineTuneChoices();
+    final groups = [
+      for (final g in controller.fineTuneGroups())
+        if (only == null || g == only) g,
+    ];
     return ListView(
       key: const Key('v2-finetune-scroll'),
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
       children: [
+        if (groups.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 28),
+            child: Text(
+              'Nothing to adjust here for this design.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.white38),
+            ),
+          ),
         for (final g in groups)
           _Group(
             group: g,
@@ -33,6 +50,13 @@ class FineTunePanel extends StatelessWidget {
               for (final c in controls)
                 if (c.group == g) c,
             ],
+            choices: [
+              for (final c in choices)
+                if (c.group == g) c,
+            ],
+            // On a single-group screen the step heading already names it;
+            // repeating it inside the panel says the same thing twice.
+            showTitle: only == null,
             controller: controller,
           ),
         const SizedBox(height: 8),
@@ -59,11 +83,16 @@ class _Group extends StatelessWidget {
   const _Group({
     required this.group,
     required this.controls,
+    required this.choices,
     required this.controller,
+    this.showTitle = true,
   });
+
+  final bool showTitle;
 
   final FineTuneGroup group;
   final List<FineTuneControl> controls;
+  final List<FineTuneChoice> choices;
   final StudioController controller;
 
   static const _icons = {
@@ -85,25 +114,27 @@ class _Group extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(_icons[group], size: 20, color: StudioV2Theme.accent),
-            const SizedBox(width: 10),
-            // "Colour, Effects & Print" runs past a phone beside its icon.
-            Expanded(
-              child: Text(
-                group.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+        if (showTitle)
+          Row(
+            children: [
+              Icon(_icons[group], size: 20, color: StudioV2Theme.accent),
+              const SizedBox(width: 10),
+              // "Colour, Effects & Print" runs past a phone beside its icon.
+              Expanded(
+                child: Text(
+                  group.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         const SizedBox(height: 4),
+        for (final c in choices) _ChoiceRow(choice: c, controller: controller),
         for (final c in controls)
           _ControlRow(control: c, controller: controller),
       ],
@@ -140,12 +171,25 @@ class _ControlRow extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 86,
-            child: Text(
-              control.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: Colors.white70),
+            width: 92,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  control.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, color: Colors.white),
+                ),
+                if (control.helper.isNotEmpty)
+                  Text(
+                    control.helper,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 10, color: Colors.white38),
+                  ),
+              ],
             ),
           ),
           Expanded(
@@ -188,4 +232,86 @@ class _ControlRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A pick-one control, as a row of chips — an arrangement is a look, so it is
+/// chosen by name rather than by dragging a number.
+class _ChoiceRow extends StatelessWidget {
+  const _ChoiceRow({required this.choice, required this.controller});
+
+  final FineTuneChoice choice;
+  final StudioController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = choice.read(controller.current);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            choice.label,
+            style: const TextStyle(fontSize: 13, color: Colors.white),
+          ),
+          if (choice.helper.isNotEmpty)
+            Text(
+              choice.helper,
+              style: const TextStyle(fontSize: 10, color: Colors.white38),
+            ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              key: Key('v2-finetune-choice-${choice.id}'),
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final o in choice.options) _chip(o, o.id == current),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(FineTuneOption o, bool selected) => Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: GestureDetector(
+      key: Key('v2-finetune-${choice.id}-${o.id}'),
+      // One tap is one decision, so it is one undo step — no live phase.
+      onTap:
+          () =>
+              controller.commitFineTune(choice.write(controller.current, o.id)),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: o.label,
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color:
+                selected
+                    ? StudioV2Theme.accent.withValues(alpha: 0.16)
+                    : StudioV2Theme.control,
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(
+              color:
+                  selected ? StudioV2Theme.accent : StudioV2Theme.subtleBorder,
+              width: selected ? 1.6 : 1,
+            ),
+          ),
+          child: Text(
+            o.label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: selected ? StudioV2Theme.accent : Colors.white70,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }

@@ -11,6 +11,8 @@ enum StudioStage {
   // Fine Tune follows Vibe: once the look is chosen, the dials that adjust it
   // are the next thing wanted. M17–M19 deepen its groups from here.
   fineTune,
+  // The Fine Tune groups, each at full depth. Reached from the overview.
+  layout,
   focus,
   colour,
   words,
@@ -31,6 +33,7 @@ extension StudioStageLabel on StudioStage {
     StudioStage.words => 'Words',
     StudioStage.front => 'Front',
     StudioStage.fineTune => 'Fine Tune',
+    StudioStage.layout => 'Layout & Composition',
     StudioStage.placement => 'Placement',
     StudioStage.review => 'Review',
   };
@@ -48,6 +51,7 @@ extension StudioStageLabel on StudioStage {
     StudioStage.words => 'Add your title.',
     StudioStage.front => 'Configure the shirt front.',
     StudioStage.fineTune => 'Go deeper with precise controls.',
+    StudioStage.layout => 'Arrange the elements to get the perfect look.',
     StudioStage.placement => 'Place the print on the shirt.',
     StudioStage.review => 'Review both sides and save.',
   };

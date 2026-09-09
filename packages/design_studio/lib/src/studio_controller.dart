@@ -53,6 +53,41 @@ extension FineTuneGroupLabel on FineTuneGroup {
       };
 }
 
+/// One option of a [FineTuneChoice] — a named arrangement, shown as a chip.
+class FineTuneOption {
+  const FineTuneOption(this.id, this.label);
+  final String id;
+  final String label;
+}
+
+/// A pick-one control: the same capability contract as [FineTuneControl], but
+/// a set of named arrangements rather than a range. Added here rather than in
+/// a second system so the screen still renders whatever the controller hands
+/// it, whether that is a slider or a row of chips.
+class FineTuneChoice {
+  const FineTuneChoice({
+    required this.id,
+    required this.label,
+    required this.group,
+    required this.options,
+    required this.read,
+    required this.write,
+    this.helper = '',
+  });
+
+  final String id;
+  final String label;
+  final String helper;
+  final FineTuneGroup group;
+  final List<FineTuneOption> options;
+
+  /// The option currently in effect.
+  final String Function(DesignRecipe r) read;
+
+  /// Pure, like [FineTuneControl.write].
+  final DesignRecipe Function(DesignRecipe r, String optionId) write;
+}
+
 /// One tunable parameter of the CURRENT design.
 ///
 /// A description, not a widget: it names the recipe field behind it, the range
@@ -71,10 +106,14 @@ class FineTuneControl {
     this.divisions,
     this.asPercent = true,
     this.unit = '',
+    this.helper = '',
   });
 
   final String id;
   final String label;
+
+  /// One line saying what the control does, in the customer's terms.
+  final String helper;
   final FineTuneGroup group;
 
   /// Current value, read straight off the recipe.
@@ -1022,18 +1061,27 @@ class StudioController extends ChangeNotifier {
     // Arranging needs more than one thing to arrange.
     final arranges = r.content.flags.length > 1;
     return [
-      if (arranges) ...[
-        FineTuneControl(
-          id: 'jitter',
-          label: 'Scatter',
-          group: FineTuneGroup.layout,
-          read: (r) => r.composition.jitter,
-          write: (r, v) =>
-              r.copyWith(composition: r.composition.copyWith(jitter: v)),
-        ),
+      // Scale is honoured for every design — the renderer reads sizeClass
+      // whatever the subject is.
+      FineTuneControl(
+        id: 'scale',
+        label: 'Scale',
+        helper: 'Size of the artwork.',
+        group: FineTuneGroup.layout,
+        min: 0,
+        max: 2,
+        divisions: 2,
+        asPercent: false,
+        read: (r) => r.composition.sizeClass.index.toDouble(),
+        write: (r, v) => r.copyWith(
+            composition:
+                r.composition.copyWith(sizeClass: SizeClass.values[v.round()])),
+      ),
+      if (arranges)
         FineTuneControl(
           id: 'copies',
           label: 'Repeats',
+          helper: 'How many times each country appears.',
           group: FineTuneGroup.layout,
           min: 1,
           max: 4,
@@ -1043,10 +1091,10 @@ class StudioController extends ChangeNotifier {
           write: (r, v) => r.copyWith(
               composition: r.composition.copyWith(copiesPerCountry: v.round())),
         ),
-      ],
       if (hasClip) ...[
         FineTuneControl(
           id: 'clipScale',
+          helper: 'Size of the shape.',
           label: 'Size',
           group: FineTuneGroup.graphics,
           min: 0.5,
@@ -1056,6 +1104,7 @@ class StudioController extends ChangeNotifier {
         ),
         FineTuneControl(
           id: 'clipRotation',
+          helper: 'Tilt of the shape.',
           label: 'Rotation',
           group: FineTuneGroup.graphics,
           min: -45,
@@ -1067,6 +1116,7 @@ class StudioController extends ChangeNotifier {
         ),
         FineTuneControl(
           id: 'clipFeather',
+          helper: 'Softness of the edge.',
           label: 'Softness',
           group: FineTuneGroup.graphics,
           read: (r) => r.clip!.feather,
@@ -1075,6 +1125,7 @@ class StudioController extends ChangeNotifier {
       ],
       FineTuneControl(
         id: 'vintageGrade',
+        helper: 'How aged it looks.',
         label: 'Aged',
         group: FineTuneGroup.colour,
         read: (r) => r.palette?.vintageGrade ?? 0,
@@ -1083,6 +1134,7 @@ class StudioController extends ChangeNotifier {
       ),
       FineTuneControl(
         id: 'distress',
+        helper: 'Worn and broken up.',
         label: 'Distressed',
         group: FineTuneGroup.colour,
         read: (r) => r.effects?.distress ?? 0,
@@ -1091,6 +1143,7 @@ class StudioController extends ChangeNotifier {
       ),
       FineTuneControl(
         id: 'grain',
+        helper: 'Print texture.',
         label: 'Grain',
         group: FineTuneGroup.colour,
         read: (r) => r.effects?.grain ?? 0,
@@ -1099,6 +1152,7 @@ class StudioController extends ChangeNotifier {
       ),
       FineTuneControl(
         id: 'halftone',
+        helper: 'Dot-screen printing.',
         label: 'Halftone',
         group: FineTuneGroup.colour,
         read: (r) => r.effects?.halftone ?? 0,
@@ -1108,9 +1162,48 @@ class StudioController extends ChangeNotifier {
     ];
   }
 
+  /// Pick-one controls for the current design.
+  ///
+  /// Only [FillAlgorithm], and only where the renderer actually consults it:
+  /// the composition stage takes the chosen algorithm on the many-instance
+  /// path, while one or two flags are drawn by dedicated code that ignores it.
+  /// Offering an arrangement on a two-flag design would be a control that
+  /// changes the recipe and nothing else.
+  List<FineTuneChoice> fineTuneChoices() {
+    final r = current;
+    if (r.content.flags.length * r.composition.copiesPerCountry <= 2) {
+      return const [];
+    }
+    return [
+      FineTuneChoice(
+        id: 'fill',
+        label: 'Arrangement',
+        helper: 'How the flags are laid out.',
+        group: FineTuneGroup.layout,
+        options: const [
+          FineTuneOption('grid', 'Grid'),
+          FineTuneOption('mosaic', 'Mosaic'),
+          FineTuneOption('radial', 'Radial'),
+          FineTuneOption('voronoi', 'Organic'),
+          FineTuneOption('treemap', 'Treemap'),
+          FineTuneOption('diagonalStripe', 'Stripes'),
+          FineTuneOption('tornRegion', 'Torn'),
+          FineTuneOption('noiseBlend', 'Blend'),
+        ],
+        read: (r) => (r.composition.fillAlgorithm ?? FillAlgorithm.grid).name,
+        write: (r, id) => r.copyWith(
+            composition: r.composition
+                .copyWith(fillAlgorithm: FillAlgorithm.fromId(id))),
+      ),
+    ];
+  }
+
   /// The groups that have something in them. An empty panel is not a panel.
   List<FineTuneGroup> fineTuneGroups() {
-    final used = {for (final c in fineTuneControls()) c.group};
+    final used = {
+      for (final c in fineTuneControls()) c.group,
+      for (final c in fineTuneChoices()) c.group,
+    };
     return [
       for (final g in FineTuneGroup.values)
         if (used.contains(g)) g
@@ -1119,6 +1212,10 @@ class StudioController extends ChangeNotifier {
 
   /// The design as it was before the current continuous edit began.
   DesignRecipe? _editBase;
+
+  /// A Fine Tune change made in one go — a chip tap rather than a drag. One
+  /// decision, one undo step.
+  void commitFineTune(DesignRecipe next) => _commit(next);
 
   /// Start a continuous edit (a slider touched). The drag itself edits live;
   /// this remembers where to undo back to.
@@ -1150,8 +1247,9 @@ class StudioController extends ChangeNotifier {
         .first;
     var next = prev.copyWith(
       composition: prev.composition.copyWith(
-        jitter: fresh.composition.jitter,
+        sizeClass: fresh.composition.sizeClass,
         copiesPerCountry: fresh.composition.copiesPerCountry,
+        fillAlgorithm: fresh.composition.fillAlgorithm,
       ),
       // A generated recipe may carry no effects at all; that IS the default,
       // so reset must take it rather than keep what the sliders did.

@@ -104,14 +104,19 @@ void main() {
       );
     });
 
-    test('a one-country design has nothing to arrange', () {
+    test('a one-country design keeps Scale but loses Repeats', () {
+      // Scale is read by the renderer for any subject; repeating a country
+      // needs more than one country to repeat.
       final c = buildStudioV2Controller();
       addTearDown(c.dispose);
       c.setSelectedCountries([c.availableCountryCodes.first]);
+      final ids = c.fineTuneControls().map((x) => x.id);
+      expect(ids, contains('scale'));
+      expect(ids, isNot(contains('copies')));
       expect(
-        c.fineTuneGroups(),
-        isNot(contains(FineTuneGroup.layout)),
-        reason: 'scatter and repeats need more than one thing',
+        c.fineTuneChoices(),
+        isEmpty,
+        reason: 'one flag never reaches the fill algorithm',
       );
     });
 
@@ -296,6 +301,14 @@ void main() {
       await tester.scrollUntilVisible(
         find.byKey(const Key('v2-finetune-reset')),
         200,
+        // The arrangement chips scroll too, so name the panel's own list.
+        scrollable:
+            find
+                .descendant(
+                  of: find.byKey(const Key('v2-finetune-scroll')),
+                  matching: find.byType(Scrollable),
+                )
+                .first,
       );
       await tester.tap(find.byKey(const Key('v2-finetune-reset')));
       await tester.pump();
