@@ -81,10 +81,13 @@ void main() {
         expect(find.byKey(const Key('v2-instant-buy')), findsOneWidget);
         continue;
       }
-      // Direction and its Detail are choices, not places to buy from: both are
-      // about to redraw the artwork, so the shirt on offer while you are there
-      // is not the one you would receive. Next is the only way on.
-      if (s == StudioStage.direction || s == StudioStage.detail) {
+      // The Customise choice steps — Direction, its Detail, Vibe — are
+      // choices, not places to buy from: each is about to redraw the artwork,
+      // so the shirt on offer while you are there is not the one you would
+      // receive. Next is the only way on.
+      if (s == StudioStage.direction ||
+          s == StudioStage.detail ||
+          s == StudioStage.vibe) {
         expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
         continue;
       }
@@ -98,7 +101,7 @@ void main() {
 
   testWidgets('Buy from a mid-flow step reaches the cart', (tester) async {
     final state = await pump(tester);
-    state.goToStage(StudioStage.vibe);
+    state.goToStage(StudioStage.colour);
     await tester.pump();
     await tester.tap(find.byKey(const Key('v2-buy-now')));
     await tester.pump(const Duration(milliseconds: 300));
@@ -146,7 +149,7 @@ void main() {
   ) async {
     final state = await pump(tester, withCart: false);
     // From a wizard step, so this exercises the footer action.
-    state.goToStage(StudioStage.vibe);
+    state.goToStage(StudioStage.colour);
     await tester.pump();
     await tester.tap(find.byKey(const Key('v2-buy-now')));
     await tester.pump();

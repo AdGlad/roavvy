@@ -285,7 +285,9 @@ void main() {
 
       // Like buying, your wardrobe is not something to walk to the end of the
       // flow for — it opens from wherever you are.
-      for (final stage in [StudioStage.vibe, StudioStage.review]) {
+      // The Customise choice steps (Direction, Detail, Vibe) carry their own
+      // minimal header; the wardrobe button lives on the wizard app bar.
+      for (final stage in [StudioStage.colour, StudioStage.review]) {
         key.currentState!.goToStage(stage);
         await tester.pump();
         await tester.tap(find.byKey(const Key('v2-saved-designs')));

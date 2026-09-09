@@ -163,7 +163,9 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     // wholesale, so a preview would spend the screen showing the design about
     // to be replaced — the cards themselves are the preview. Same header as
     // Travels, no sheet.
-    if (_stage == StudioStage.direction || _stage == StudioStage.detail) {
+    if (_stage == StudioStage.direction ||
+        _stage == StudioStage.detail ||
+        _stage == StudioStage.vibe) {
       return Scaffold(
         backgroundColor: StudioV2Theme.canvas,
         body: SafeArea(
@@ -195,10 +197,13 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                         ),
                       ),
                       Expanded(
-                        child:
-                            _stage == StudioStage.direction
-                                ? DirectionWorkspace(controller: _c)
-                                : DetailWorkspace(controller: _c),
+                        child: switch (_stage) {
+                          StudioStage.direction => DirectionWorkspace(
+                            controller: _c,
+                          ),
+                          StudioStage.detail => DetailWorkspace(controller: _c),
+                          _ => VibeWorkspace(controller: _c),
+                        },
                       ),
                     ],
                   ),
@@ -547,14 +552,14 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     ),
     padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
     child: switch (_stage) {
-      // Instant, Direction and Detail are handled above — each owns its whole
-      // screen rather than sitting in this frame — but the switch must stay
-      // exhaustive.
+      // Instant and the Customise choice steps are handled above — each owns
+      // its whole screen rather than sitting in this frame — but the switch
+      // must stay exhaustive.
       StudioStage.instant => const SizedBox.shrink(),
       StudioStage.direction => const SizedBox.shrink(),
       StudioStage.detail => const SizedBox.shrink(),
       StudioStage.travels => TravelsWorkspace(controller: _c),
-      StudioStage.vibe => VibeWorkspace(controller: _c),
+      StudioStage.vibe => const SizedBox.shrink(),
       StudioStage.focus => FocusWorkspace(controller: _c),
       StudioStage.colour => ColourWorkspace(controller: _c),
       StudioStage.words => WordsWorkspace(controller: _c),

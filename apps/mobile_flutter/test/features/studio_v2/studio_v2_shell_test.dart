@@ -65,7 +65,8 @@ void main() {
       // tests; this file is about the wizard shell that the rest still use.
       if (s == StudioStage.instant ||
           s == StudioStage.direction ||
-          s == StudioStage.detail) {
+          s == StudioStage.detail ||
+          s == StudioStage.vibe) {
         continue;
       }
       // The stage list moved into a bottom sheet, so the chips only exist
@@ -154,12 +155,12 @@ void main() {
     // country-lookup engine and real map data — a different subsystem from
     // the one under test here, which is that stepping forward leaves the
     // recipe alone.
-    state.goToStage(StudioStage.vibe);
+    state.goToStage(StudioStage.colour);
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('v2-next')));
     await tester.pump();
-    expect(state.stage, StudioStage.focus);
+    expect(state.stage, StudioStage.words);
     expect(controller.current.recipeId, id0); // stage change ≠ recipe change
   });
 
@@ -169,9 +170,11 @@ void main() {
     final r0 = controller.current.recipeId;
 
     // Navigate forward (workflow history grows; recipe untouched).
-    state.goToStage(StudioStage.vibe);
+    // Colour rather than Vibe: Vibe owns its whole screen now and has no
+    // workflow footer to press.
+    state.goToStage(StudioStage.colour);
     await tester.pump();
-    expect(state.stage, StudioStage.vibe);
+    expect(state.stage, StudioStage.colour);
     expect(controller.current.recipeId, r0);
 
     // A committed recipe change (via the shared controller) grows recipe undo.
