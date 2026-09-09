@@ -25,7 +25,10 @@ class FineTunePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controls = controller.fineTuneControls();
-    final choices = controller.fineTuneChoices();
+    final choices = [
+      ...controller.fineTuneChoices(),
+      ...controller.graphicChoices(),
+    ];
     final groups = [
       for (final g in controller.fineTuneGroups())
         if (only == null || g == only) g,

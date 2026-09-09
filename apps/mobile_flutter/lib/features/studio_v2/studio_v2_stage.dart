@@ -13,6 +13,7 @@ enum StudioStage {
   fineTune,
   // The Fine Tune groups, each at full depth. Reached from the overview.
   layout,
+  graphics,
   focus,
   colour,
   words,
@@ -34,6 +35,7 @@ extension StudioStageLabel on StudioStage {
     StudioStage.front => 'Front',
     StudioStage.fineTune => 'Fine Tune',
     StudioStage.layout => 'Layout & Composition',
+    StudioStage.graphics => 'Graphics',
     StudioStage.placement => 'Placement',
     StudioStage.review => 'Review',
   };
@@ -52,6 +54,7 @@ extension StudioStageLabel on StudioStage {
     StudioStage.front => 'Configure the shirt front.',
     StudioStage.fineTune => 'Go deeper with precise controls.',
     StudioStage.layout => 'Arrange the elements to get the perfect look.',
+    StudioStage.graphics => 'Adjust the graphic style and appearance.',
     StudioStage.placement => 'Place the print on the shirt.',
     StudioStage.review => 'Review both sides and save.',
   };

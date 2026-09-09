@@ -91,7 +91,8 @@ void main() {
           s == StudioStage.detail ||
           s == StudioStage.vibe ||
           s == StudioStage.fineTune ||
-          s == StudioStage.layout) {
+          s == StudioStage.layout ||
+          s == StudioStage.graphics) {
         expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
         continue;
       }

@@ -1091,6 +1091,49 @@ class StudioController extends ChangeNotifier {
           write: (r, v) => r.copyWith(
               composition: r.composition.copyWith(copiesPerCountry: v.round())),
         ),
+      // Corner rounding, but only for a shape that HONOURS it. The shape
+      // catalogue records this per shape, so applicability comes from the
+      // engine's own metadata rather than a list of names kept in the UI.
+      if (hasClip && (clipShapeMetaById(clip.shapeId)?.cornerRadius ?? false))
+        FineTuneControl(
+          id: 'clipCorner',
+          helper: 'Roundness of the corners.',
+          label: 'Corners',
+          group: FineTuneGroup.graphics,
+          read: (r) => r.clip!.cornerRadius,
+          write: (r, v) => r.copyWith(clip: r.clip!.copyWith(cornerRadius: v)),
+        ),
+      // The damage sliders only mean something once an edge style is chosen:
+      // with Clean there is nothing to fray or wear.
+      if ((r.edgeTreatment?.edgeDamage ?? 0) > 0) ...[
+        FineTuneControl(
+          id: 'edgeDamage',
+          helper: 'How torn the edge is.',
+          label: 'Damage',
+          group: FineTuneGroup.graphics,
+          read: (r) => r.edgeTreatment!.edgeDamage,
+          write: (r, v) => r.copyWith(
+              edgeTreatment: r.edgeTreatment!.copyWith(edgeDamage: v)),
+        ),
+        FineTuneControl(
+          id: 'edgeFray',
+          helper: 'Loose threads along the tear.',
+          label: 'Fray',
+          group: FineTuneGroup.graphics,
+          read: (r) => r.edgeTreatment!.frayAmount,
+          write: (r, v) => r.copyWith(
+              edgeTreatment: r.edgeTreatment!.copyWith(frayAmount: v)),
+        ),
+        FineTuneControl(
+          id: 'edgeCorners',
+          helper: 'Damage at the corners.',
+          label: 'Corner wear',
+          group: FineTuneGroup.graphics,
+          read: (r) => r.edgeTreatment!.cornerDamage,
+          write: (r, v) => r.copyWith(
+              edgeTreatment: r.edgeTreatment!.copyWith(cornerDamage: v)),
+        ),
+      ],
       if (hasClip) ...[
         FineTuneControl(
           id: 'clipScale',
@@ -1198,11 +1241,85 @@ class StudioController extends ChangeNotifier {
     ];
   }
 
+  /// Graphic-level pick-one controls: how the artwork's own edge is cut, and
+  /// which silhouette it is cut to.
+  ///
+  /// Separate from [fineTuneChoices] only in the group they belong to — the
+  /// screen unions both and filters by group, so a later milestone adds to
+  /// whichever list fits.
+  List<FineTuneChoice> graphicChoices() {
+    final r = current;
+    final clip = r.clip;
+    final hasClip = clip != null && clip.shapeId != 'none';
+    return [
+      FineTuneChoice(
+        id: 'edge',
+        label: 'Edge style',
+        helper: "How the artwork's edge is cut.",
+        group: FineTuneGroup.graphics,
+        options: const [
+          FineTuneOption('none', 'Clean'),
+          FineTuneOption('lightlyWorn', 'Worn'),
+          FineTuneOption('ragged', 'Ragged'),
+          FineTuneOption('tornCorners', 'Torn'),
+          FineTuneOption('frayed', 'Frayed'),
+          FineTuneOption('deepRips', 'Ripped'),
+          FineTuneOption('battleWorn', 'Battered'),
+          FineTuneOption('asymmetricTear', 'Uneven'),
+          FineTuneOption('heavyEdgeDamage', 'Heavy'),
+        ],
+        read: (r) {
+          final e = r.edgeTreatment;
+          if (e == null || e.edgeDamage == 0) return 'none';
+          return e.style.name;
+        },
+        // 'Clean' is a treatment with nothing to tear, not a null one:
+        // DesignRecipe.copyWith reads `edgeTreatment ?? this.edgeTreatment`,
+        // so passing null KEEPS the current edge — an option that looked like
+        // it turned tearing off and quietly did nothing.
+        write: (r, id) => id == 'none'
+            ? r.copyWith(
+                edgeTreatment: const EdgeTreatment(
+                  edgeDamage: 0,
+                  frayAmount: 0,
+                  cornerDamage: 0,
+                  maxDepth: 0,
+                ),
+              )
+            // Choosing a torn style brings damage with it. Copying the
+            // current treatment would carry Clean's zeroes forward, so
+            // picking "Ripped" after "Clean" would rip nothing.
+            : r.copyWith(
+                edgeTreatment: ((r.edgeTreatment?.edgeDamage ?? 0) > 0
+                        ? r.edgeTreatment!
+                        : const EdgeTreatment())
+                    .copyWith(style: TearStyle.fromId(id))),
+      ),
+      // Which animal, plant or landmark — only when the clip IS one, and only
+      // from the silhouettes bundled for the chosen countries.
+      if (hasClip && silhouetteShapeIds.contains(clip.shapeId))
+        FineTuneChoice(
+          id: 'silhouette',
+          label: 'Silhouette',
+          helper: 'Which shape the flags fill.',
+          group: FineTuneGroup.graphics,
+          options: [
+            for (final (kind, slug) in silhouetteOptions())
+              if (kind.name == clip.shapeId)
+                FineTuneOption(slug, silhouetteLabel(kind, slug)),
+          ],
+          read: (r) => r.clip?.code ?? '',
+          write: (r, id) => r.copyWith(clip: r.clip!.copyWith(code: id)),
+        ),
+    ];
+  }
+
   /// The groups that have something in them. An empty panel is not a panel.
   List<FineTuneGroup> fineTuneGroups() {
     final used = {
       for (final c in fineTuneControls()) c.group,
       for (final c in fineTuneChoices()) c.group,
+      for (final c in graphicChoices()) c.group,
     };
     return [
       for (final g in FineTuneGroup.values)

@@ -2,6 +2,7 @@
 import 'dart:typed_data';
 
 import 'package:country_lookup/country_lookup.dart';
+import 'package:design_forge/design_forge.dart' show SizeClass;
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart' hide Orientation;
 import 'package:flutter/services.dart' show rootBundle;
@@ -71,25 +72,23 @@ void main() {
   }
 
   group('the controls come from the design, not from a table', () {
-    test('a clipped design gets Graphics; an unclipped one does not', () {
-      final c = buildStudioV2Controller();
-      addTearDown(c.dispose);
+    test(
+      'a clipped design gets the shape controls; an unclipped one does not',
+      () {
+        final c = buildStudioV2Controller();
+        addTearDown(c.dispose);
 
-      c.applyDetailChoice('grid'); // Grid is the ABSENCE of a clip
-      expect(
-        c.fineTuneGroups(),
-        isNot(contains(FineTuneGroup.graphics)),
-        reason: 'there is no clip to size or rotate',
-      );
-      expect(
-        c.fineTuneControls().map((x) => x.id),
-        isNot(contains('clipScale')),
-      );
+        c.applyDetailChoice('grid'); // Grid is the ABSENCE of a clip
+        expect(
+          c.fineTuneControls().map((x) => x.id),
+          isNot(contains('clipScale')),
+          reason: 'there is no clip to size or rotate',
+        );
 
-      c.applyDetailChoice('heart');
-      expect(c.fineTuneGroups(), contains(FineTuneGroup.graphics));
-      expect(c.fineTuneControls().map((x) => x.id), contains('clipScale'));
-    });
+        c.applyDetailChoice('heart');
+        expect(c.fineTuneControls().map((x) => x.id), contains('clipScale'));
+      },
+    );
 
     test('two different designs offer different controls', () {
       final a = buildStudioV2Controller();
@@ -160,16 +159,17 @@ void main() {
       expect(find.text('Fine Tune'), findsOneWidget);
     });
 
-    testWidgets('only the groups with something in them are shown', (
-      tester,
-    ) async {
+    testWidgets('a group only carries the controls that apply', (tester) async {
+      // Every group has something for a flag design, so none is empty — but
+      // Grid has no clip, so the shape sliders must not be in Graphics.
       controller.applyDetailChoice('grid');
       await pumpFineTune(tester);
       expect(
         find.byKey(const Key('v2-finetune-group-graphics')),
-        findsNothing,
-        reason: 'an empty panel is not a panel',
+        findsOneWidget,
+        reason: 'the edge is cuttable with or without a clip',
       );
+      expect(find.byKey(const Key('v2-finetune-clipScale')), findsNothing);
       expect(find.byKey(const Key('v2-finetune-group-colour')), findsOneWidget);
     });
 
@@ -205,10 +205,14 @@ void main() {
       tester,
     ) async {
       await pumpFineTune(tester);
+      // Scale is the first control in the first group, so it is on screen
+      // without scrolling. Start small so a drag right genuinely moves it.
+      controller.setSize(SizeClass.small);
+      await tester.pump();
       final before = controller.current.recipeId;
       await tester.drag(
-        find.byKey(const Key('v2-finetune-grain')),
-        const Offset(60, 0),
+        find.byKey(const Key('v2-finetune-scale')),
+        const Offset(120, 0),
       );
       await tester.pump();
       expect(controller.current.recipeId, isNot(before));
@@ -223,8 +227,10 @@ void main() {
       tester,
     ) async {
       await pumpFineTune(tester);
+      controller.setSize(SizeClass.small);
+      await tester.pump();
       final history = controller.history.length;
-      final slider = find.byKey(const Key('v2-finetune-grain'));
+      final slider = find.byKey(const Key('v2-finetune-scale'));
 
       // A real gesture: many frames of movement, then a release.
       final g = await tester.startGesture(tester.getCenter(slider));
@@ -298,10 +304,10 @@ void main() {
 
     testWidgets('the button is on the screen and works', (tester) async {
       await pumpFineTune(tester);
+      // The arrangement chips scroll too, so name the panel's own list.
       await tester.scrollUntilVisible(
         find.byKey(const Key('v2-finetune-reset')),
         200,
-        // The arrangement chips scroll too, so name the panel's own list.
         scrollable:
             find
                 .descendant(
