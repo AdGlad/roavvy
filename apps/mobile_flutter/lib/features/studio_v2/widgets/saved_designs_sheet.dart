@@ -13,9 +13,13 @@ import 'shirt_preview.dart';
 /// tap one to carry on with it, or order it again without designing anything.
 ///
 /// Each entry stores the whole two-face [GarmentDesign] — both printed sides
-/// and the garment colour — so reopening restores the same `garmentId`, not a
-/// lookalike regenerated from a seed.
-class SavedDesignsSheet extends StatelessWidget {
+/// and the garment colour — plus the [StudioSession] behind it, so reopening
+/// restores the same `garmentId` AND the state it was made in, not a lookalike
+/// regenerated from a seed.
+///
+/// A wardrobe is browsed by eye, so this is a gallery of shirts rather than a
+/// list of records: the thumbnail is the row, and everything else is a caption.
+class SavedDesignsSheet extends StatefulWidget {
   const SavedDesignsSheet({
     super.key,
     required this.controller,
@@ -33,8 +37,15 @@ class SavedDesignsSheet extends StatelessWidget {
 
   static const _emptyKey = Key('v2-saved-empty');
 
-  List<SavedDesign> get _saved =>
-      controller.library?.library.garments ?? const [];
+  @override
+  State<SavedDesignsSheet> createState() => _SavedDesignsSheetState();
+}
+
+class _SavedDesignsSheetState extends State<SavedDesignsSheet> {
+  StudioController get _c => widget.controller;
+  PersistentDesignLibrary? get _lib => _c.library;
+
+  List<SavedDesign> get _saved => _lib?.library.garments ?? const [];
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +77,7 @@ class SavedDesignsSheet extends StatelessWidget {
             const SizedBox(height: 14),
             if (saved.isEmpty)
               const Padding(
-                key: _emptyKey,
+                key: SavedDesignsSheet._emptyKey,
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Icon(
@@ -78,12 +89,19 @@ class SavedDesignsSheet extends StatelessWidget {
               )
             else
               Flexible(
-                child: ListView.separated(
+                child: GridView.builder(
                   key: const Key('v2-saved-list'),
                   shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.66,
+                      ),
                   itemCount: saved.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) => _row(context, saved[i]),
+                  itemBuilder: (context, i) => _card(context, saved[i]),
                 ),
               ),
           ],
@@ -92,79 +110,243 @@ class SavedDesignsSheet extends StatelessWidget {
     );
   }
 
-  Widget _row(BuildContext context, SavedDesign entry) {
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  void _open(GarmentDesign g, SavedDesign entry) {
+    // openSaved restores BOTH faces and the session behind them, and refuses
+    // rather than half-restoring — so a record it cannot read leaves the
+    // Studio exactly as it was instead of stranding the customer in a design
+    // that is partly someone else's.
+    if (!_c.openSaved(entry)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("That design couldn't be reopened")),
+      );
+      return;
+    }
+    Navigator.of(context).pop();
+    widget.onOpen(g);
+  }
+
+  /// The heart, through the same library like the rest of the app uses — the
+  /// single-face like keyed by the back recipe, exactly what Review's Favourite
+  /// and Instant's ♥ write. Un-hearting a design does NOT remove it from the
+  /// wardrobe: the two are separate records on purpose, so losing interest in a
+  /// design is not the same as throwing it away.
+  Future<void> _toggleFavourite(SavedDesign entry) async {
+    final lib = _lib;
+    if (lib == null) return;
+    await lib.toggleLike(entry.garment!.back ?? entry.garment!.front!);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _duplicate(SavedDesign entry) async {
+    final lib = _lib;
+    if (lib == null) return;
+    // A copy is the same design under a new name, never a re-roll: both
+    // recipes cross untouched and only the identity changes.
+    final id = await lib.duplicate(entry.id);
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(id == null ? "Couldn't copy that design" : 'Copied'),
+      ),
+    );
+  }
+
+  Future<void> _delete(SavedDesign entry) async {
+    final lib = _lib;
+    if (lib == null) return;
+    final name = _c.instantName(entry.garment!.back ?? entry.garment!.front!);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1C21),
+            title: const Text('Delete this design?'),
+            content: Text(
+              '"$name" will be removed from your designs. Your travels and '
+              'your other designs are not affected.',
+            ),
+            actions: [
+              TextButton(
+                key: const Key('v2-saved-delete-cancel'),
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Keep'),
+              ),
+              TextButton(
+                key: const Key('v2-saved-delete-confirm'),
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                style: TextButton.styleFrom(
+                  foregroundColor: StudioV2Theme.accent,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+    if (ok != true) return;
+    await lib.remove(entry.id);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _reorder(SavedDesign entry) async {
+    // Re-ordering is not re-designing: reopen the saved garment and hand over
+    // the same request the Studio would have built for it.
+    if (!_c.openSaved(entry)) return;
+    final cb = widget.onAddToCart!;
+    Navigator.of(context).pop();
+    await cb(context, buildGarmentCartRequest(_c));
+  }
+
+  // ── One shirt ──────────────────────────────────────────────────────────────
+
+  Widget _card(BuildContext context, SavedDesign entry) {
     final g = entry.garment!;
     final back = g.back ?? g.front!;
-    final id = g.garmentId;
+    final id = entry.id;
+    final favourite = _lib?.library.isLiked(back.recipeId) ?? false;
     return InkWell(
       key: Key('v2-saved-open-$id'),
-      onTap: () {
-        controller.loadGarment(g);
-        Navigator.of(context).pop();
-        onOpen(g);
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Row(
+      onTap: () => _open(g, entry),
+      borderRadius: BorderRadius.circular(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 56,
-            height: 68,
-            // The design as the shirt it is, not a swatch — this is a wardrobe.
-            child: ShirtPreview(
-              key: Key('v2-saved-thumb-$id'),
-              service: controller.service,
-              recipe: back,
-              front: false,
-              longSide: 256,
-              placeholder: const SizedBox.shrink(),
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            child: Stack(
               children: [
-                Text(
-                  controller.instantName(back),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: StudioV2Theme.subtleBorder),
+                    ),
+                    // The design as the shirt it is, not a swatch — this is a
+                    // wardrobe. Rendered small and served from the same cache
+                    // the Studio already filled, so opening the gallery never
+                    // costs a production render.
+                    child: ShirtPreview(
+                      key: Key('v2-saved-thumb-$id'),
+                      service: _c.service,
+                      recipe: back,
+                      front: false,
+                      longSide: 256,
+                      // A quiet ghost rather than a spinner: a grid of
+                      // thumbnails that each spin while they decode is a
+                      // busier screen than the shirts it is meant to show.
+                      placeholder: const Center(
+                        child: Icon(
+                          Icons.checkroom_rounded,
+                          size: 26,
+                          color: Colors.white12,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  _describe(entry, g),
-                  style: const TextStyle(fontSize: 11, color: Colors.white38),
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: _iconButton(
+                    key: Key('v2-saved-favourite-$id'),
+                    tooltip: favourite ? 'Remove from favourites' : 'Favourite',
+                    icon:
+                        favourite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                    colour: favourite ? StudioV2Theme.accent : Colors.white54,
+                    onPressed: () => _toggleFavourite(entry),
+                  ),
+                ),
+                Positioned(
+                  bottom: 2,
+                  right: 2,
+                  child: _menu(entry),
                 ),
               ],
             ),
           ),
-          if (onAddToCart != null)
-            IconButton(
-              key: Key('v2-saved-reorder-$id'),
-              tooltip: 'Order this again',
-              icon: const Icon(Icons.shopping_bag_outlined, size: 20),
-              color: StudioV2Theme.accent,
-              // Re-ordering is not re-designing: load the saved garment and
-              // hand over the same request the Studio would have built for it.
-              onPressed: () async {
-                controller.loadGarment(g);
-                final cb = onAddToCart!;
-                Navigator.of(context).pop();
-                await cb(context, buildGarmentCartRequest(controller));
-              },
-            ),
+          const SizedBox(height: 8),
+          Text(
+            _c.instantName(back),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _describe(entry, g),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11, color: Colors.white38),
+          ),
         ],
       ),
     );
   }
 
+  Widget _menu(SavedDesign entry) => PopupMenuButton<String>(
+    key: Key('v2-saved-menu-${entry.id}'),
+    tooltip: 'More',
+    padding: EdgeInsets.zero,
+    color: const Color(0xFF23262C),
+    icon: const Icon(Icons.more_horiz_rounded, size: 18, color: Colors.white54),
+    onSelected: (value) => switch (value) {
+      'reorder' => _reorder(entry),
+      'duplicate' => _duplicate(entry),
+      _ => _delete(entry),
+    },
+    itemBuilder:
+        (_) => [
+          if (widget.onAddToCart != null)
+            PopupMenuItem(
+              key: Key('v2-saved-reorder-${entry.id}'),
+              value: 'reorder',
+              child: const _MenuRow(
+                icon: Icons.shopping_bag_outlined,
+                label: 'Order this again',
+              ),
+            ),
+          PopupMenuItem(
+            key: Key('v2-saved-duplicate-${entry.id}'),
+            value: 'duplicate',
+            child: const _MenuRow(
+              icon: Icons.copy_all_outlined,
+              label: 'Duplicate',
+            ),
+          ),
+          PopupMenuItem(
+            key: Key('v2-saved-delete-${entry.id}'),
+            value: 'delete',
+            child: const _MenuRow(
+              icon: Icons.delete_outline_rounded,
+              label: 'Delete',
+            ),
+          ),
+        ],
+  );
+
+  Widget _iconButton({
+    required Key key,
+    required String tooltip,
+    required IconData icon,
+    required Color colour,
+    required VoidCallback onPressed,
+  }) => IconButton(
+    key: key,
+    tooltip: tooltip,
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+    icon: Icon(icon, size: 18),
+    color: colour,
+    onPressed: onPressed,
+  );
+
   String _describe(SavedDesign entry, GarmentDesign g) {
     final colour = _colourName(g.garmentColour);
-    final when = DateTime.fromMillisecondsSinceEpoch(entry.savedAtEpochMs);
+    final when = DateTime.fromMillisecondsSinceEpoch(entry.sortedAtEpochMs);
     final date = '${when.day} ${_months[when.month - 1]} ${when.year}';
     return entry.usedForTshirt
         ? '$colour · ordered · $date'
@@ -192,4 +374,21 @@ class SavedDesignsSheet extends StatelessWidget {
     'Nov',
     'Dec',
   ];
+}
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 17, color: Colors.white70),
+      const SizedBox(width: 10),
+      Text(label, style: const TextStyle(fontSize: 13)),
+    ],
+  );
 }

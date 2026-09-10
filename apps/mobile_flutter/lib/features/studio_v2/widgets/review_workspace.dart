@@ -57,12 +57,23 @@ class _ReviewWorkspaceState extends State<ReviewWorkspace> {
   bool _busy = false;
   bool _saved = false;
 
-  void _save() {
-    _c.saveGarment();
+  /// Save, and say honestly whether it stuck.
+  ///
+  /// The design is in the wardrobe in memory the moment this returns — a failed
+  /// write costs the customer nothing of what is on screen, only the promise
+  /// that it will still be there tomorrow. So a failure offers Retry rather
+  /// than tearing anything down.
+  Future<void> _save() async {
+    final written = await _c.saveGarment();
     if (!mounted) return;
     setState(() => _saved = true);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Design saved to your library')),
+      written
+          ? const SnackBar(content: Text('Design saved to your library'))
+          : SnackBar(
+            content: const Text("Saved here, but couldn't be stored"),
+            action: SnackBarAction(label: 'Retry', onPressed: _save),
+          ),
     );
   }
 

@@ -28,9 +28,12 @@ class SavedDesign {
     this.usedForTshirt = false,
     this.rejected = false,
     required this.savedAtEpochMs,
+    this.updatedAtEpochMs,
     this.usedAtEpochMs,
     this.note,
     this.reason,
+    this.session,
+    this.version = DesignLibrary.schemaVersion,
   });
 
   final DesignRecipe recipe;
@@ -56,8 +59,35 @@ class SavedDesign {
   final String? reason;
 
   final int savedAtEpochMs;
+
+  /// When the entry was last re-saved. Null until it has been saved a second
+  /// time; [sortedAtEpochMs] falls back to [savedAtEpochMs].
+  final int? updatedAtEpochMs;
+
   final int? usedAtEpochMs;
   final String? note;
+
+  /// The editor session that produced this design, as an OPAQUE map.
+  ///
+  /// A [DesignRecipe] reproduces the *picture* exactly, but not the state the
+  /// editor was in when the customer made it — which Direction and Detail they
+  /// were on, which countries and years they had chosen, how the front was
+  /// configured. Reopening without it restores the right artwork into the wrong
+  /// session, and the first edit that regenerates throws the saved design away.
+  ///
+  /// Kept opaque on purpose: the shape belongs to whichever editor wrote it
+  /// (see `StudioSession` in `design_studio`), so the library persists it
+  /// faithfully without needing to understand it, and an entry written by a
+  /// newer editor still round-trips through an older one.
+  final Map<String, Object?>? session;
+
+  /// The [DesignLibrary.schemaVersion] this entry was written at. Entries from
+  /// older versions load with the defaults for whatever they lack; entries from
+  /// a NEWER version keep their own number so nothing downgrades them silently.
+  final int version;
+
+  /// The time this entry should be ordered by: last save, else first save.
+  int get sortedAtEpochMs => updatedAtEpochMs ?? savedAtEpochMs;
 
   /// Content-hash id (stable across sessions and re-renders). A two-face garment
   /// is keyed by its composite [GarmentDesign.garmentId] (covers both faces +
@@ -69,9 +99,11 @@ class SavedDesign {
     bool? liked,
     bool? usedForTshirt,
     bool? rejected,
+    int? updatedAtEpochMs,
     int? usedAtEpochMs,
     String? note,
     String? reason,
+    Map<String, Object?>? session,
   }) =>
       SavedDesign(
         recipe: recipe,
@@ -80,9 +112,12 @@ class SavedDesign {
         usedForTshirt: usedForTshirt ?? this.usedForTshirt,
         rejected: rejected ?? this.rejected,
         savedAtEpochMs: savedAtEpochMs,
+        updatedAtEpochMs: updatedAtEpochMs ?? this.updatedAtEpochMs,
         usedAtEpochMs: usedAtEpochMs ?? this.usedAtEpochMs,
         note: note ?? this.note,
         reason: reason ?? this.reason,
+        session: session ?? this.session,
+        version: version,
       );
 
   Map<String, Object?> toJson() => {
@@ -92,9 +127,12 @@ class SavedDesign {
         if (usedForTshirt) 'usedForTshirt': true,
         if (rejected) 'rejected': true,
         'savedAt': savedAtEpochMs,
+        if (updatedAtEpochMs != null) 'updatedAt': updatedAtEpochMs,
         if (usedAtEpochMs != null) 'usedAt': usedAtEpochMs,
         if (note != null) 'note': note,
         if (reason != null) 'reason': reason,
+        if (session != null) 'session': session,
+        'v': version,
       };
 
   factory SavedDesign.fromJson(Map<String, Object?> j) => SavedDesign(
@@ -106,9 +144,15 @@ class SavedDesign {
         usedForTshirt: j['usedForTshirt'] == true,
         rejected: j['rejected'] == true,
         savedAtEpochMs: (j['savedAt'] as num?)?.toInt() ?? 0,
+        updatedAtEpochMs: (j['updatedAt'] as num?)?.toInt(),
         usedAtEpochMs: (j['usedAt'] as num?)?.toInt(),
         note: j['note'] as String?,
         reason: j['reason'] as String?,
+        session: j['session'] == null
+            ? null
+            : (j['session'] as Map).cast<String, Object?>(),
+        // Entries written before versioning carry no 'v'; they are version 1.
+        version: (j['v'] as num?)?.toInt() ?? 1,
       );
 }
 
@@ -123,12 +167,33 @@ class DesignLibrary {
   DesignLibrary([Iterable<SavedDesign> entries = const []])
       : _byId = {for (final e in entries) e.id: e};
 
-  static const schemaVersion = 1;
+  /// The library format version.
+  ///
+  /// 1 — recipe + garment + flags + timestamps.
+  /// 2 — adds the opaque editor [SavedDesign.session], [SavedDesign.updatedAtEpochMs]
+  ///     and a per-entry `v`. Both additions are optional, so a version-1 file
+  ///     loads unchanged: its entries simply carry no session and reopen with
+  ///     the artwork alone (see [SavedDesign.session]).
+  static const schemaVersion = 2;
+
+  /// How many entries the last [fromJson] could not read.
+  ///
+  /// One unreadable record must never cost the customer their whole wardrobe,
+  /// so a bad entry is skipped rather than thrown — this counts what was lost
+  /// so a host can say so instead of pretending nothing was there.
+  int get unreadableEntries => _unreadable;
+  int _unreadable = 0;
+
+  /// The `version` the loaded file declared (defaults to [schemaVersion] for a
+  /// library built in memory). A file from a NEWER version keeps its number.
+  int get loadedVersion => _loadedVersion;
+  int _loadedVersion = schemaVersion;
+
   final Map<String, SavedDesign> _byId;
 
-  /// All kept designs, newest first.
+  /// All kept designs, most recently saved first.
   List<SavedDesign> get entries => _byId.values.toList()
-    ..sort((a, b) => b.savedAtEpochMs.compareTo(a.savedAtEpochMs));
+    ..sort((a, b) => b.sortedAtEpochMs.compareTo(a.sortedAtEpochMs));
 
   List<SavedDesign> get liked => entries.where((e) => e.liked).toList();
 
@@ -163,14 +228,58 @@ class DesignLibrary {
   /// by [GarmentDesign.garmentId]: re-saving the same garment updates the one
   /// entry rather than accumulating duplicates. A no-op when the garment carries
   /// no artwork on either face.
-  void likeGarment(GarmentDesign g, {required int nowMs}) {
+  void likeGarment(GarmentDesign g,
+      {required int nowMs, Map<String, Object?>? session}) {
     final back = g.back ?? g.front;
     if (back == null) return; // nothing to save
     final id = g.garmentId;
     final existing = _byId[id];
-    _byId[id] = existing?.copyWith(liked: true, rejected: false) ??
+    _byId[id] = existing?.copyWith(
+          liked: true,
+          rejected: false,
+          // Re-saving the SAME garment updates the one entry: the design is
+          // unchanged, so only when it was last kept and the session behind it
+          // move. Editing changes [GarmentDesign.garmentId], which is a
+          // different design and therefore a different entry.
+          updatedAtEpochMs: nowMs,
+          session: session,
+        ) ??
         SavedDesign(
-            recipe: back, garment: g, liked: true, savedAtEpochMs: nowMs);
+          recipe: back,
+          garment: g,
+          liked: true,
+          savedAtEpochMs: nowMs,
+          session: session,
+        );
+  }
+
+  /// Remove a saved design outright — the wardrobe's Delete.
+  ///
+  /// Unlike [unlike] this is unconditional: an ordered design can be deleted
+  /// from the wardrobe too (the order it produced is commerce's record, not
+  /// this one's). Touches nothing but [id]. Returns whether anything went.
+  bool remove(String id) => _byId.remove(id) != null;
+
+  /// Copy a saved design under a NEW identity, leaving the original alone.
+  ///
+  /// The recipes are carried across untouched — a duplicate is the same design,
+  /// never a re-roll — and identity comes from [GarmentDesign.variant], which is
+  /// already part of [GarmentDesign.garmentId]. The copy starts un-ordered: it
+  /// is a new design that has never been printed. Returns the new id, or null
+  /// if [id] is not a saved garment.
+  String? duplicate(String id, {required int nowMs, String? variant}) {
+    final entry = _byId[id];
+    final g = entry?.garment;
+    if (entry == null || g == null) return null;
+    final copy = GarmentDesign(
+      front: g.front,
+      back: g.back,
+      garmentColour: g.garmentColour,
+      variant: variant ?? 'copy:$nowMs',
+      themeSeed: g.themeSeed,
+    );
+    likeGarment(copy, nowMs: nowMs, session: entry.session);
+    return copy.garmentId;
   }
 
   /// Mark a saved two-face garment as ordered.
@@ -180,8 +289,9 @@ class DesignLibrary {
   /// here would leave the wardrobe entry untouched and add a second, faceless
   /// one beside it. Saving is implied — an ordered design is in the wardrobe
   /// whether or not it was saved by hand first.
-  void markGarmentOrdered(GarmentDesign g, {required int nowMs}) {
-    likeGarment(g, nowMs: nowMs);
+  void markGarmentOrdered(GarmentDesign g,
+      {required int nowMs, Map<String, Object?>? session}) {
+    likeGarment(g, nowMs: nowMs, session: session);
     final entry = _byId[g.garmentId];
     if (entry == null) return;
     _byId[g.garmentId] = entry.copyWith(
@@ -275,10 +385,27 @@ class DesignLibrary {
         'designs': [for (final e in entries) e.toJson()],
       };
 
-  factory DesignLibrary.fromJson(Map<String, Object?> j) => DesignLibrary([
-        for (final d in (j['designs'] as List? ?? const []))
-          SavedDesign.fromJson((d as Map).cast<String, Object?>()),
-      ]);
+  /// Reads a persisted library, entry by entry.
+  ///
+  /// Deliberately tolerant in one direction only: a record this build cannot
+  /// read is SKIPPED and counted ([unreadableEntries]), never guessed at and
+  /// never allowed to take the rest of the wardrobe with it. Nothing is ever
+  /// regenerated to fill a gap — a design that cannot be restored exactly is
+  /// not a design the customer saved.
+  factory DesignLibrary.fromJson(Map<String, Object?> j) {
+    final kept = <SavedDesign>[];
+    var unreadable = 0;
+    for (final d in (j['designs'] as List? ?? const [])) {
+      try {
+        kept.add(SavedDesign.fromJson((d as Map).cast<String, Object?>()));
+      } catch (_) {
+        unreadable++;
+      }
+    }
+    return DesignLibrary(kept)
+      .._unreadable = unreadable
+      .._loadedVersion = (j['version'] as num?)?.toInt() ?? 1;
+  }
 
   String encode() => jsonEncode(toJson());
 
@@ -314,13 +441,23 @@ class PersistentDesignLibrary {
   /// async error landing on whatever happens to be running. Losing a write is
   /// a lost bookmark; an unhandled error is a crash, and the in-memory library
   /// is still correct either way.
-  Future<void> _persist() async {
+  Future<bool> _persist() async {
     try {
       await _store.write(_lib.encode());
+      _lastWriteFailed = false;
+      return true;
     } catch (_) {
-      // Deliberately swallowed — see above.
+      // Deliberately swallowed — see above. Recorded, though, so a host that
+      // wants to offer a retry can tell a written design from a lost one.
+      _lastWriteFailed = true;
+      return false;
     }
   }
+
+  /// Whether the last write to the store failed. The in-memory library is still
+  /// correct either way — this says only that the change has not reached disk.
+  bool get lastWriteFailed => _lastWriteFailed;
+  bool _lastWriteFailed = false;
 
   Future<bool> toggleLike(DesignRecipe r, {int? nowMs}) async {
     final liked =
@@ -331,17 +468,37 @@ class PersistentDesignLibrary {
 
   /// Save a two-face [GarmentDesign] (Studio Review). Idempotent by garment
   /// identity, so repeated Save keeps a single entry (no uncontrolled duplicates).
-  Future<void> saveGarment(GarmentDesign g, {int? nowMs}) async {
-    _lib.likeGarment(g, nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch);
-    await _persist();
+  Future<bool> saveGarment(GarmentDesign g,
+      {int? nowMs, Map<String, Object?>? session}) async {
+    _lib.likeGarment(g,
+        nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch,
+        session: session);
+    return _persist();
   }
 
-  Future<void> markGarmentOrdered(GarmentDesign g, {int? nowMs}) async {
+  Future<void> markGarmentOrdered(GarmentDesign g,
+      {int? nowMs, Map<String, Object?>? session}) async {
     _lib.markGarmentOrdered(
       g,
       nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch,
+      session: session,
     );
     await _persist();
+  }
+
+  /// Delete one saved design. Nothing else in the wardrobe is touched.
+  Future<bool> remove(String id) async {
+    if (!_lib.remove(id)) return false;
+    await _persist();
+    return true;
+  }
+
+  /// Copy one saved design under a new identity (see [DesignLibrary.duplicate]).
+  Future<String?> duplicate(String id, {int? nowMs}) async {
+    final newId = _lib.duplicate(id,
+        nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch);
+    if (newId != null) await _persist();
+    return newId;
   }
 
   Future<void> setUsedForTshirt(DesignRecipe r, bool used, {int? nowMs}) async {

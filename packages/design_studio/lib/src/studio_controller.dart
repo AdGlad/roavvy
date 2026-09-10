@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'lab_showcase_generator.dart';
 import 'lab_styles.dart';
 import 'render_service.dart';
+import 'studio_session.dart';
 
 /// The shape a Flags design fills — the "Detail" sub-step under the Flags
 /// subject (Grid = plain flags; the rest are clipped).
@@ -2032,8 +2033,22 @@ class StudioController extends ChangeNotifier {
   /// deterministically regenerate the hero — carrying the garment/size/orientation
   /// so a travel change never resets the Tier-1 controls or the front/back side.
   void rebuildContext() {
+    if (!_recomputeContext()) return;
+    _applyTravelToFaces();
+  }
+
+  /// Re-derive [_context] from the selection + Source + Year filter WITHOUT
+  /// touching the artwork. Returns false when the filter leaves no countries at
+  /// all — the design is never left with no flags.
+  ///
+  /// Split out from [rebuildContext] for restore: reopening a saved design has
+  /// to put the session's travel filter back so the next edit regenerates from
+  /// the right context, but must NOT re-cut the artwork on the way — the saved
+  /// recipes ARE the design, and regenerating over them is exactly the
+  /// "reproduces something similar" failure the wardrobe exists to prevent.
+  bool _recomputeContext() {
     final codes = _effectiveCodes();
-    if (codes.isEmpty) return; // never leave the design with no flags.
+    if (codes.isEmpty) return false;
     final List<Trip> trips;
     final DateRange range;
     if (designContext.hasTrips) {
@@ -2052,7 +2067,7 @@ class StudioController extends ChangeNotifier {
       trips: trips,
       dateRange: range,
     );
-    _applyTravelToFaces();
+    return true;
   }
 
   /// A deterministic seed for the current effective selection: the same set of
@@ -2164,9 +2179,97 @@ class StudioController extends ChangeNotifier {
   /// entry rather than creating duplicates. Distinct from [save] (the single-face
   /// ♥ toggle the macOS Lab uses); this persists BOTH printed sides so the design
   /// reproduces deterministically.
-  void saveGarment() {
-    library?.saveGarment(garment);
+  Future<bool> saveGarment() async {
     _observe(current, PreferenceSignal.saved);
+    final lib = library;
+    if (lib == null) return false;
+    return lib.saveGarment(garment, session: captureSession().toJson());
+  }
+
+  // ── Session capture / restore ───────────────────────────────────────────────
+
+  /// The current editor session as plain data (see [StudioSession]).
+  ///
+  /// Saved beside the two recipes so reopening restores the design AND the
+  /// state it was made in. The Vibe and the title are deliberately absent: both
+  /// live in the recipe itself (provenance and `content.meta`) and come back
+  /// with it, and a second copy of a value is a second chance to disagree.
+  StudioSession captureSession() => StudioSession(
+        subjectIndex: _subjectIndex,
+        detail: _detail,
+        detailFamily: _detailFamily,
+        selectedCountryCodes: _selected.toList(),
+        sourceTrips: _sourceTrips,
+        yearLo: _yearLo,
+        yearHi: _yearHi,
+        frontFit: _frontFit,
+        chestRight: _chestRight,
+        frontArt: _frontArt,
+        ribbonAllCountries: _ribbonAllCountries,
+      );
+
+  /// Put the editor back into [session] WITHOUT touching the artwork.
+  ///
+  /// Every public setter for this state regenerates by design — that is what
+  /// they are for. Restoring must not: the saved recipes are the design, and
+  /// re-deriving them from the restored filter would produce a design *like*
+  /// the saved one instead of the saved one. So the fields are set directly and
+  /// only the travel context is recomputed, ready for the NEXT edit.
+  ///
+  /// A country in [session] that this traveller no longer has (a rescan dropped
+  /// it) is skipped rather than forced in: the saved artwork still shows it,
+  /// and the selection describes what the next regeneration may use.
+  void restoreSession(StudioSession session) {
+    _subjectIndex =
+        session.subjectIndex.clamp(0, subjects.length - 1).toInt();
+    _detail = session.detail;
+    _detailFamily = session.detailFamily;
+    _sourceTrips = session.sourceTrips;
+    _yearLo = session.yearLo;
+    _yearHi = session.yearHi;
+    _frontFit = session.frontFit;
+    _chestRight = session.chestRight;
+    _frontArt = session.frontArt;
+    _ribbonAllCountries = session.ribbonAllCountries;
+    if (session.selectedCountryCodes.isNotEmpty) {
+      final have = availableCountryCodes.toSet();
+      final restored =
+          session.selectedCountryCodes.where(have.contains).toList();
+      if (restored.isNotEmpty) {
+        _selected
+          ..clear()
+          ..addAll(restored);
+      }
+    }
+    _recomputeContext();
+    notifyListeners();
+  }
+
+  /// Reopen a saved design: both printed faces AND the session behind them.
+  ///
+  /// The one entry point the wardrobe uses. Returns false and changes NOTHING
+  /// when the record cannot be restored — a half-restored Studio showing one
+  /// customer's front over another's back is worse than a Save that failed.
+  bool openSaved(SavedDesign entry) {
+    final g = entry.garment;
+    if (g == null || (g.back == null && g.front == null)) return false;
+    final blob = entry.session;
+    if (blob != null) {
+      // A session this build cannot read costs the filter, never the design.
+      try {
+        restoreSession(StudioSession.fromJson(blob));
+      } catch (_) {
+        // Deliberately swallowed — the artwork below is the design.
+      }
+    }
+    loadGarment(g);
+    // The reopened design starts a fresh edit history: Undo belongs to the
+    // design on screen, and stepping back into whatever was being made before
+    // it would silently swap one customer's shirt for another.
+    _history.clear();
+    _alternatives = const [];
+    notifyListeners();
+    return true;
   }
 
   /// The design became a real order.
@@ -2176,7 +2279,7 @@ class StudioController extends ChangeNotifier {
   /// exists, never at the moment of handing off to checkout — an abandoned
   /// checkout is not a shirt.
   void markOrdered() {
-    library?.markGarmentOrdered(garment);
+    library?.markGarmentOrdered(garment, session: captureSession().toJson());
     notifyListeners();
   }
 

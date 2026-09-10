@@ -748,6 +748,15 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
             ),
           ),
         ),
+        // Your wardrobe, from the steps that make it — a design you saved is
+        // not something to walk to the end of the flow to look at.
+        IconButton(
+          key: const Key('v2-saved-designs'),
+          tooltip: 'Your saved designs',
+          onPressed: _showSavedDesigns,
+          icon: const Icon(Icons.inventory_2_outlined, size: 20),
+          color: Colors.white70,
+        ),
         FilledButton(
           key: const Key('v2-customise-next'),
           onPressed: _next,

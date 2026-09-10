@@ -236,8 +236,15 @@ void main() {
         ),
       );
       await tester.pump();
+      // Ordering again lives in the card's overflow, beside Duplicate and
+      // Delete — the card itself is for opening the design.
+      await tester.tap(find.byKey(Key('v2-saved-menu-$id')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byKey(Key('v2-saved-reorder-$id')), findsOneWidget);
       await tester.tap(find.byKey(Key('v2-saved-reorder-$id')));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(carts, hasLength(1));
       expect(carts.single.garment.garmentId, id);
@@ -259,7 +266,12 @@ void main() {
         ),
       );
       await tester.pump();
+      await tester.tap(find.byKey(Key('v2-saved-menu-$id')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(find.byKey(Key('v2-saved-reorder-$id')), findsNothing);
+      // …but the actions that need no store are still there.
+      expect(find.byKey(Key('v2-saved-duplicate-$id')), findsOneWidget);
     });
   });
 
@@ -284,12 +296,18 @@ void main() {
       await tester.pump();
 
       // Like buying, your wardrobe is not something to walk to the end of the
-      // flow for — it opens from wherever you are.
-      // The Customise choice steps (Direction, Detail, Vibe) carry their own
-      // minimal header, and the Fine Tune steps (Fine Tune, Layout, Graphics
-      // and — since M19 — Colour) use the workspace frame; the wardrobe button
-      // lives on the wizard app bar that the remaining steps still wear.
-      for (final stage in [StudioStage.placement, StudioStage.review]) {
+      // flow for — it opens from wherever you are. M24 put it on the shared
+      // Customise header too, so the steps that fill the wardrobe can also
+      // see into it.
+      // (Travels is left out only because its globe needs geodata this test
+      // does not load — it wears the same header as Fine Tune.)
+      for (final stage in [
+        StudioStage.fineTune,
+        StudioStage.colour,
+        StudioStage.front,
+        StudioStage.placement,
+        StudioStage.review,
+      ]) {
         key.currentState!.goToStage(stage);
         await tester.pump();
         await tester.tap(find.byKey(const Key('v2-saved-designs')));
