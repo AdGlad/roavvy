@@ -106,6 +106,9 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       StudioStage.layout => groups.contains(FineTuneGroup.layout),
       StudioStage.graphics => groups.contains(FineTuneGroup.graphics),
       StudioStage.colour => groups.contains(FineTuneGroup.colour),
+      // Words is a step whenever the design CAN carry a title — the field is
+      // how one gets added, so it does not wait for the group to fill.
+      StudioStage.words => _c.wordsApply,
       _ => true,
     };
     return [
@@ -160,7 +163,8 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     if (_stage == StudioStage.fineTune ||
         _stage == StudioStage.layout ||
         _stage == StudioStage.graphics ||
-        _stage == StudioStage.colour) {
+        _stage == StudioStage.colour ||
+        _stage == StudioStage.words) {
       return Scaffold(
         backgroundColor: StudioV2Theme.canvas,
         body: SafeArea(
@@ -186,6 +190,11 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                     'Colour, Effects & Print',
                     'Adjust the colours, effects and print style.',
                   ),
+                  StudioStage.words => _stepHeading(
+                    '9',
+                    'Words & Title',
+                    'Add a title or text to complete your design.',
+                  ),
                   _ => _stepHeading(
                     '5',
                     'Fine Tune',
@@ -193,15 +202,18 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                   ),
                 },
                 Expanded(
-                  child: FineTunePanel(
-                    controller: _c,
-                    only: switch (_stage) {
-                      StudioStage.layout => FineTuneGroup.layout,
-                      StudioStage.graphics => FineTuneGroup.graphics,
-                      StudioStage.colour => FineTuneGroup.colour,
-                      _ => null,
-                    },
-                  ),
+                  child:
+                      _stage == StudioStage.words
+                          ? WordsWorkspace(controller: _c)
+                          : FineTunePanel(
+                            controller: _c,
+                            only: switch (_stage) {
+                              StudioStage.layout => FineTuneGroup.layout,
+                              StudioStage.graphics => FineTuneGroup.graphics,
+                              StudioStage.colour => FineTuneGroup.colour,
+                              _ => null,
+                            },
+                          ),
                 ),
               ],
             ),
@@ -671,7 +683,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       StudioStage.travels => TravelsWorkspace(controller: _c),
       StudioStage.vibe => const SizedBox.shrink(),
       StudioStage.focus => FocusWorkspace(controller: _c),
-      StudioStage.words => WordsWorkspace(controller: _c),
+      StudioStage.words => const SizedBox.shrink(),
       StudioStage.front => FrontWorkspace(controller: _c),
       StudioStage.fineTune => const SizedBox.shrink(),
       StudioStage.colour => const SizedBox.shrink(),

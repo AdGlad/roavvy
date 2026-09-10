@@ -85,7 +85,14 @@ class LabShowcaseGenerator implements RecipeGenerator {
   /// Distinctive display faces for titles, by family NAME. These ship on macOS
   /// (the Lab host); on other platforms the TypographyStage falls back to the
   /// default. Bundle an OFL `.ttf` and add its family here to ship it portably.
-  static const _titleFonts = <String>[
+  /// The display faces a generated title may use.
+  ///
+  /// These are host system font NAMES, resolved by the platform at render time
+  /// (see `TypographyStage`) — an unavailable family falls back to the platform
+  /// default rather than failing. Public because the Studio OFFERS this same
+  /// list in Words & Title: a font picker built from its own table would drift
+  /// from what the generator can produce.
+  static const titleFonts = <String>[
     'Futura',
     'Impact',
     'Georgia',
@@ -597,7 +604,7 @@ class LabShowcaseGenerator implements RecipeGenerator {
       // A distinctive display face by NAME — these ship on macOS and fall back
       // to the platform default elsewhere (see TypographyStage). Drawn on the
       // words stream so re-rolling Words also changes the lettering.
-      titleStyle: wordsRng.stream('font').pick(_titleFonts),
+      titleStyle: wordsRng.stream('font').pick(titleFonts),
       placement: wordsRng
           .stream('place')
           .pick(const [TextPlacement.top, TextPlacement.bottom]),

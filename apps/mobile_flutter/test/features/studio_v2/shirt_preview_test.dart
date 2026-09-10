@@ -203,7 +203,7 @@ void main() {
       // above a workspace — so step into the flow before looking for one.
       // Words rather than Vibe: the style steps show a tray of alternative
       // previews, and these tests count previews.
-      key.currentState!.goToStage(StudioStage.words);
+      key.currentState!.goToStage(StudioStage.placement);
       await tester.pump();
     }
 

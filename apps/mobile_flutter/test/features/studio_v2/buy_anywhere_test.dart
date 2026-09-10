@@ -88,17 +88,21 @@ void main() {
       // is genuinely weaker there than it was. See the note in the M16
       // report; the fix belongs in the shared Customise header, not here.
       //
-      // M19 moved Colour into that same frame, taking the count to SEVEN
-      // steps that show a finished shirt with no way to buy it. This is the
-      // largest single regression against M178 and is worth fixing before the
-      // remaining Customise steps adopt the frame.
+      // M19 moved Colour into that same frame and M20 moved Words, taking the
+      // count to EIGHT steps that show a finished shirt with no way to buy it.
+      // Each milestone that adopts the frame also costs these tests their
+      // representative "wizard chrome" stage — they have now been repointed
+      // twice. Placement is the last mid-flow step still wearing it, so the
+      // next adoption has to be met by giving the shared Customise header Buy
+      // and the wardrobe, not by another repoint.
       if (s == StudioStage.direction ||
           s == StudioStage.detail ||
           s == StudioStage.vibe ||
           s == StudioStage.fineTune ||
           s == StudioStage.layout ||
           s == StudioStage.graphics ||
-          s == StudioStage.colour) {
+          s == StudioStage.colour ||
+          s == StudioStage.words) {
         expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
         continue;
       }
@@ -112,7 +116,7 @@ void main() {
 
   testWidgets('Buy from a mid-flow step reaches the cart', (tester) async {
     final state = await pump(tester);
-    state.goToStage(StudioStage.words);
+    state.goToStage(StudioStage.placement);
     await tester.pump();
     await tester.tap(find.byKey(const Key('v2-buy-now')));
     await tester.pump(const Duration(milliseconds: 300));
@@ -125,7 +129,7 @@ void main() {
     final state = await pump(tester);
     await tester.tap(find.byKey(const Key('v2-instant-buy')));
     await tester.pump(const Duration(milliseconds: 300));
-    state.goToStage(StudioStage.words);
+    state.goToStage(StudioStage.placement);
     await tester.pump();
     await tester.tap(find.byKey(const Key('v2-buy-now')));
     await tester.pump(const Duration(milliseconds: 300));
@@ -142,7 +146,7 @@ void main() {
   ) async {
     final state = await pump(tester, unavailable: {'Orange'});
     controller.setGarment('#FF5723'); // Orange
-    state.goToStage(StudioStage.words);
+    state.goToStage(StudioStage.placement);
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('v2-buy-now')));
@@ -160,7 +164,7 @@ void main() {
   ) async {
     final state = await pump(tester, withCart: false);
     // From a wizard step, so this exercises the footer action.
-    state.goToStage(StudioStage.words);
+    state.goToStage(StudioStage.placement);
     await tester.pump();
     await tester.tap(find.byKey(const Key('v2-buy-now')));
     await tester.pump();

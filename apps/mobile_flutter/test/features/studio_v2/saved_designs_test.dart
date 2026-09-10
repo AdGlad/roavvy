@@ -289,7 +289,7 @@ void main() {
       // minimal header, and the Fine Tune steps (Fine Tune, Layout, Graphics
       // and — since M19 — Colour) use the workspace frame; the wardrobe button
       // lives on the wizard app bar that the remaining steps still wear.
-      for (final stage in [StudioStage.words, StudioStage.review]) {
+      for (final stage in [StudioStage.placement, StudioStage.review]) {
         key.currentState!.goToStage(stage);
         await tester.pump();
         await tester.tap(find.byKey(const Key('v2-saved-designs')));

@@ -15,9 +15,18 @@ import 'garment_preview.dart';
 /// M17–M19 deepen the groups by adding entries to that list; this screen
 /// renders whatever it is handed and has no knowledge of any Direction or Vibe.
 class FineTunePanel extends StatelessWidget {
-  const FineTunePanel({super.key, required this.controller, this.only});
+  const FineTunePanel({
+    super.key,
+    required this.controller,
+    this.only,
+    this.shrinkWrap = false,
+  });
 
   final StudioController controller;
+
+  /// Render inside another scroll view (M20 stacks it under the title card)
+  /// rather than owning the viewport.
+  final bool shrinkWrap;
 
   /// Show just one group, at full depth (M17–M19). Null shows every group
   /// that applies, which is the M16 overview.
@@ -30,6 +39,7 @@ class FineTunePanel extends StatelessWidget {
       ...controller.fineTuneChoices(),
       ...controller.graphicChoices(),
       ...controller.colourChoices(),
+      ...controller.wordChoices(),
     ];
     final groups = [
       for (final g in controller.fineTuneGroups())
@@ -37,7 +47,12 @@ class FineTunePanel extends StatelessWidget {
     ];
     return ListView(
       key: const Key('v2-finetune-scroll'),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+      shrinkWrap: shrinkWrap,
+      physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
+      padding:
+          shrinkWrap
+              ? EdgeInsets.zero
+              : const EdgeInsets.fromLTRB(16, 4, 16, 28),
       children: [
         if (groups.isEmpty)
           const Padding(
@@ -67,7 +82,9 @@ class FineTunePanel extends StatelessWidget {
         const SizedBox(height: 8),
         OutlinedButton.icon(
           key: const Key('v2-finetune-reset'),
-          onPressed: controller.resetFineTune,
+          // Scoped to the group on screen: resetting Colour must not quietly
+          // undo the Layout and Graphics work done two steps earlier.
+          onPressed: () => controller.resetFineTune(only: only),
           icon: const Icon(Icons.refresh_rounded, size: 18),
           label: const Text('Reset to Default'),
           style: OutlinedButton.styleFrom(
@@ -104,6 +121,7 @@ class _Group extends StatelessWidget {
     FineTuneGroup.layout: Icons.grid_view_rounded,
     FineTuneGroup.graphics: Icons.image_outlined,
     FineTuneGroup.colour: Icons.palette_outlined,
+    FineTuneGroup.words: Icons.title_rounded,
   };
 
   static Widget _card({required Widget child}) => Container(
@@ -295,7 +313,8 @@ class _ChoiceRow extends StatelessWidget {
             ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 40,
+            height:
+                choice.options.any((o) => o.sample != null) ? 54 : 40,
             child: ListView(
               key: Key('v2-finetune-choice-${choice.id}'),
               scrollDirection: Axis.horizontal,
@@ -336,14 +355,45 @@ class _ChoiceRow extends StatelessWidget {
               width: selected ? 1.6 : 1,
             ),
           ),
-          child: Text(
-            o.label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: selected ? StudioV2Theme.accent : Colors.white70,
-            ),
-          ),
+          child:
+              o.sample == null
+                  ? Text(
+                    o.label,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color:
+                          selected ? StudioV2Theme.accent : Colors.white70,
+                    ),
+                  )
+                  : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // The specimen is set in the SAME host font name the
+                      // renderer will use, so the chip and the shirt agree.
+                      Text(
+                        o.sample!,
+                        style: TextStyle(
+                          fontFamily: o.fontFamily,
+                          fontSize: 19,
+                          height: 1.1,
+                          color:
+                              selected ? StudioV2Theme.accent : Colors.white,
+                        ),
+                      ),
+                      Text(
+                        o.label,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color:
+                              selected
+                                  ? StudioV2Theme.accent
+                                  : Colors.white38,
+                        ),
+                      ),
+                    ],
+                  ),
         ),
       ),
     ),

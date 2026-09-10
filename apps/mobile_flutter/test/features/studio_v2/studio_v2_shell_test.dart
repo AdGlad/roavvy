@@ -38,7 +38,7 @@ void main() {
     // This file is about the editing SHELL — hero, Tier-1 controls, workflow
     // navigation. The studio opens on Instant, which is a product screen with
     // none of that, so step into the flow first. Instant has its own tests.
-    key.currentState!.goToStage(StudioStage.words);
+    key.currentState!.goToStage(StudioStage.placement);
     await tester.pump();
     return key.currentState!;
   }
@@ -188,7 +188,7 @@ void main() {
     // Workflow Back pops the STAGE only — the recipe is not reverted.
     await tester.tap(find.byKey(const Key('v2-workflow-back')));
     await tester.pump();
-    expect(state.stage, StudioStage.words, reason: 'back one step, not home');
+    expect(state.stage, StudioStage.placement, reason: 'back one step, not home');
     expect(controller.current.recipeId, r1);
     expect(controller.history.length, 1);
 
@@ -196,6 +196,6 @@ void main() {
     await tester.tap(find.byKey(const Key('v2-recipe-undo')));
     await tester.pump();
     expect(controller.current.recipeId, r0);
-    expect(state.stage, StudioStage.words);
+    expect(state.stage, StudioStage.placement);
   });
 }

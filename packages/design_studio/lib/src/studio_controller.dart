@@ -43,21 +43,31 @@ enum FrontArt { ribbon, complement, matchBack }
 /// The three Fine Tune panels. Deliberately few and stable: M17–M19 deepen
 /// what sits inside them, so a control added later needs a group, not a new
 /// screen.
-enum FineTuneGroup { layout, graphics, colour }
+enum FineTuneGroup { layout, graphics, colour, words }
 
 extension FineTuneGroupLabel on FineTuneGroup {
   String get label => switch (this) {
         FineTuneGroup.layout => 'Layout & Composition',
         FineTuneGroup.graphics => 'Graphics',
         FineTuneGroup.colour => 'Colour, Effects & Print',
+        FineTuneGroup.words => 'Words & Title',
       };
 }
 
 /// One option of a [FineTuneChoice] — a named arrangement, shown as a chip.
 class FineTuneOption {
-  const FineTuneOption(this.id, this.label);
+  const FineTuneOption(this.id, this.label, {this.sample, this.fontFamily});
   final String id;
   final String label;
+
+  /// Text to show AS the option — a type specimen ("Aa") rather than a name.
+  /// A face has to be seen to be picked, and at chip size a specimen carries
+  /// far more than a full-design thumbnail would.
+  final String? sample;
+
+  /// The family [sample] is drawn in. Same host font name the renderer uses,
+  /// so the specimen and the shirt agree.
+  final String? fontFamily;
 }
 
 /// A pick-one control: the same capability contract as [FineTuneControl], but
@@ -1327,10 +1337,132 @@ class StudioController extends ChangeNotifier {
       for (final c in fineTuneChoices()) c.group,
       for (final c in graphicChoices()) c.group,
       for (final c in colourChoices()) c.group,
+      for (final c in wordChoices()) c.group,
     };
     return [
       for (final g in FineTuneGroup.values)
         if (used.contains(g)) g
+    ];
+  }
+
+  // ── M20: words and title ───────────────────────────────────────────────────
+
+  /// Whether this design can carry a title at all.
+  ///
+  /// A `statementHero` composition draws the traveller's COUNT as the artwork
+  /// ("28" over "COUNTRIES") and `TypographyStage` takes an entirely separate
+  /// path for it — `meta['title']` is never read. Typing a title into such a
+  /// design changes the recipe and nothing on the shirt, so Words & Title is
+  /// not a step for it.
+  bool get wordsApply => !current.composition.statementHero;
+
+  /// The longest title the renderer lays out without shrinking it to nothing.
+  ///
+  /// `TypographyStage` fits the title to a band 16% of the frame high and then
+  /// scales it down to fit the width. Past roughly this many characters the
+  /// type is too small to read on a printed garment, so the field stops rather
+  /// than letting someone buy an unreadable shirt.
+  static const int maxTitleLength = 30;
+
+  /// Plain-language names for the display faces, in the generator's own order.
+  /// Copperplate is engraved rather than rounded — naming it for what it is
+  /// beats borrowing a label from a face we do not have.
+  static const List<String> titleFontLabels = [
+    'Modern',
+    'Bold',
+    'Classic',
+    'Engraved',
+    'Condensed',
+  ];
+
+  /// Text controls for the CURRENT design.
+  ///
+  /// Same capability model as M16–M19. All three are gated on there BEING a
+  /// title: with `meta['title']` empty, `TypographyStage` returns before it
+  /// reads the face, the placement or the case, so a font picker over a
+  /// title-less design is three controls that do nothing. The title field
+  /// itself is always available (that is how a title gets added) — it is these
+  /// treatments that wait for something to treat.
+  ///
+  /// Notably absent, and deliberately: TEXT COLOUR. The stage inks the title
+  /// with `_legibleInk(background)` — a contrast tone derived from the garment,
+  /// with no field on the recipe to override it. A row of colour swatches would
+  /// be the most convincing inert control on the whole screen.
+  /// Text SIZE and ROTATION are absent for the same reason: the size is fitted
+  /// to the band and there is no rotation field.
+  List<FineTuneChoice> wordChoices() {
+    if (!wordsApply || currentTitle.trim().isEmpty) return const [];
+
+    Typography typoOf(DesignRecipe r) => r.typography ?? const Typography();
+    DesignRecipe write(DesignRecipe r, Typography t) =>
+        r.copyWith(typography: t);
+
+    return [
+      FineTuneChoice(
+        id: 'titleFont',
+        label: 'Font style',
+        helper: 'The face your title is set in.',
+        group: FineTuneGroup.words,
+        options: [
+          for (var i = 0; i < LabShowcaseGenerator.titleFonts.length; i++)
+            FineTuneOption(
+              LabShowcaseGenerator.titleFonts[i],
+              titleFontLabels[i],
+              sample: 'Aa',
+              fontFamily: LabShowcaseGenerator.titleFonts[i],
+            ),
+        ],
+        read: (r) =>
+            typoOf(r).titleStyle ?? LabShowcaseGenerator.titleFonts.first,
+        write: (r, id) => write(r, Typography(
+              titleStyle: id,
+              textCase: typoOf(r).textCase,
+              // A face is only visible once the title is placed. Choosing one
+              // on a hidden title would look like it had done nothing.
+              placement: typoOf(r).placement == TextPlacement.none
+                  ? TextPlacement.bottom
+                  : typoOf(r).placement,
+            )),
+      ),
+      FineTuneChoice(
+        id: 'textPlacement',
+        label: 'Text position',
+        helper: 'Where the title sits on the print.',
+        group: FineTuneGroup.words,
+        // `TextPlacement` has exactly three values and the renderer honours all
+        // three — `none` is how a title is hidden without discarding the words.
+        options: const [
+          FineTuneOption('bottom', 'Bottom'),
+          FineTuneOption('top', 'Top'),
+          FineTuneOption('none', 'Hidden'),
+        ],
+        read: (r) => typoOf(r).placement.name,
+        write: (r, id) => write(r, Typography(
+              titleStyle: typoOf(r).titleStyle,
+              textCase: typoOf(r).textCase,
+              placement: TextPlacement.fromId(id),
+            )),
+      ),
+      FineTuneChoice(
+        id: 'textCase',
+        label: 'Lettering',
+        helper: 'How the words are cased.',
+        group: FineTuneGroup.words,
+        options: const [
+          FineTuneOption('upper', 'UPPER'),
+          FineTuneOption('title', 'Title'),
+          FineTuneOption('lower', 'lower'),
+          FineTuneOption('asIs', 'As typed'),
+        ],
+        read: (r) => typoOf(r).textCase.name,
+        write: (r, id) => write(r, Typography(
+              titleStyle: typoOf(r).titleStyle,
+              textCase: TextCase.fromId(id),
+              placement: typoOf(r).placement == TextPlacement.none
+                  ? TextPlacement.bottom
+                  : typoOf(r).placement,
+            )),
+      ),
     ];
   }
 
@@ -1545,7 +1677,19 @@ class StudioController extends ChangeNotifier {
   /// A reset of the dials, not of the design: it re-cuts the current subject
   /// in the current style and keeps only the tuned fields from that, so
   /// nothing the customer chose earlier in the flow is touched.
-  void resetFineTune() {
+  /// Put the Fine Tune dials back to what this design was generated with.
+  ///
+  /// Scoped to [only] when a single group is on screen: the Colour screen's
+  /// Reset must not quietly undo the Layout and Graphics work done two steps
+  /// earlier. `null` resets every group, which is what the M16 overview — the
+  /// one screen that shows them all — means by the word.
+  ///
+  /// Nothing outside Fine Tune moves either way: the countries, the Direction
+  /// and its Detail, the Vibe, the title text and the GARMENT colour are the
+  /// wearer's choices, not dial positions.
+  void resetFineTune({FineTuneGroup? only}) {
+    bool wants(FineTuneGroup g) => only == null || only == g;
+
     final prev = current;
     var gen = _gen;
     final style = currentStyle;
@@ -1553,35 +1697,50 @@ class StudioController extends ChangeNotifier {
     final fresh = gen
         .generate(_context, seed: _selectionSeed(_context.flagCodes), count: 1)
         .first;
-    var next = prev.copyWith(
-      composition: prev.composition.copyWith(
-        sizeClass: fresh.composition.sizeClass,
-        copiesPerCountry: fresh.composition.copiesPerCountry,
-        fillAlgorithm: fresh.composition.fillAlgorithm,
-      ),
-      // A generated recipe may carry no effects at all; that IS the default,
-      // so reset must take it rather than keep what the sliders did.
-      effects: fresh.effects ?? const Effects(),
-      // M19 resets with the rest of the finish: the strategy and its accents
-      // are colour-treatment state, so leaving them behind would strand a
-      // design in Duotone with the "Full colour" chip lit. The GARMENT colour
-      // is deliberately carried forward from `prev` — it is the wearer's
-      // choice of blank, not part of the artwork's finish.
-      palette: (prev.palette ?? const Palette()).copyWith(
-        vintageGrade: fresh.palette?.vintageGrade ?? 0,
-        strategy: fresh.palette?.strategy ?? ColourStrategy.flagDerived,
-        accents: fresh.palette?.accents ?? const [],
-      ),
-    );
-    final clip = prev.clip;
-    if (clip != null && fresh.clip != null) {
+
+    var next = prev;
+    if (wants(FineTuneGroup.layout)) {
       next = next.copyWith(
-        clip: clip.copyWith(
-          scale: fresh.clip!.scale,
-          rotationDeg: fresh.clip!.rotationDeg,
-          feather: fresh.clip!.feather,
+        composition: next.composition.copyWith(
+          sizeClass: fresh.composition.sizeClass,
+          copiesPerCountry: fresh.composition.copiesPerCountry,
+          fillAlgorithm: fresh.composition.fillAlgorithm,
         ),
       );
+    }
+    if (wants(FineTuneGroup.colour)) {
+      next = next.copyWith(
+        // A generated recipe may carry no effects at all; that IS the default,
+        // so reset must take it rather than keep what the sliders did.
+        effects: fresh.effects ?? const Effects(),
+        // The strategy and its accents are colour-treatment state too — without
+        // them a design stays in Duotone with the "Full colour" chip lit. The
+        // garment colour is carried forward: it is the wearer's blank, not a
+        // finish.
+        palette: (next.palette ?? const Palette()).copyWith(
+          vintageGrade: fresh.palette?.vintageGrade ?? 0,
+          strategy: fresh.palette?.strategy ?? ColourStrategy.flagDerived,
+          accents: fresh.palette?.accents ?? const [],
+        ),
+      );
+    }
+    if (wants(FineTuneGroup.graphics)) {
+      final clip = next.clip;
+      if (clip != null && fresh.clip != null) {
+        next = next.copyWith(
+          clip: clip.copyWith(
+            scale: fresh.clip!.scale,
+            rotationDeg: fresh.clip!.rotationDeg,
+            feather: fresh.clip!.feather,
+          ),
+        );
+      }
+    }
+    if (wants(FineTuneGroup.words)) {
+      // The TREATMENT returns to the generated default; the words themselves
+      // are what the wearer wrote and are left alone. A design generated
+      // without typography resets to having none, which is its default.
+      next = next.copyWith(typography: fresh.typography ?? const Typography());
     }
     _commit(next);
   }
