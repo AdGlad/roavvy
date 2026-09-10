@@ -97,12 +97,26 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   @visibleForTesting
   void goToStage(StudioStage s) => _goToStage(s);
 
+  /// Which side was being viewed before Front Design flipped it.
+  ///
+  /// The Studio edits whichever face is on screen, so a view left flipped is
+  /// not cosmetic: after visiting Front Design, a title typed back on Words
+  /// landed on the CHEST BADGE and the design kept its old words. Front Design
+  /// borrows the view; it gives it back.
+  bool? _sideBeforeFront;
+
   void _goToStage(StudioStage s) {
     if (s == _stage) return;
     // Front Design is about the front, so it opens showing it. This is VIEW
     // state — setSide touches no recipe and no history — and the Front/Back
     // toggle stays available for comparing the two sides.
-    if (s == StudioStage.front) _c.setSide(true);
+    if (s == StudioStage.front && _stage != StudioStage.front) {
+      _sideBeforeFront = _c.onFront;
+      _c.setSide(true);
+    } else if (_stage == StudioStage.front && s != StudioStage.front) {
+      _c.setSide(_sideBeforeFront ?? false);
+      _sideBeforeFront = null;
+    }
     setState(() {
       _navHistory.add(_stage);
       _stage = s;
@@ -133,12 +147,30 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   void _next() {
     final vis = _visibleStages;
     final i = vis.indexOf(_stage);
-    if (i >= 0 && i < vis.length - 1) _goToStage(vis[i + 1]);
+    if (i >= 0) {
+      if (i < vis.length - 1) _goToStage(vis[i + 1]);
+      return;
+    }
+    // The current step is no longer applicable — a recipe Undo can restore a
+    // design whose Graphics or Colour group has nothing in it while that very
+    // step is on screen. Without this, Next simply stopped working. Move on to
+    // the first applicable step that comes after this one.
+    for (final s in vis) {
+      if (s.index > _stage.index) {
+        _goToStage(s);
+        return;
+      }
+    }
   }
 
   void _workflowBack() {
     if (_navHistory.isEmpty) return;
-    setState(() => _stage = _navHistory.removeLast());
+    final to = _navHistory.removeLast();
+    if (_stage == StudioStage.front && to != StudioStage.front) {
+      _c.setSide(_sideBeforeFront ?? false);
+      _sideBeforeFront = null;
+    }
+    setState(() => _stage = to);
   }
 
   @override
