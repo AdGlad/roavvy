@@ -14,8 +14,10 @@ enum StudioStage {
   // The Fine Tune groups, each at full depth. Reached from the overview.
   layout,
   graphics,
-  focus,
+  // Colour, Effects & Print is the last Fine Tune group, so it sits with the
+  // other two rather than after Focus — step 8, straight after Graphics.
   colour,
+  focus,
   words,
   front,
   placement,

@@ -28,7 +28,7 @@ class ColourStage extends RenderStage {
       filters.add(_saturation(0.0));
       filters.add(_duotone(_hex(palette.accents[0]), _hex(palette.accents[1])));
     } else if (palette.strategy == ColourStrategy.garmentAware &&
-        _isAdaptiveInk(recipe, palette)) {
+        recipe.inkIsAdaptive) {
       // Garment-aware: re-ink ADAPTIVE designs (text/typographic, solid stamp
       // ink, opted-in line-art) toward a legible contrast tone for the garment.
       // Flag fills and intentionally-coloured artwork are NOT adaptive, so this
@@ -54,24 +54,6 @@ class ColourStage extends RenderStage {
 
   // ---- garment-aware adaptive ink ----
 
-  /// True when the recipe's ink is ADAPTIVE (re-inkable for contrast) rather than
-  /// a flag fill. Classified from the recipe (ColourStage only sees flattened
-  /// pixels): typographic family or a `text` clip (letterforms), solid
-  /// passport-stamp ink (`clip.ink` is `black`/`white`, not `flag`), or an
-  /// explicit [Palette.contrastInk] opt-in for line-art/outline/silhouette
-  /// designs whose ink is not flag-derived. Flag-filled shapes stay semantic.
-  bool _isAdaptiveInk(DesignRecipe recipe, Palette palette) {
-    if (palette.contrastInk) return true;
-    if (recipe.composition.family == DesignFamily.typographic) return true;
-    final clip = recipe.clip;
-    if (clip != null) {
-      if (clip.shapeId == 'text') return true;
-      final ink = clip.ink;
-      // null/'flag' = filled with the flag (semantic); anything else is solid ink.
-      if (ink != null && ink != 'flag') return true;
-    }
-    return false;
-  }
 
   /// The contrast ink colour for the garment: an explicit [Palette.adaptiveInk]
   /// if given, else near-white on dark garments / near-black on light ones. The

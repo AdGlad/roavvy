@@ -2,6 +2,7 @@ import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 
 import '../studio_v2_theme.dart';
+import 'garment_preview.dart';
 
 /// **Fine Tune** — the dials that can actually move THIS design.
 ///
@@ -28,6 +29,7 @@ class FineTunePanel extends StatelessWidget {
     final choices = [
       ...controller.fineTuneChoices(),
       ...controller.graphicChoices(),
+      ...controller.colourChoices(),
     ];
     final groups = [
       for (final g in controller.fineTuneGroups())
@@ -104,9 +106,7 @@ class _Group extends StatelessWidget {
     FineTuneGroup.colour: Icons.palette_outlined,
   };
 
-  @override
-  Widget build(BuildContext context) => Container(
-    key: Key('v2-finetune-group-${group.name}'),
+  static Widget _card({required Widget child}) => Container(
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
     decoration: BoxDecoration(
@@ -114,35 +114,66 @@ class _Group extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: StudioV2Theme.subtleBorder),
     ),
-    child: Column(
+    child: child,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final previews = [
+      for (final c in choices)
+        if (c.preview) c,
+    ];
+    final rest = [
+      for (final c in choices)
+        if (!c.preview) c,
+    ];
+
+    // A treatment that has to be SEEN gets a card of its own, so the screen
+    // reads as "colour, then effects, then print" rather than as one long
+    // panel. Sliders and text chips stay together underneath, as the depth
+    // behind those choices.
+    return Column(
+      key: Key('v2-finetune-group-${group.name}'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showTitle)
-          Row(
-            children: [
-              Icon(_icons[group], size: 20, color: StudioV2Theme.accent),
-              const SizedBox(width: 10),
-              // "Colour, Effects & Print" runs past a phone beside its icon.
-              Expanded(
-                child: Text(
-                  group.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+          _card(
+            child: Row(
+              children: [
+                Icon(_icons[group], size: 20, color: StudioV2Theme.accent),
+                const SizedBox(width: 10),
+                // "Colour, Effects & Print" runs past a phone beside its icon.
+                Expanded(
+                  child: Text(
+                    group.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        const SizedBox(height: 4),
-        for (final c in choices) _ChoiceRow(choice: c, controller: controller),
-        for (final c in controls)
-          _ControlRow(control: c, controller: controller),
+        for (final c in previews)
+          _card(child: _PreviewChoiceRow(choice: c, controller: controller)),
+        if (rest.isNotEmpty || controls.isNotEmpty)
+          _card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final c in rest)
+                  _ChoiceRow(choice: c, controller: controller),
+                for (final c in controls)
+                  _ControlRow(control: c, controller: controller),
+              ],
+            ),
+          ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 /// One parameter, on one row.
@@ -317,4 +348,121 @@ class _ChoiceRow extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// A pick-one control whose options are LOOKS, shown as live thumbnails.
+///
+/// "Riso" or "Duotone" means nothing as a word on a chip — so each option
+/// renders the candidate it would produce: `choice.write(current, option.id)`,
+/// the same pure function the tap commits. What is previewed is therefore
+/// exactly what is applied, on the wearer's own artwork rather than a stock
+/// sample.
+///
+/// Cost is kept down three ways: the thumbnails are small, the row builds
+/// lazily so options scrolled past are never rendered, and [GarmentPreview]
+/// re-fetches only when a recipe's identity changes — with the
+/// [RenderService] cache (keyed `recipeId@size`) absorbing everything the
+/// wearer scrolls back to.
+class _PreviewChoiceRow extends StatelessWidget {
+  const _PreviewChoiceRow({required this.choice, required this.controller});
+
+  final FineTuneChoice choice;
+  final StudioController controller;
+
+  static const double _thumb = 74;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = choice.read(controller.current);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            choice.label,
+            style: const TextStyle(fontSize: 13, color: Colors.white),
+          ),
+          if (choice.helper.isNotEmpty)
+            Text(
+              choice.helper,
+              style: const TextStyle(fontSize: 10, color: Colors.white38),
+            ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: _thumb + 26,
+            child: ListView.builder(
+              key: Key('v2-finetune-choice-${choice.id}'),
+              scrollDirection: Axis.horizontal,
+              itemCount: choice.options.length,
+              itemBuilder: (context, i) {
+                final o = choice.options[i];
+                return _tile(o, o.id == current);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tile(FineTuneOption o, bool selected) {
+    // The candidate this option would produce — previewed and committed by the
+    // same pure write, so they can never disagree.
+    final candidate = choice.write(controller.current, o.id);
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: GestureDetector(
+        key: Key('v2-finetune-${choice.id}-${o.id}'),
+        // One tap is one decision, so it is one undo step — no live phase.
+        onTap: () => controller.commitFineTune(candidate),
+        child: Semantics(
+          button: true,
+          selected: selected,
+          label: o.label,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: _thumb,
+                height: _thumb,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: StudioV2Theme.control,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color:
+                        selected
+                            ? StudioV2Theme.accent
+                            : StudioV2Theme.subtleBorder,
+                    width: selected ? 2 : 1,
+                  ),
+                ),
+                child: GarmentPreview(
+                  service: controller.service,
+                  recipe: candidate,
+                  longSide: 150,
+                ),
+              ),
+              const SizedBox(height: 6),
+              SizedBox(
+                width: _thumb,
+                child: Text(
+                  o.label,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? StudioV2Theme.accent : Colors.white70,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

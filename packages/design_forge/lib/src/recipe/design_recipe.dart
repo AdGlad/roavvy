@@ -397,6 +397,34 @@ class DesignRecipe {
   /// Stable content hash of the design (excludes [provenance] and [recipeId]).
   String get recipeId => stableContentHash(canonicalJsonEncode(_hashableJson()));
 
+  /// True when this design's ink is ADAPTIVE — re-inkable for contrast against
+  /// the garment — rather than a flag fill with its own semantic colours.
+  ///
+  /// Classified from the recipe alone, because the renderer's colour stage only
+  /// ever sees flattened pixels: a typographic family or a `text` clip is
+  /// letterforms, a passport stamp whose ink is not `flag` is solid ink, and
+  /// [Palette.contrastInk] is the explicit opt-in for line-art and silhouette
+  /// designs the structural test cannot detect. Flag-filled shapes are NOT
+  /// adaptive — recolouring them would destroy the thing they mean.
+  ///
+  /// This is the single source of truth for the rule. `ColourStage` consults it
+  /// to decide whether [ColourStrategy.garmentAware] does anything, and the
+  /// Studio consults it to decide whether to OFFER that treatment at all — a
+  /// "Match shirt" chip on a flag design is a control that changes the recipe
+  /// and nothing a wearer could see.
+  bool get inkIsAdaptive {
+    if (palette?.contrastInk ?? false) return true;
+    if (composition.family == DesignFamily.typographic) return true;
+    final c = clip;
+    if (c != null) {
+      if (c.shapeId == 'text') return true;
+      // null / 'flag' = filled with the flag (semantic); anything else is ink.
+      if (c.ink != null && c.ink != 'flag') return true;
+    }
+    return false;
+  }
+
+
   Map<String, Object?> toJson() => {
         ..._hashableJson(),
         'recipeId': recipeId,

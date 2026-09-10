@@ -73,6 +73,7 @@ class FineTuneChoice {
     required this.read,
     required this.write,
     this.helper = '',
+    this.preview = false,
   });
 
   final String id;
@@ -80,6 +81,11 @@ class FineTuneChoice {
   final String helper;
   final FineTuneGroup group;
   final List<FineTuneOption> options;
+
+  /// Render each option as a live thumbnail of the design it would produce,
+  /// rather than as a text chip. A colour grade or a print screen is a LOOK —
+  /// "Riso" tells a wearer nothing until they can see it on their own artwork.
+  final bool preview;
 
   /// The option currently in effect.
   final String Function(DesignRecipe r) read;
@@ -1320,10 +1326,195 @@ class StudioController extends ChangeNotifier {
       for (final c in fineTuneControls()) c.group,
       for (final c in fineTuneChoices()) c.group,
       for (final c in graphicChoices()) c.group,
+      for (final c in colourChoices()) c.group,
     };
     return [
       for (final g in FineTuneGroup.values)
         if (used.contains(g)) g
+    ];
+  }
+
+  // ── M19: colour, effects and print ─────────────────────────────────────────
+
+  /// Duotone needs two accents or it does nothing.
+  ///
+  /// The renderer's duotone branch is `strategy == duotone && accents.length >= 2`,
+  /// and every recipe the generator produces carries an EMPTY accent list — so a
+  /// Duotone chip that wrote the strategy alone was a chip that changed the
+  /// recipe id and left the artwork exactly as it was. The treatment supplies the
+  /// pair it needs: a deep navy shadow lifting to the Roavvy orange, which is a
+  /// real travel-poster duotone rather than a grey ramp.
+  static const List<String> duotoneAccents = ['#14213D', '#E84C22'];
+
+  /// Which colour treatment the design is currently wearing.
+  static String _colourTreatmentOf(DesignRecipe r) {
+    final p = r.palette ?? const Palette();
+    switch (p.strategy) {
+      case ColourStrategy.monochrome:
+        return 'mono';
+      case ColourStrategy.duotone:
+        return 'duotone';
+      case ColourStrategy.garmentAware:
+        return 'garment';
+      case ColourStrategy.flagDerived:
+      case ColourStrategy.brand:
+        // flagDerived and brand both mean "no colour filter" to the renderer,
+        // so the aged grade is what separates the remaining looks.
+        if (p.vintageGrade >= 0.55) return 'vintage';
+        if (p.vintageGrade >= 0.15) return 'muted';
+        return 'full';
+    }
+  }
+
+  /// The whole-artwork effect currently in effect. Ordered most-dominant first:
+  /// "Distressed" sets grain as well, so distress has to be read before it.
+  static String _effectStyleOf(Effects fx) {
+    if (fx.halftone > 0) return 'halftone';
+    if (fx.distress > 0) return 'distressed';
+    if (fx.grain > 0) return 'grain';
+    if (fx.fade > 0) return 'faded';
+    return 'none';
+  }
+
+  static String _printStyleOf(Effects fx) {
+    if (fx.riso > 0) return 'riso';
+    if (fx.newsprint > 0) return 'newsprint';
+    if (fx.sunFaded > 0) return 'sunFaded';
+    if (fx.photocopy > 0) return 'photocopy';
+    return 'standard';
+  }
+
+  /// Colour, whole-artwork effects and print finish for the CURRENT design.
+  ///
+  /// Same capability model as M16–M18 — these are [FineTuneChoice]s in
+  /// [FineTuneGroup.colour], so the panel that renders Layout and Graphics
+  /// renders these too without knowing what they are. They are marked
+  /// [FineTuneChoice.preview] because a colour grade or a print screen has to be
+  /// SEEN to be chosen: the panel renders each option's own candidate recipe.
+  ///
+  /// Every option below writes a field the renderer actually reads. Notably
+  /// absent: `Effects.cracks` and `Effects.acidWash` exist on the recipe and are
+  /// read by nothing in `design_forge_render`, so a control for either would be
+  /// inert — the same defect M17 found in `composition.jitter`.
+  ///
+  /// The three groups are kept disjoint so they compose rather than fight:
+  /// colour writes only the palette, Effects writes only distress/grain/fade/
+  /// halftone, and Print writes only riso/newsprint/sunFaded/photocopy. The
+  /// Vibe's own effects (tie-dye, shatter, ripple) are carried through
+  /// untouched by all three.
+  List<FineTuneChoice> colourChoices() {
+    final r = current;
+    // The colour stage bails on a recipe it cannot grade; so does this screen.
+    if (r.content.flags.isEmpty && r.typography == null && r.clip == null) {
+      return const [];
+    }
+
+    return [
+      FineTuneChoice(
+        id: 'colourTreatment',
+        label: 'Colour treatment',
+        helper: 'How the artwork is coloured — not the shirt.',
+        group: FineTuneGroup.colour,
+        preview: true,
+        options: [
+          const FineTuneOption('full', 'Full colour'),
+          const FineTuneOption('muted', 'Muted'),
+          const FineTuneOption('vintage', 'Vintage'),
+          const FineTuneOption('mono', 'Monochrome'),
+          const FineTuneOption('duotone', 'Duotone'),
+          // Garment-aware re-inks ADAPTIVE ink only. On a flag design the
+          // renderer skips the branch entirely, so the chip would be a
+          // decoration — it is offered only where it can be seen.
+          if (r.inkIsAdaptive) const FineTuneOption('garment', 'Match shirt'),
+        ],
+        read: _colourTreatmentOf,
+        write: (r, id) {
+          final p = r.palette ?? const Palette();
+          return switch (id) {
+            'full' => r.copyWith(
+                palette: p.copyWith(
+                    strategy: ColourStrategy.flagDerived, vintageGrade: 0.0)),
+            'muted' => r.copyWith(
+                palette: p.copyWith(
+                    strategy: ColourStrategy.flagDerived, vintageGrade: 0.35)),
+            'vintage' => r.copyWith(
+                palette: p.copyWith(
+                    strategy: ColourStrategy.flagDerived, vintageGrade: 0.75)),
+            'mono' => r.copyWith(
+                palette: p.copyWith(
+                    strategy: ColourStrategy.monochrome, vintageGrade: 0.0)),
+            'duotone' => r.copyWith(
+                palette: p.copyWith(
+                  strategy: ColourStrategy.duotone,
+                  accents: duotoneAccents,
+                  vintageGrade: 0.0,
+                )),
+            'garment' => r.copyWith(
+                palette: p.copyWith(
+                    strategy: ColourStrategy.garmentAware, vintageGrade: 0.0)),
+            _ => r,
+          };
+        },
+      ),
+      FineTuneChoice(
+        id: 'effectStyle',
+        label: 'Effects',
+        helper: 'A treatment over the whole artwork.',
+        group: FineTuneGroup.colour,
+        preview: true,
+        options: const [
+          FineTuneOption('none', 'None'),
+          FineTuneOption('faded', 'Faded'),
+          FineTuneOption('distressed', 'Distressed'),
+          FineTuneOption('grain', 'Grain'),
+          FineTuneOption('halftone', 'Halftone'),
+        ],
+        read: (r) => _effectStyleOf(r.effects ?? const Effects()),
+        write: (r, id) {
+          final fx = r.effects ?? const Effects();
+          // Only the four effect fields move; the print finish and the Vibe's
+          // tie-dye / shatter / ripple ride through untouched.
+          final next = switch (id) {
+            'none' => fx.copyWith(distress: 0, grain: 0, fade: 0, halftone: 0),
+            'faded' =>
+              fx.copyWith(distress: 0, grain: 0, fade: 0.5, halftone: 0),
+            'distressed' => fx.copyWith(
+                distress: 0.55, grain: 0.35, fade: 0, halftone: 0),
+            'grain' => fx.copyWith(distress: 0, grain: 0.6, fade: 0, halftone: 0),
+            'halftone' => fx.copyWith(
+                distress: 0, grain: 0, fade: 0, halftone: 0.8, halftoneScale: 5),
+            _ => fx,
+          };
+          return r.copyWith(effects: next);
+        },
+      ),
+      FineTuneChoice(
+        id: 'printStyle',
+        label: 'Print style',
+        helper: 'How it looks coming off the press.',
+        group: FineTuneGroup.colour,
+        preview: true,
+        options: const [
+          FineTuneOption('standard', 'Standard'),
+          FineTuneOption('riso', 'Riso'),
+          FineTuneOption('newsprint', 'Newsprint'),
+          FineTuneOption('sunFaded', 'Sun-faded'),
+          FineTuneOption('photocopy', 'Photocopy'),
+        ],
+        read: (r) => _printStyleOf(r.effects ?? const Effects()),
+        write: (r, id) {
+          final fx = r.effects ?? const Effects();
+          // Exactly one press finish at a time — they are alternative presses,
+          // not layers, and stacking two just muddies the artwork.
+          final next = fx.copyWith(
+            riso: id == 'riso' ? 0.9 : 0.0,
+            newsprint: id == 'newsprint' ? 0.8 : 0.0,
+            sunFaded: id == 'sunFaded' ? 0.7 : 0.0,
+            photocopy: id == 'photocopy' ? 0.8 : 0.0,
+          );
+          return r.copyWith(effects: next);
+        },
+      ),
     ];
   }
 
@@ -1371,8 +1562,16 @@ class StudioController extends ChangeNotifier {
       // A generated recipe may carry no effects at all; that IS the default,
       // so reset must take it rather than keep what the sliders did.
       effects: fresh.effects ?? const Effects(),
-      palette: (prev.palette ?? const Palette())
-          .copyWith(vintageGrade: fresh.palette?.vintageGrade ?? 0),
+      // M19 resets with the rest of the finish: the strategy and its accents
+      // are colour-treatment state, so leaving them behind would strand a
+      // design in Duotone with the "Full colour" chip lit. The GARMENT colour
+      // is deliberately carried forward from `prev` — it is the wearer's
+      // choice of blank, not part of the artwork's finish.
+      palette: (prev.palette ?? const Palette()).copyWith(
+        vintageGrade: fresh.palette?.vintageGrade ?? 0,
+        strategy: fresh.palette?.strategy ?? ColourStrategy.flagDerived,
+        accents: fresh.palette?.accents ?? const [],
+      ),
     );
     final clip = prev.clip;
     if (clip != null && fresh.clip != null) {

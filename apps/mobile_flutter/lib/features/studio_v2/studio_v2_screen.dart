@@ -7,7 +7,6 @@ import 'commerce/garment_cart_request.dart';
 import 'host/studio_v2_trace.dart';
 import 'studio_v2_stage.dart';
 import 'studio_v2_theme.dart';
-import 'widgets/colour_workspace.dart';
 import 'widgets/detail_workspace.dart';
 import 'widgets/direction_workspace.dart';
 import 'widgets/fine_tune_panel.dart';
@@ -106,6 +105,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       StudioStage.detail => _c.detailApplies,
       StudioStage.layout => groups.contains(FineTuneGroup.layout),
       StudioStage.graphics => groups.contains(FineTuneGroup.graphics),
+      StudioStage.colour => groups.contains(FineTuneGroup.colour),
       _ => true,
     };
     return [
@@ -159,7 +159,8 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
     // the shared editing frame, so the shirt can still take the screen.
     if (_stage == StudioStage.fineTune ||
         _stage == StudioStage.layout ||
-        _stage == StudioStage.graphics) {
+        _stage == StudioStage.graphics ||
+        _stage == StudioStage.colour) {
       return Scaffold(
         backgroundColor: StudioV2Theme.canvas,
         body: SafeArea(
@@ -180,6 +181,11 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                     'Graphics',
                     'Adjust the graphic style and appearance.',
                   ),
+                  StudioStage.colour => _stepHeading(
+                    '8',
+                    'Colour, Effects & Print',
+                    'Adjust the colours, effects and print style.',
+                  ),
                   _ => _stepHeading(
                     '5',
                     'Fine Tune',
@@ -192,6 +198,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                     only: switch (_stage) {
                       StudioStage.layout => FineTuneGroup.layout,
                       StudioStage.graphics => FineTuneGroup.graphics,
+                      StudioStage.colour => FineTuneGroup.colour,
                       _ => null,
                     },
                   ),
@@ -664,10 +671,10 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       StudioStage.travels => TravelsWorkspace(controller: _c),
       StudioStage.vibe => const SizedBox.shrink(),
       StudioStage.focus => FocusWorkspace(controller: _c),
-      StudioStage.colour => ColourWorkspace(controller: _c),
       StudioStage.words => WordsWorkspace(controller: _c),
       StudioStage.front => FrontWorkspace(controller: _c),
       StudioStage.fineTune => const SizedBox.shrink(),
+      StudioStage.colour => const SizedBox.shrink(),
       StudioStage.layout => const SizedBox.shrink(),
       StudioStage.graphics => const SizedBox.shrink(),
       StudioStage.placement => PlacementWorkspace(

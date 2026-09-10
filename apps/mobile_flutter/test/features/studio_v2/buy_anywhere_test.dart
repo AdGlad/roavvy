@@ -87,12 +87,18 @@ void main() {
       // and Travels DO show a finished shirt, so M178's "buy from anywhere"
       // is genuinely weaker there than it was. See the note in the M16
       // report; the fix belongs in the shared Customise header, not here.
+      //
+      // M19 moved Colour into that same frame, taking the count to SEVEN
+      // steps that show a finished shirt with no way to buy it. This is the
+      // largest single regression against M178 and is worth fixing before the
+      // remaining Customise steps adopt the frame.
       if (s == StudioStage.direction ||
           s == StudioStage.detail ||
           s == StudioStage.vibe ||
           s == StudioStage.fineTune ||
           s == StudioStage.layout ||
-          s == StudioStage.graphics) {
+          s == StudioStage.graphics ||
+          s == StudioStage.colour) {
         expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
         continue;
       }
@@ -106,7 +112,7 @@ void main() {
 
   testWidgets('Buy from a mid-flow step reaches the cart', (tester) async {
     final state = await pump(tester);
-    state.goToStage(StudioStage.colour);
+    state.goToStage(StudioStage.words);
     await tester.pump();
     await tester.tap(find.byKey(const Key('v2-buy-now')));
     await tester.pump(const Duration(milliseconds: 300));
@@ -119,7 +125,7 @@ void main() {
     final state = await pump(tester);
     await tester.tap(find.byKey(const Key('v2-instant-buy')));
     await tester.pump(const Duration(milliseconds: 300));
-    state.goToStage(StudioStage.colour);
+    state.goToStage(StudioStage.words);
     await tester.pump();
     await tester.tap(find.byKey(const Key('v2-buy-now')));
     await tester.pump(const Duration(milliseconds: 300));
@@ -136,7 +142,7 @@ void main() {
   ) async {
     final state = await pump(tester, unavailable: {'Orange'});
     controller.setGarment('#FF5723'); // Orange
-    state.goToStage(StudioStage.colour);
+    state.goToStage(StudioStage.words);
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('v2-buy-now')));
@@ -154,7 +160,7 @@ void main() {
   ) async {
     final state = await pump(tester, withCart: false);
     // From a wizard step, so this exercises the footer action.
-    state.goToStage(StudioStage.colour);
+    state.goToStage(StudioStage.words);
     await tester.pump();
     await tester.tap(find.byKey(const Key('v2-buy-now')));
     await tester.pump();
