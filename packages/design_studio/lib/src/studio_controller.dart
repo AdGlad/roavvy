@@ -2130,6 +2130,23 @@ class StudioController extends ChangeNotifier {
     _observe(current, PreferenceSignal.saved);
   }
 
+  /// Whether the finished design is hearted.
+  ///
+  /// Always the HERO, never [current]: on the Review step the viewer may be
+  /// looking at the front, and a heart that meant "the chest ribbon" depending
+  /// on which side happened to be on screen would be a different button each
+  /// time it was pressed.
+  bool get isFavourite => library?.library.isLiked(_hero.recipeId) ?? false;
+
+  /// Heart / un-heart the finished design, through the same library like the
+  /// rest of the app uses. Purely a marker: the design itself does not change,
+  /// and neither does the recipe history.
+  void toggleFavourite() {
+    library?.toggleLike(_hero);
+    _observe(_hero, PreferenceSignal.saved);
+    notifyListeners();
+  }
+
   /// The current design as ONE two-face garment: [back] = the hero (main
   /// artwork), [front] = the front face (chest ribbon/config), sharing the
   /// garment colour. This is the reproducible unit the Review step saves and

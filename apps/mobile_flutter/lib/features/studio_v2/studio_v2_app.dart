@@ -136,7 +136,13 @@ class StudioV2App extends ConsumerStatefulWidget {
     super.key,
     this.onAddToCart,
     this.unavailableGarments = const {},
+    this.priceLabel,
   });
+
+  /// The store's price for a tee, from the host's own pricing source. The
+  /// Studio may not import the merch feature, so this arrives the same way the
+  /// cart callback does. Null means the store has not said, and Review says so
+  /// rather than inventing a number.
 
   /// Garment colours the store cannot currently fulfil, supplied by the
   /// entrypoint (the only layer that may know both the Studio and commerce).
@@ -148,6 +154,8 @@ class StudioV2App extends ConsumerStatefulWidget {
   /// stays isolated from `features/merch` — only the top-level entrypoint knows
   /// the concrete adapter. Null-safe: dev builds without it simply have no cart.
   final AddToCartCallback? onAddToCart;
+
+  final String? priceLabel;
 
   @override
   ConsumerState<StudioV2App> createState() => _StudioV2AppState();
@@ -267,6 +275,7 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
               : StudioV2Screen(
                 controller: _controller!,
                 onAddToCart: widget.onAddToCart,
+                priceLabel: widget.priceLabel,
               ),
     );
   }

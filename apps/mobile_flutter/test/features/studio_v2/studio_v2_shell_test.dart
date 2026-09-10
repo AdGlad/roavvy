@@ -66,7 +66,10 @@ void main() {
       if (s == StudioStage.instant ||
           s == StudioStage.direction ||
           s == StudioStage.detail ||
-          s == StudioStage.vibe) {
+          s == StudioStage.vibe ||
+          // M22: Review is the end of the flow, not a step in it — it shows
+          // both finished faces side by side instead of the single hero.
+          s == StudioStage.review) {
         continue;
       }
       // The stage list moved into a bottom sheet, so the chips only exist
@@ -172,11 +175,12 @@ void main() {
     final r0 = controller.current.recipeId;
 
     // Navigate forward (workflow history grows; recipe untouched).
-    // Review rather than Vibe, Colour or Front: those all own their own frame
-    // now and have no workflow footer to press.
-    state.goToStage(StudioStage.review);
+    // Focus rather than Vibe, Colour, Front or Review: those all own their own
+    // frame now and have no workflow footer to press. Focus and Placement are
+    // the only steps still wearing the wizard chrome.
+    state.goToStage(StudioStage.focus);
     await tester.pump();
-    expect(state.stage, StudioStage.review);
+    expect(state.stage, StudioStage.focus);
     expect(controller.current.recipeId, r0);
 
     // A committed recipe change (via the shared controller) grows recipe undo.

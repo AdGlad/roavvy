@@ -29,10 +29,19 @@ import 'widgets/words_workspace.dart';
 /// controls remain one tap away without permanently occupying a toolbar, while
 /// every workflow stage stays reachable through the compact Steps sheet.
 class StudioV2Screen extends StatefulWidget {
-  const StudioV2Screen({super.key, required this.controller, this.onAddToCart});
+  const StudioV2Screen({
+    super.key,
+    required this.controller,
+    this.onAddToCart,
+    this.priceLabel,
+  });
 
   final StudioController controller;
   final AddToCartCallback? onAddToCart;
+
+  /// The store's price for a tee, supplied by the host. The Studio may not
+  /// import the merch feature, so pricing arrives the same way the cart does.
+  final String? priceLabel;
 
   @override
   State<StudioV2Screen> createState() => StudioV2ScreenState();
@@ -157,6 +166,35 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
             // Customise step. Travels edits the design rather than replacing
             // it, so the shirt they chose is the shirt they keep editing.
             onCustomise: () => _goToStage(StudioStage.travels),
+          ),
+        ),
+      );
+    }
+    // Review is the end of the flow, not a step in it: the design is finished,
+    // so the screen carries no editing chrome at all — no Next, no Undo, no
+    // Fine Tune. Just the finished product and the ways to own it.
+    if (_stage == StudioStage.review) {
+      return Scaffold(
+        backgroundColor: StudioV2Theme.canvas,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _reviewHeader(),
+              _stepHeading(
+                '11',
+                'Review & Buy',
+                'Check your design, then add it to your cart.',
+              ),
+              Expanded(
+                child: ReviewWorkspace(
+                  controller: _c,
+                  onAddToCart: widget.onAddToCart,
+                  frontPlacement: _frontPlacement.value,
+                  backPlacement: _backPlacement.value,
+                  priceLabel: widget.priceLabel,
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -563,6 +601,48 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   );
 
   /// The numbered step heading the Customise screens share.
+  /// The Review header: a way back, the wordmark, and the one action this
+  /// screen exists for. No Next — there is nowhere further to go.
+  Widget _reviewHeader() => Padding(
+    padding: const EdgeInsets.fromLTRB(6, 2, 14, 2),
+    child: Row(
+      children: [
+        IconButton(
+          key: const Key('v2-review-workflow-back'),
+          tooltip: 'Back',
+          onPressed: _workflowBack,
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          color: Colors.white70,
+        ),
+        const Expanded(
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'roavvy',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                Icon(Icons.place, size: 17, color: StudioV2Theme.accent),
+              ],
+            ),
+          ),
+        ),
+        IconButton(
+          key: const Key('v2-saved-designs'),
+          tooltip: 'Your saved designs',
+          onPressed: _showSavedDesigns,
+          icon: const Icon(Icons.inventory_2_outlined, size: 20),
+          color: Colors.white70,
+        ),
+      ],
+    ),
+  );
+
   Widget _stepHeading(String number, String title, String helper) => Padding(
     padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
     child: Row(
@@ -704,12 +784,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
         controller: _c,
         placement: _placement,
       ),
-      StudioStage.review => ReviewWorkspace(
-        frontPlacement: _frontPlacement.value,
-        backPlacement: _backPlacement.value,
-        controller: _c,
-        onAddToCart: widget.onAddToCart,
-      ),
+      StudioStage.review => const SizedBox.shrink(),
     },
   );
 

@@ -10,8 +10,7 @@ import 'package:region_lookup/region_lookup.dart';
 
 import 'core/providers.dart';
 import 'data/db/roavvy_database.dart';
-import 'features/studio_v2/studio_v2_app.dart';
-import 'features/studio_v2_commerce/studio_v2_cart_adapter.dart';
+import 'features/studio_v2_commerce/studio_v2_entry.dart';
 
 /// Dedicated **developer entrypoint** for Roavvy T-Shirt Studio V2.
 ///
@@ -35,10 +34,9 @@ Future<void> main() async {
   // data has not been handed to them first. Production does this at startup.
   initCountryLookup(countryBytes);
   initRegionLookup(regionBytes);
-  // Wire the Studio V2 → commerce bridge here (the top level is the only place
-  // that may know BOTH the isolated V2 feature and the V1 merch flow). Review →
+  // The Studio V2 → commerce bridge lives in StudioV2Entry (the only layer that
+  // may know BOTH the isolated V2 feature and the V1 merch flow). Review →
   // Add to cart then reuses the existing cart/checkout/Printful pipeline.
-  const adapter = StudioV2CartAdapter();
   runApp(
     ProviderScope(
       overrides: [
@@ -46,12 +44,7 @@ Future<void> main() async {
         geodataBytesProvider.overrideWithValue(countryBytes),
         regionGeodataBytesProvider.overrideWithValue(regionBytes),
       ],
-      child: StudioV2App(
-        onAddToCart: adapter.addToCart,
-        // The entrypoint is the only layer that may know both sides, so this is
-        // where the store's stock reaches the Studio.
-        unavailableGarments: StudioV2CartAdapter.unstockedColours,
-      ),
+      child: const StudioV2Entry(),
     ),
   );
 }

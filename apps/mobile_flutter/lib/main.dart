@@ -15,8 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 import 'app.dart';
-import 'features/studio_v2/studio_v2_app.dart';
-import 'features/studio_v2_commerce/studio_v2_cart_adapter.dart';
+import 'features/studio_v2_commerce/studio_v2_entry.dart';
 import 'core/notification_service.dart';
 import 'core/remote_config_service.dart';
 import 'core/providers.dart';
@@ -72,10 +71,7 @@ Future<void> main() async {
             regionGeo.buffer.asUint8List(),
           ),
         ],
-        child: StudioV2App(
-          onAddToCart: const StudioV2CartAdapter().addToCart,
-          unavailableGarments: StudioV2CartAdapter.unstockedColours,
-        ),
+        child: const StudioV2Entry(),
       ),
     );
     return;

@@ -108,6 +108,12 @@ void main() {
         expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
         continue;
       }
+      if (s == StudioStage.review) {
+        // Review's whole purpose is buying, so it carries the real Add to
+        // Cart rather than the mid-flow Buy pill.
+        expect(find.byKey(const Key('v2-review-add-to-cart')), findsOneWidget);
+        continue;
+      }
       expect(
         find.byKey(const Key('v2-buy-now')),
         findsOneWidget,
