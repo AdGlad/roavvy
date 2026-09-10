@@ -90,6 +90,10 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
 
   void _goToStage(StudioStage s) {
     if (s == _stage) return;
+    // Front Design is about the front, so it opens showing it. This is VIEW
+    // state — setSide touches no recipe and no history — and the Front/Back
+    // toggle stays available for comparing the two sides.
+    if (s == StudioStage.front) _c.setSide(true);
     setState(() {
       _navHistory.add(_stage);
       _stage = s;
@@ -164,7 +168,8 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
         _stage == StudioStage.layout ||
         _stage == StudioStage.graphics ||
         _stage == StudioStage.colour ||
-        _stage == StudioStage.words) {
+        _stage == StudioStage.words ||
+        _stage == StudioStage.front) {
       return Scaffold(
         backgroundColor: StudioV2Theme.canvas,
         body: SafeArea(
@@ -195,6 +200,11 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                     'Words & Title',
                     'Add a title or text to complete your design.',
                   ),
+                  StudioStage.front => _stepHeading(
+                    '10',
+                    'Front Design',
+                    'Add an optional design to the front of your shirt.',
+                  ),
                   _ => _stepHeading(
                     '5',
                     'Fine Tune',
@@ -202,18 +212,19 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
                   ),
                 },
                 Expanded(
-                  child:
-                      _stage == StudioStage.words
-                          ? WordsWorkspace(controller: _c)
-                          : FineTunePanel(
-                            controller: _c,
-                            only: switch (_stage) {
-                              StudioStage.layout => FineTuneGroup.layout,
-                              StudioStage.graphics => FineTuneGroup.graphics,
-                              StudioStage.colour => FineTuneGroup.colour,
-                              _ => null,
-                            },
-                          ),
+                  child: switch (_stage) {
+                    StudioStage.words => WordsWorkspace(controller: _c),
+                    StudioStage.front => FrontWorkspace(controller: _c),
+                    _ => FineTunePanel(
+                      controller: _c,
+                      only: switch (_stage) {
+                        StudioStage.layout => FineTuneGroup.layout,
+                        StudioStage.graphics => FineTuneGroup.graphics,
+                        StudioStage.colour => FineTuneGroup.colour,
+                        _ => null,
+                      },
+                    ),
+                  },
                 ),
               ],
             ),
@@ -684,7 +695,7 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
       StudioStage.vibe => const SizedBox.shrink(),
       StudioStage.focus => FocusWorkspace(controller: _c),
       StudioStage.words => const SizedBox.shrink(),
-      StudioStage.front => FrontWorkspace(controller: _c),
+      StudioStage.front => const SizedBox.shrink(),
       StudioStage.fineTune => const SizedBox.shrink(),
       StudioStage.colour => const SizedBox.shrink(),
       StudioStage.layout => const SizedBox.shrink(),

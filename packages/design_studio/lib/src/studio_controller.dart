@@ -395,6 +395,20 @@ class StudioController extends ChangeNotifier {
     return all.inRange(DateRange.years(_yearLo, _yearHi)).countryCodes;
   }
 
+  /// Every country the traveller has been to, ignoring the year range and the
+  /// current selection — what "All travelled" on the front ribbon means.
+  ///
+  /// NOT `designContext.flagCodes`: a context built from dated trips
+  /// ([DesignContext.fromTrips]) carries its countries in `trips` and leaves
+  /// `flagCodes` EMPTY, so reading that list made "All travelled" quietly
+  /// identical to "Selected travels" for every real traveller.
+  List<String> get allTravelledCodes {
+    if (!designContext.hasTrips) {
+      return [for (final c in designContext.flagCodes) c.toLowerCase()];
+    }
+    return TravelHistory(designContext.trips).countryCodes;
+  }
+
   /// The current travel selection (a subset of [availableCountryCodes]). Map and
   /// List selection both read/write THIS single set, so they stay in sync.
   final Set<String> _selected = {};
@@ -426,7 +440,7 @@ class StudioController extends ChangeNotifier {
       ..clear()
       ..addAll(availableCountryCodes);
     _hero = _pickHero();
-    _frontFace = _ribbonOf(_hero);
+    _rebuildFront();
   }
 
   /// Emit the "initial hero viewed" soft-positive signal. Hosts call this once
@@ -568,7 +582,7 @@ class StudioController extends ChangeNotifier {
     final index = i % deck.length;
     _instantIndex = index < 0 ? index + deck.length : index;
     _hero = _carryGarment(deck[_instantIndex], _hero);
-    _frontFace = _ribbonOf(_hero);
+    _rebuildFront();
     notifyListeners();
   }
 
@@ -1822,8 +1836,14 @@ class StudioController extends ChangeNotifier {
   /// The front artwork's print rect as fractions of the shirt-front image
   /// (mobile parity: `product_mockup_specs.dart`). Left/right chest map as mobile
   /// does — `left_chest` sits on the viewer's right. [Rect.zero] = blank front.
-  Rect frontPrintRect() {
-    switch (_frontFit) {
+  Rect frontPrintRect() => frontPrintRectFor(_frontFit);
+
+  /// The print rect a given [fit] would use, at the CURRENT chest side.
+  ///
+  /// Exposed so the Front Design step can draw each option from the same
+  /// geometry the printer is handed, rather than from a picture of it.
+  Rect frontPrintRectFor(FrontFit fit) {
+    switch (fit) {
       case FrontFit.full:
         return const Rect.fromLTWH(0.25, 0.22, 0.50, 0.40);
       case FrontFit.chest:
@@ -1851,7 +1871,7 @@ class StudioController extends ChangeNotifier {
   DesignRecipe _ribbonOf(DesignRecipe r) {
     var content = r.content;
     if (_ribbonAllCountries) {
-      final all = _context.flagCodes;
+      final all = allTravelledCodes;
       if (all.isNotEmpty) {
         content = RecipeContent(
           flags: [for (final c in all) FlagRef(c)],
@@ -1876,24 +1896,60 @@ class StudioController extends ChangeNotifier {
     );
   }
 
-  void setFrontArt(FrontArt art) {
-    _frontArt = art;
-    switch (art) {
+  /// The seed the complement front was derived with.
+  ///
+  /// Kept so the complement can be RE-derived from a changed back without
+  /// becoming a different design every time: rerolling on each rebuild would
+  /// mean toggling one country in Travels handed back an unrecognisable front.
+  int? _complementSeed;
+
+  /// Rebuild the front face from the back, honouring the chosen [FrontArt].
+  ///
+  /// The front used to be rebuilt as a ribbon unconditionally wherever the back
+  /// changed — so going back to Travels and toggling a single country silently
+  /// threw away a Match-back or Complement front. The front follows the back;
+  /// it does not get replaced by it.
+  void _rebuildFront() {
+    switch (_frontArt) {
       case FrontArt.ribbon:
         _frontFace = _ribbonOf(_hero);
       case FrontArt.complement:
         _frontFace = GarmentDesign.deriveBack(_hero,
-            themeSeed: _nextSeed(),
+            themeSeed: _complementSeed ??= _nextSeed(),
             garmentColour: _hero.palette?.garmentColour);
       case FrontArt.matchBack:
         _frontFace = _hero;
     }
+  }
+
+  void setFrontArt(FrontArt art) {
+    _frontArt = art;
+    // A fresh pick of Complement earns a fresh interpretation; a rebuild
+    // caused by the back changing keeps the one already on screen.
+    if (art == FrontArt.complement) _complementSeed = _nextSeed();
+    _rebuildFront();
     notifyListeners();
   }
 
   void setRibbonCoverage(bool all) {
     _ribbonAllCountries = all;
-    _frontFace = _ribbonOf(_hero);
+    _rebuildFront();
+    notifyListeners();
+  }
+
+  /// Put the FRONT back to how a design arrives — chest, left, flag ribbon of
+  /// the countries chosen for this design.
+  ///
+  /// The completed back is not touched: not its artwork, not its words, not the
+  /// garment. Front configuration is view/print state beside the back design,
+  /// never a modification of it.
+  void resetFront() {
+    _frontFit = FrontFit.chest;
+    _chestRight = false;
+    _frontArt = FrontArt.ribbon;
+    _ribbonAllCountries = false;
+    _complementSeed = null;
+    _rebuildFront();
     notifyListeners();
   }
 
@@ -2046,7 +2102,7 @@ class StudioController extends ChangeNotifier {
         meta: {...recut.content.meta, ...prev.content.meta},
       ),
     );
-    _frontFace = _ribbonOf(_hero);
+    _rebuildFront();
     notifyListeners();
   }
 

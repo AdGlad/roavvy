@@ -89,7 +89,8 @@ void main() {
       // report; the fix belongs in the shared Customise header, not here.
       //
       // M19 moved Colour into that same frame and M20 moved Words, taking the
-      // count to EIGHT steps that show a finished shirt with no way to buy it.
+      // count to NINE steps that show a finished shirt with no way to buy it
+      // (M21 took Front as well).
       // Each milestone that adopts the frame also costs these tests their
       // representative "wizard chrome" stage — they have now been repointed
       // twice. Placement is the last mid-flow step still wearing it, so the
@@ -102,7 +103,8 @@ void main() {
           s == StudioStage.layout ||
           s == StudioStage.graphics ||
           s == StudioStage.colour ||
-          s == StudioStage.words) {
+          s == StudioStage.words ||
+          s == StudioStage.front) {
         expect(find.byKey(const Key('v2-customise-next')), findsOneWidget);
         continue;
       }

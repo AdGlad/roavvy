@@ -154,14 +154,15 @@ void main() {
     // Start past Travels: that stage hosts the globe, which needs the
     // country-lookup engine and real map data — a different subsystem from
     // the one under test here, which is that stepping forward leaves the
-    // recipe alone. Front rather than Colour: M19 moved Colour into the Fine
-    // Tune workspace frame, which has no wizard footer to press.
-    state.goToStage(StudioStage.front);
+    // recipe alone. Placement rather than Colour or Front: each Customise
+    // milestone moves another step into the workspace frame, which has no
+    // wizard footer to press — M19 took Colour, M20 Words, M21 Front.
+    state.goToStage(StudioStage.placement);
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('v2-next')));
     await tester.pump();
-    expect(state.stage, StudioStage.placement);
+    expect(state.stage, StudioStage.review);
     expect(controller.current.recipeId, id0); // stage change ≠ recipe change
   });
 
@@ -171,11 +172,11 @@ void main() {
     final r0 = controller.current.recipeId;
 
     // Navigate forward (workflow history grows; recipe untouched).
-    // Front rather than Vibe or Colour: both own their own frame now and have
-    // no workflow footer to press.
-    state.goToStage(StudioStage.front);
+    // Review rather than Vibe, Colour or Front: those all own their own frame
+    // now and have no workflow footer to press.
+    state.goToStage(StudioStage.review);
     await tester.pump();
-    expect(state.stage, StudioStage.front);
+    expect(state.stage, StudioStage.review);
     expect(controller.current.recipeId, r0);
 
     // A committed recipe change (via the shared controller) grows recipe undo.
