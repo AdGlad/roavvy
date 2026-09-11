@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,26 +24,6 @@ class MerchShopScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Shop'),
         actions: [
-          // Debug-only entry into the parallel T-Shirt Studio V2 (M9). Gated on
-          // [kDebugMode] so it never ships to users; it lets V1 and V2 be
-          // launched side-by-side for comparison. Pushed on top of the fully
-          // initialised app, so V2 opens on the user's REAL travel data.
-          //
-          // Opened through [StudioV2Entry] — the one bridge that knows both
-          // sides — so this entry gets the same cart adapter, stock list and
-          // live price as every other. `embedded` keeps the Studio on THIS
-          // navigator, which is what its close button pops back onto.
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.science_outlined),
-              tooltip: 'Studio V2 (beta)',
-              onPressed:
-                  () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const StudioV2Entry(embedded: true),
-                    ),
-                  ),
-            ),
           IconButton(
             icon: Badge(
               isLabelVisible: cartCount > 0,
@@ -73,10 +52,103 @@ class MerchShopScreen extends ConsumerWidget {
       ),
       body: const CustomScrollView(
         slivers: [
+          SliverToBoxAdapter(child: _DesignedForYouCard()),
           SliverToBoxAdapter(child: _DesignEntryBanner()),
           SliverToBoxAdapter(child: MerchCollectionsSection()),
           SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
+      ),
+    );
+  }
+}
+
+// ── Designed for You ─────────────────────────────────────────────────────────
+
+/// The Studio's front door (M25.1).
+///
+/// Roavvy has already made the shirts; this says so. It is deliberately not an
+/// invitation to configure something — the product principle is that Roavvy
+/// creates first and the customer edits second, and the copy has to carry that
+/// or the Studio reads as a tool rather than a gift.
+///
+/// Hidden entirely until there is travel to make designs from: an empty
+/// promise is worse than no promise, and the banner below already serves
+/// someone with nothing found yet.
+class _DesignedForYouCard extends ConsumerWidget {
+  const _DesignedForYouCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final visits = ref.watch(effectiveVisitsProvider);
+    final count = visits.valueOrNull?.length ?? 0;
+    if (visits.isLoading || count == 0) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Material(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          key: const Key('shop-designed-for-you'),
+          borderRadius: BorderRadius.circular(12),
+          // Opened through the one bridge that knows both sides, so this gets
+          // the real travel context, the cart, the live price and the signed-in
+          // owner — the same Studio the dev entrypoints run, not a second one.
+          onTap:
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const StudioV2Entry(embedded: true),
+                ),
+              ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.auto_awesome,
+                    size: 22,
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Designed for You',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Made from your $count '
+                        '${count == 1 ? "country" : "countries"}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'See your designs',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

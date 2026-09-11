@@ -11,6 +11,7 @@ import 'host/bundle_asset_resolver.dart';
 import 'host/passport_stamp_inventory.g.dart';
 import 'host/prefs_persistence.dart';
 import 'host/silhouette_inventory.g.dart';
+import 'host/studio_identity.dart';
 import 'host/studio_v2_trace.dart';
 import 'host/travel_context.dart';
 import 'studio_v2_screen.dart';
@@ -39,13 +40,14 @@ StudioController buildStudioV2ControllerFor(
   DesignPreferences preferences = DesignPreferences.neutral,
   Set<String> unavailableGarments = const {},
   PersistentDesignLibrary? library,
+  StudioOwner owner = StudioOwner.signedOut,
 }) {
   final generator = LabShowcaseGenerator(
     silhouettesByShape: _bundledSilhouettesByShape(),
     countryNames: const {},
   );
   final service = RenderService(createBundleAssetResolver());
-  final prefsStore = PrefsPreferenceStore();
+  final prefsStore = PrefsPreferenceStore(owner: owner);
   // Building a controller stays pure: it creates the wardrobe but never reads
   // it. Reading is disk work with its own failure modes, and it belongs to
   // whoever owns the app lifecycle — [StudioV2App] hands in a library it has
@@ -57,7 +59,8 @@ StudioController buildStudioV2ControllerFor(
     initialSeed: 1,
     preferences: preferences,
     unavailableGarments: unavailableGarments,
-    library: library ?? PersistentDesignLibrary(PrefsDesignStore()),
+    library:
+        library ?? PersistentDesignLibrary(PrefsDesignStore(owner: owner)),
     savePreferences:
         (p) => unawaited(_ignoringFailure(() => prefsStore.save(p))),
   );
@@ -69,8 +72,9 @@ StudioController buildStudioV2ControllerFor(
 /// designs were being written to a file no one opened. A wardrobe that cannot
 /// be read is an empty wardrobe, never a Studio that fails to open, so a
 /// failed read is discarded rather than propagated.
-Future<PersistentDesignLibrary> openDesignLibrary() async {
-  final library = PersistentDesignLibrary(PrefsDesignStore());
+Future<PersistentDesignLibrary> openDesignLibrary(StudioOwner owner) async {
+  await _ignoringFailure(() => adoptLegacyStudioStorage(owner));
+  final library = PersistentDesignLibrary(PrefsDesignStore(owner: owner));
   await _ignoringFailure(library.load);
   return library;
 }
@@ -103,12 +107,14 @@ StudioController openStudioSession(
   DesignPreferences preferences = DesignPreferences.neutral,
   Set<String> unavailableGarments = const {},
   PersistentDesignLibrary? library,
+  StudioOwner owner = StudioOwner.signedOut,
 }) {
   final c = buildStudioV2ControllerFor(
     studio.toDesignContext(),
     preferences: preferences,
     unavailableGarments: unavailableGarments,
     library: library,
+    owner: owner,
   );
   // A session opens on everything travelled unless the host says otherwise.
   if (studio.initialSelection.isNotEmpty) {
@@ -173,7 +179,14 @@ class StudioV2App extends ConsumerStatefulWidget {
     this.priceLabel,
     this.studioContext,
     this.embedded = false,
+    this.owner = StudioOwner.signedOut,
   });
+
+  /// The Roavvy account whose wardrobe this session saves into, resolved by
+  /// the host bridge ([StudioV2Entry]) — the Studio itself never reads auth.
+  /// Defaults to the device scope, which is what a dev entrypoint or a test
+  /// gets.
+  final StudioOwner owner;
 
   /// The travel this session is built on. Null means "ask the app" — the
   /// production path, which maps live Roavvy travel through
@@ -234,8 +247,10 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
   /// the designs already saved. Both are read before the controller exists, so
   /// it opens with them rather than acquiring them later.
   Future<void> _loadSaved() async {
-    final p = await PrefsPreferenceStore().load();
-    final lib = await openDesignLibrary();
+    final owner = widget.owner;
+    v2trace('opening wardrobe for ${owner.storageScope}');
+    final lib = await openDesignLibrary(owner);
+    final p = await PrefsPreferenceStore(owner: owner).load();
     if (mounted) {
       setState(() {
         _prefs = p;
@@ -301,6 +316,7 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
         preferences: _prefs ?? DesignPreferences.neutral,
         unavailableGarments: widget.unavailableGarments,
         library: _library,
+        owner: widget.owner,
       );
       v2trace(
         'session ready: heroRecipeId=${_controller!.current.recipeId} '

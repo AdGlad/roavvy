@@ -6,7 +6,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:country_lookup/country_lookup.dart';
-import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;

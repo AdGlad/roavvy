@@ -57,9 +57,15 @@ class StudioContext {
   /// Empty means "all of them", which is the Studio's own default.
   final List<String> initialSelection;
 
-  /// Namespaces the deterministic seed, so two different travel sets cannot
-  /// collide on the same design. A stable per-traveller reference belongs here
-  /// — never an identity the design engine could leak into a recipe.
+  /// DESIGN identity: what this travel set is, for the deterministic seed, so
+  /// two different sets cannot collide on the same design.
+  ///
+  /// It is baked into every recipe it produces (`RecipeContent.source`) and so
+  /// into `recipeId` — which makes it exactly the wrong place for an account
+  /// id. Putting one here would rewrite every recipe id the moment somebody
+  /// signed in, and a saved design would stop reproducing. Who a design
+  /// BELONGS to is a separate question, answered by the host outside this
+  /// object.
   final String scopeKey;
 
   final StudioTravelSource source;

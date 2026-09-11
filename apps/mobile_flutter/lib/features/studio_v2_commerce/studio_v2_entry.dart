@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers.dart';
 import '../merch/shopify_pricing_repository.dart';
+import '../studio_v2/host/studio_identity.dart';
 import '../studio_v2/studio_v2_app.dart';
 import 'studio_v2_cart_adapter.dart';
 
@@ -17,6 +19,10 @@ import 'studio_v2_cart_adapter.dart';
 /// never a constant. While it is loading, or if the lookup fails, the Studio is
 /// handed null and Review says the price is confirmed at checkout rather than
 /// showing a number nobody promised.
+///
+/// Identity arrives the same way: this is where the Roavvy account becomes a
+/// [StudioOwner], so the Studio saves into the right person's wardrobe without
+/// ever importing Firebase or reading auth state itself.
 class StudioV2Entry extends ConsumerWidget {
   const StudioV2Entry({super.key, this.embedded = false});
 
@@ -28,8 +34,21 @@ class StudioV2Entry extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Who is signing in is settled long before anyone reaches the Shop, but
+    // opening the wardrobe under the device scope and finding out a moment
+    // later would file this session's saves under the wrong owner — and a
+    // wardrobe is not something to guess at.
+    final auth = ref.watch(authStateProvider);
+    if (auth.isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0E0F12),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final prices = ref.watch(shopifyPricingProvider);
     return StudioV2App(
+      owner: StudioOwner.of(ref.watch(currentUidProvider)),
       embedded: embedded,
       onAddToCart: const StudioV2CartAdapter().addToCart,
       // The entrypoint is the only layer that may know both sides, so this is

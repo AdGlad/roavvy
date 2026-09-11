@@ -1,6 +1,8 @@
 import 'package:design_forge/design_forge.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'studio_identity.dart';
+
 /// Mobile [DesignStore] for the reproducible design library, backed by the app's
 /// existing `shared_preferences` infrastructure (no new persistence framework).
 ///
@@ -8,7 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// ([PersistentDesignLibrary] takes a [DesignStore]). M1 provides just enough to
 /// support save/reopen; the final Save-to-Library UX is a later milestone.
 class PrefsDesignStore implements DesignStore {
-  PrefsDesignStore({this.key = 'studio_v2_library'});
+  PrefsDesignStore({StudioOwner owner = StudioOwner.signedOut, String? key})
+    : key = key ?? owner.storageKey(kStudioLibraryKey);
 
   final String key;
 
@@ -25,7 +28,8 @@ class PrefsDesignStore implements DesignStore {
 /// `encode()` / `decode()` over `shared_preferences`. Wired into the shared
 /// controller via its injected `savePreferences` callback.
 class PrefsPreferenceStore {
-  PrefsPreferenceStore({this.key = 'studio_v2_preferences'});
+  PrefsPreferenceStore({StudioOwner owner = StudioOwner.signedOut, String? key})
+    : key = key ?? owner.storageKey(kStudioPreferencesKey);
 
   final String key;
 
