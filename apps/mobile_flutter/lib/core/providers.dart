@@ -528,6 +528,26 @@ final purchasingEnabledProvider = Provider<bool>((ref) {
   return FirebaseRemoteConfig.instance.getBool('purchasing_enabled');
 });
 
+/// Whether a Studio V2 design may be turned into a real Shopify checkout (M27).
+///
+/// Fail-CLOSED, unlike [purchasingEnabledProvider]: Studio V2's print placement
+/// has not been confirmed against a physical sample (M26.1), and the cost of
+/// being wrong is a printed shirt. Everything up to the order — render, upload,
+/// variant, price — runs regardless; only `createMerchCart` is withheld.
+///
+/// Flip in the Firebase Console under Remote Config →
+/// `studio_v2_fulfilment_enabled`, after the calibration sheets have been
+/// measured on a physical garment.
+final studioV2FulfilmentEnabledProvider = Provider<bool>((ref) {
+  if (!ref.watch(purchasingEnabledProvider)) return false;
+  try {
+    return FirebaseRemoteConfig.instance.getBool('studio_v2_fulfilment_enabled');
+  } catch (_) {
+    // No Remote Config (dev entrypoints, tests): closed, never open.
+    return false;
+  }
+});
+
 // ── M162 Country Profile ──────────────────────────────────────────────────────
 
 /// Aggregated data loaded for [CountryProfileScreen].

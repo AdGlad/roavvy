@@ -42,6 +42,13 @@ class RemoteConfigService {
       // M202: cloud AI design critic — fail-CLOSED (off) until validated for
       // cost/latency. When off, the "Design for me" gallery is heuristic-only.
       'ai_design_critic_enabled': false,
+      // M27: Studio V2 fulfilment — fail-CLOSED (off) until M26.1's print
+      // placement is confirmed against a physical sample. With it off, a
+      // Studio design still renders its real print files, uploads them and
+      // resolves its variant; it just stops before createMerchCart, which is
+      // the call that mints a Shopify checkout somebody could pay. Nothing
+      // here can be ordered by accident while the placement is unproven.
+      'studio_v2_fulfilment_enabled': false,
     });
 
     // Background fetch — never blocks startup. Notify listeners when fresh

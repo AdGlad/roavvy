@@ -1,4 +1,7 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:design_forge_render/design_forge_render.dart';
 
 import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
@@ -13,7 +16,62 @@ import 'package:mobile_flutter/features/studio_v2_commerce/studio_v2_cart_adapte
 /// consumes: front/back artwork + placement + garment colour + travel metadata
 /// transfer correctly, physical size stays a cart concern, and no V1 commerce
 /// logic is duplicated (the adapter only maps + navigates).
+/// A real session for the mapping tests to hang a request on. They never
+/// render, so the resolver is never asked for anything.
+StudioController _session() => StudioController(
+  generator: LabShowcaseGenerator(
+    silhouettesByShape: const {},
+    countryNames: const {},
+  ),
+  service: RenderService(_NullResolver()),
+  designContext: const DesignContext(
+    flagCodes: ['us', 'fr'],
+    scopeKey: 'test:adapter',
+  ),
+  initialSeed: 1,
+);
+
+class _NullResolver implements AssetResolver {
+  @override
+  Future<ui.Image> resolveFlag(
+    String code, {
+    required int width,
+    required int height,
+  }) async {
+    final r = ui.PictureRecorder();
+    ui.Canvas(r);
+    final p = r.endRecording();
+    final i = await p.toImage(width, height);
+    p.dispose();
+    return i;
+  }
+
+  @override
+  Future<ui.Image?> resolveClipMask(
+    ClipShape shape,
+    String? code, {
+    required int width,
+    required int height,
+  }) async => null;
+
+  @override
+  Future<ui.Image?> resolvePassportCollage(
+    List<PassportStampRef> stamps, {
+    required int width,
+    required int height,
+    int seed = 0,
+    double scatter = 0.5,
+    double stampScale = 1.0,
+    PassportInk ink = PassportInk.flag,
+  }) async => null;
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late StudioController session;
+  setUp(() => session = _session());
+  tearDown(() => session.dispose());
+
   DesignRecipe recipe(int seed) => DesignRecipe(
     seed: seed,
     content: const RecipeContent(flags: [FlagRef('us')]),
@@ -27,6 +85,7 @@ void main() {
     String? title = 'Wanderer',
     bool frontPrint = true,
   }) => GarmentCartRequest(
+    session: session,
     garment: GarmentDesign(
       back: recipe(1),
       front: recipe(2),

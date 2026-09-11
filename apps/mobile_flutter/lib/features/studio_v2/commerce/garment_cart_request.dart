@@ -23,6 +23,7 @@ import '../../shared/garment_mockup/placement_bake.dart';
 /// Studio (the S/M/L here is the artwork print scale, a different axis).
 class GarmentCartRequest {
   const GarmentCartRequest({
+    required this.session,
     required this.garment,
     required this.renderBackArtwork,
     required this.renderFrontArtwork,
@@ -36,6 +37,15 @@ class GarmentCartRequest {
     this.title,
     this.onOrdered,
   });
+
+  /// The live session this request was built from.
+  ///
+  /// Carried so the commerce adapter can drive the M26 production renderer,
+  /// which needs the whole session (both faces, the front configuration, the
+  /// arrangement) and not just a picture of it. The adapter is the only layer
+  /// that knows both the Studio and the product, so it is the layer that turns
+  /// a session into print files — reading it, never editing it.
+  final StudioController session;
 
   /// The full two-face design (both faces + colour + theme) — the deterministic,
   /// reproducible identity of what is being ordered.
@@ -113,6 +123,7 @@ GarmentCartRequest buildGarmentCartRequest(
   final frontFace = c.frontFace;
   final hasFrontPrint = c.frontFit != FrontFit.none;
   return GarmentCartRequest(
+    session: c,
     garment: c.garment,
     renderBackArtwork:
         () async => bakePlacement(

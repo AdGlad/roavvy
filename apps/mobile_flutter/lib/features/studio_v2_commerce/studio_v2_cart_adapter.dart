@@ -5,12 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart'
     show CardTemplateType, TripRecord;
 
-import '../merch/local_mockup_preview_screen.dart';
-import '../merch/merch_orders_screen.dart' show merchOrdersProvider;
+import '../../core/providers.dart';
 import '../merch/merch_variant_lookup.dart' show tshirtColors;
-import '../merch/product_mockup_specs.dart' show ImageSize;
+import '../merch/shopify_pricing_repository.dart'
+    show buyerCountryCode, shopifyPricingProvider;
 import '../studio_v2/commerce/garment_cart_request.dart';
-import 'after_purchase_sheet.dart';
+import 'studio_v2_cart_service.dart';
+import 'studio_v2_size_sheet.dart';
 
 /// **Studio V2 → commerce adapter** (M8). The single, thin boundary between the
 /// isolated Studio V2 (`design_studio` / `design_forge`) and the EXISTING merch
@@ -25,7 +26,14 @@ import 'after_purchase_sheet.dart';
 /// processing, GCS upload, `createMerchCart`, the Printful mockup and Shopify
 /// checkout — unchanged.
 class StudioV2CartAdapter {
-  const StudioV2CartAdapter();
+  const StudioV2CartAdapter({StudioV2CartService? service})
+    : _service = service;
+
+  /// Injected so the whole hand-off is testable without Firebase. Built on
+  /// demand rather than held, so constructing an adapter costs nothing and
+  /// touches no Firebase.
+  final StudioV2CartService? _service;
+  StudioV2CartService get service => _service ?? StudioV2CartService();
 
   /// Maps a [GarmentCartRequest] to the exact metadata inputs the existing
   /// commerce screen consumes (everything except the artwork bytes, which are
@@ -53,10 +61,23 @@ class StudioV2CartAdapter {
     );
   }
 
-  /// Builds the [GarmentCartRequest] into the existing commerce flow: converts it
-  /// to production inputs and pushes [LocalMockupPreviewScreen], which owns the
-  /// entire cart/checkout/Printful pipeline from here on.
+  /// True while an add-to-cart is in flight.
+  ///
+  /// A second tap on a button that is already working must not render, upload
+  /// and order the same shirt twice — and the render is slow enough that a
+  /// customer will absolutely tap it again.
+  static bool _busy = false;
+
+  /// Puts the approved design in the existing Roavvy cart.
+  ///
+  /// The route this DOES NOT take is the point: the V1 preview screen, and
+  /// with it `MerchImageProcessor`, which would re-fit the artwork into the
+  /// print canvas and re-place it from a string. The bytes that reach the
+  /// store are the exact bytes M26's production renderer produced, each
+  /// carried with its own [PrintPlacement].
   Future<void> addToCart(BuildContext context, GarmentCartRequest r) async {
+    if (_busy) return;
+
     // Refuse a colour the store cannot actually make, by name. Falling through
     // to a substitute here would charge for one shirt and ship another.
     if (v1ColourName(r.garmentColourName) == null) {
@@ -70,76 +91,100 @@ class StudioV2CartAdapter {
       );
       return;
     }
-    final input = map(r);
-    // Render the print files now (the host owns when the expensive rasterise
-    // runs). The back is the main artwork; the front is the real V2 chest face
-    // when enabled — a blank front (FrontFit.none) renders nothing, so the
-    // commerce screen sends no front image and the shirt front stays empty.
-    final backArtworkPng = await r.renderBackArtwork();
-    final frontArtworkPng = await r.renderFrontArtwork?.call();
-    if (!context.mounted) return;
-    // How many orders existed before the buyer went to checkout. The commerce
-    // screen owns everything past this point and reports nothing back, so this
-    // is how the Studio learns whether a shirt was actually bought — an
-    // abandoned checkout must not be recorded as one.
+
     final container = ProviderScope.containerOf(context, listen: false);
-    final ordersBefore = await _orderCount(container);
-    if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder:
-            (_) => LocalMockupPreviewScreen(
-              artworkImageBytes: backArtworkPng,
-              fixedArtwork: input.fixedArtwork,
-              // The real V2 front face replaces the V1 ribbon as the front print.
-              frontArtworkOverride: frontArtworkPng,
-              // Placement + print scale come from the design, not the V1 defaults.
-              initialFrontPosition: input.frontPosition,
-              initialBackPosition: input.backPosition,
-              initialImageSize: ImageSize.large,
-              selectedCodes: input.selectedCodes,
-              allCodes: input.allCodes,
-              trips: input.trips,
-              initialColour: input.colourName,
-              initialTemplate: input.template,
-              titleOverride: input.title,
-              confirmedAspectRatio: input.aspectRatio,
-              transparentBackground: true,
-            ),
-      ),
-    );
+    final uid = container.read(currentUidProvider);
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in to order a shirt.')),
+      );
+      return;
+    }
 
-    // Back in the Studio. If an order appeared while they were away, the shirt
-    // is real: keep it in the wardrobe for good, and offer the two things
-    // wanted most in the minute after buying — showing it off, and knowing
-    // where it is. Nothing is claimed when the count cannot be read.
-    if (!context.mounted) return;
-    final ordersAfter = await _orderCount(container, refresh: true);
-    if (ordersBefore == null || ordersAfter == null) return;
-    if (ordersAfter <= ordersBefore) return;
-    r.onOrdered?.call();
-    if (!context.mounted) return;
-    await AfterPurchaseSheet.show(
+    // Size and quantity are commerce's questions, asked once, here — never
+    // added to the Studio's creative controls.
+    final options = await StudioV2SizeSheet.show(
       context,
-      artworkBytes: backArtworkPng,
-      title: r.title,
+      priceLabel: container
+          .read(shopifyPricingProvider)
+          .whenOrNull(data: (p) => p.tshirtFromPrice),
     );
-  }
+    if (options == null || !context.mounted) return;
 
-  /// The buyer's order count, or null when it cannot be read (signed out,
-  /// offline, Firestore unavailable) — never a guess, because the difference
-  /// between the two reads is what decides whether a shirt was bought.
-  static Future<int?> _orderCount(
-    ProviderContainer container, {
-    bool refresh = false,
-  }) async {
+    _busy = true;
+    final messenger = ScaffoldMessenger.of(context)
+      ..showSnackBar(
+        const SnackBar(
+          duration: Duration(minutes: 2),
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 14),
+              Text('Preparing your print files…'),
+            ],
+          ),
+        ),
+      );
+
+    final StudioV2CartOutcome outcome;
     try {
-      return (refresh
-              ? await container.refresh(merchOrdersProvider.future)
-              : await container.read(merchOrdersProvider.future))
-          .length;
-    } catch (_) {
-      return null;
+      outcome = await service.addToCart(
+        request: r,
+        options: options,
+        uid: uid,
+        buyerCountry: buyerCountryCode(),
+        // Fail-CLOSED until M26.1's placement is measured on a real garment.
+        fulfilmentEnabled: container.read(studioV2FulfilmentEnabledProvider),
+      );
+    } finally {
+      _busy = false;
+    }
+    messenger.hideCurrentSnackBar();
+    if (!context.mounted) return;
+
+    switch (outcome) {
+      case StudioV2CartAdded(:final metadata):
+        // Deliberately NOT r.onOrdered(): a cart is not a purchase, and the
+        // wardrobe's "printed" tag has to mean printed. The design is marked
+        // when the order actually completes, in the cart flow that owns
+        // checkout — not here.
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Added to your cart — ${metadata.colour} ${metadata.size}'
+              '${metadata.quantity > 1 ? ' ×${metadata.quantity}' : ''}',
+            ),
+          ),
+        );
+      case StudioV2CartPrepared(:final metadata):
+        // Everything ran except the part that spends money.
+        messenger.showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 6),
+            content: Text(
+              'Print files ready (${metadata.faces.length} '
+              '${metadata.faces.length == 1 ? 'face' : 'faces'}) — ordering is '
+              'switched off until the print placement is checked on a real '
+              'shirt.',
+            ),
+          ),
+        );
+      case StudioV2CartFailed(:final message):
+        // The design is untouched, so Retry runs the same design again — it
+        // never re-rolls or rebuilds it.
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => addToCart(context, r),
+            ),
+          ),
+        );
     }
   }
 
