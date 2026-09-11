@@ -18,12 +18,19 @@ import 'studio_v2_cart_adapter.dart';
 /// handed null and Review says the price is confirmed at checkout rather than
 /// showing a number nobody promised.
 class StudioV2Entry extends ConsumerWidget {
-  const StudioV2Entry({super.key});
+  const StudioV2Entry({super.key, this.embedded = false});
+
+  /// True when the Studio is pushed as a route inside the running Roavvy app
+  /// (Shop → Studio) rather than being the whole app, as it is from the dev
+  /// entrypoints. Passed through so the Studio does not install a second
+  /// [MaterialApp] over the host's — see [StudioV2App.embedded].
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final prices = ref.watch(shopifyPricingProvider);
     return StudioV2App(
+      embedded: embedded,
       onAddToCart: const StudioV2CartAdapter().addToCart,
       // The entrypoint is the only layer that may know both sides, so this is
       // where the store's stock reaches the Studio.

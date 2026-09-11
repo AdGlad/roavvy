@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
-import '../studio_v2/studio_v2_app.dart';
-import '../studio_v2_commerce/studio_v2_cart_adapter.dart';
+import '../studio_v2_commerce/studio_v2_entry.dart';
 import 'merch_cart_screen.dart';
 import 'merch_design_entry_screen.dart';
 import 'merch_orders_screen.dart';
@@ -29,8 +28,12 @@ class MerchShopScreen extends ConsumerWidget {
           // Debug-only entry into the parallel T-Shirt Studio V2 (M9). Gated on
           // [kDebugMode] so it never ships to users; it lets V1 and V2 be
           // launched side-by-side for comparison. Pushed on top of the fully
-          // initialised app, so V2 inherits the real providers (travel data,
-          // Firebase) and a working Review → cart hand-off via the adapter.
+          // initialised app, so V2 opens on the user's REAL travel data.
+          //
+          // Opened through [StudioV2Entry] — the one bridge that knows both
+          // sides — so this entry gets the same cart adapter, stock list and
+          // live price as every other. `embedded` keeps the Studio on THIS
+          // navigator, which is what its close button pops back onto.
           if (kDebugMode)
             IconButton(
               icon: const Icon(Icons.science_outlined),
@@ -38,12 +41,7 @@ class MerchShopScreen extends ConsumerWidget {
               onPressed:
                   () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder:
-                          (_) => StudioV2App(
-                            onAddToCart: const StudioV2CartAdapter().addToCart,
-                            unavailableGarments:
-                                StudioV2CartAdapter.unstockedColours,
-                          ),
+                      builder: (_) => const StudioV2Entry(embedded: true),
                     ),
                   ),
             ),
