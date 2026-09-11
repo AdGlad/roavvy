@@ -14,6 +14,8 @@
 // dimensions, physical size, transparency and render time.
 import 'dart:io';
 
+import 'package:flutter/services.dart' show FontLoader;
+
 import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +23,7 @@ import 'package:mobile_flutter/features/studio_v2/host/bundle_asset_resolver.dar
 import 'package:mobile_flutter/features/studio_v2/host/passport_stamp_inventory.g.dart';
 import 'package:mobile_flutter/features/studio_v2/host/silhouette_inventory.g.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_app.dart';
+import 'package:mobile_flutter/features/studio_v2_commerce/print_calibration.dart';
 import 'package:mobile_flutter/features/studio_v2_commerce/production_print_specs.dart';
 
 const String _outDir = String.fromEnvironment('PRODUCTION_SAMPLES');
@@ -61,6 +64,22 @@ void main() {
   testWidgets('production samples', (tester) async {
     final dir = Directory(_outDir);
     dir.createSync(recursive: true);
+
+    // A calibration sheet exists to be read with a tape measure in hand, and a
+    // test binary ships no real font — so lend it one from the host machine.
+    // If none of these exist the sheets still work: every measurement on them
+    // is drawn as geometry, and only the captions go blocky.
+    for (final candidate in const [
+      '/System/Library/Fonts/Supplemental/Arial.ttf',
+      '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    ]) {
+      final f = File(candidate);
+      if (!f.existsSync()) continue;
+      final loader = FontLoader(PrintCalibration.labelFamily)
+        ..addFont(Future.value(f.readAsBytesSync().buffer.asByteData()));
+      await loader.load();
+      break;
+    }
 
     // (name, how to set the design up, how to set the front up)
     final cases = <(String, void Function(StudioController))>[
@@ -120,6 +139,24 @@ void main() {
     }
 
     await tester.runAsync(() async {
+      // M26.1 — the four calibration targets, first, because they are what a
+      // physical sample is measured against.
+      for (final sheet in await calibrationSheets()) {
+        final path =
+            '$_outDir/calibration-${sheet.placement.name}.'
+            '${sheet.format.extension}';
+        File(path).writeAsBytesSync(sheet.bytes);
+        final (wIn, hIn) = sheet.physicalInches;
+        rows.add(
+          '${'calibration-${sheet.placement.name}'.padRight(26)} '
+          '${sheet.side.name.padRight(5)} ${sheet.widthPx}x${sheet.heightPx} '
+          '${wIn.toStringAsFixed(0)}x${hIn.toStringAsFixed(0)}in '
+          '@${sheet.dpi}dpi  alpha=true '
+          '${(sheet.bytes.length / 1024).round()}KB '
+          '${sheet.elapsed.inMilliseconds}ms  $path',
+        );
+      }
+
       for (final (name, setUp) in cases) {
         final c = bundledStudio();
         setUp(c);

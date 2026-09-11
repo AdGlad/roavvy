@@ -7,6 +7,47 @@ import 'package:design_forge_render/design_forge_render.dart';
 /// Which face of the garment a print file is for.
 enum PrintSide { front, back }
 
+/// WHERE on the garment a design prints — the production boundary's own
+/// vocabulary, chosen because the vocabulary underneath it is ambiguous.
+///
+/// The existing order pipeline speaks in strings, and one of them is
+/// `'center'`, which the server maps to a 3.5" chest logo (deliberately: a
+/// front ribbon auto-centred across the whole print area came out as a
+/// "double backside" mockup). A full-front print and a centred chest logo are
+/// therefore indistinguishable once a design becomes the word "center", and
+/// the difference between them is the difference between a 12"-wide print and
+/// a 3.5" one.
+///
+/// Nothing downstream of here may decide placement from a string.
+enum PrintPlacement {
+  /// The whole back print area.
+  backFull,
+
+  /// The whole front print area — NOT a chest logo.
+  frontFull,
+
+  /// A chest logo on the wearer's left (the viewer's right).
+  frontLeftChest,
+
+  /// A chest logo on the wearer's right (the viewer's left).
+  frontRightChest,
+
+  /// No print on this face. Produces no file at all, never a blank one.
+  none;
+
+  PrintSide? get side => switch (this) {
+    PrintPlacement.backFull => PrintSide.back,
+    PrintPlacement.none => null,
+    _ => PrintSide.front,
+  };
+
+  bool get isChestLogo =>
+      this == PrintPlacement.frontLeftChest ||
+      this == PrintPlacement.frontRightChest;
+
+  bool get printsSomething => this != PrintPlacement.none;
+}
+
 /// How the customer arranged the artwork inside its printable area.
 ///
 /// The same three numbers the on-garment preview uses, in the same order
@@ -40,34 +81,42 @@ class PrintArrangement {
 /// than from a number someone typed into the renderer.
 class ProductionRenderSpec {
   ProductionRenderSpec({
-    required this.side,
+    required this.placement,
     required this.canvasWidthPx,
     required this.canvasHeightPx,
     required this.dpi,
-    required this.placement,
+    required this.artworkArea,
     this.transparent = true,
     this.format = ProductionImageFormat.png,
     this.arrangement = PrintArrangement.identity,
     this.productKey,
   }) {
+    if (!placement.printsSomething) {
+      throw ProductionRenderException(
+        'PrintPlacement.none has no print file — do not build a spec for it',
+      );
+    }
     if (canvasWidthPx <= 0 || canvasHeightPx <= 0 || dpi <= 0) {
       throw ProductionRenderException(
         'a print file cannot be ${canvasWidthPx}x$canvasHeightPx at $dpi dpi',
       );
     }
-    if (placement.isEmpty ||
-        placement.left < 0 ||
-        placement.top < 0 ||
-        placement.right > canvasWidthPx + 0.5 ||
-        placement.bottom > canvasHeightPx + 0.5) {
+    if (artworkArea.isEmpty ||
+        artworkArea.left < 0 ||
+        artworkArea.top < 0 ||
+        artworkArea.right > canvasWidthPx + 0.5 ||
+        artworkArea.bottom > canvasHeightPx + 0.5) {
       throw ProductionRenderException(
-        'the print area $placement does not fit a '
+        'the print area $artworkArea does not fit a '
         '${canvasWidthPx}x$canvasHeightPx canvas',
       );
     }
   }
 
-  final PrintSide side;
+  /// What this print IS. Never inferred from a string, never defaulted.
+  final PrintPlacement placement;
+
+  PrintSide get side => placement.side!;
 
   /// The fulfiller's print file, in pixels — the whole canvas, not the art.
   final int canvasWidthPx;
@@ -76,7 +125,7 @@ class ProductionRenderSpec {
 
   /// Where the artwork sits on that canvas, in canvas pixels. The artwork is
   /// rendered to fit inside this and never beyond it.
-  final ui.Rect placement;
+  final ui.Rect artworkArea;
 
   /// Print files composite onto fabric, so the garment colour is NOT baked in.
   final bool transparent;
@@ -105,7 +154,7 @@ enum ProductionImageFormat {
 class ProductionArtwork {
   const ProductionArtwork({
     required this.recipeId,
-    required this.side,
+    required this.placement,
     required this.widthPx,
     required this.heightPx,
     required this.dpi,
@@ -129,7 +178,11 @@ class ProductionArtwork {
   /// The two-face garment it belongs to, when rendered as part of one.
   final String? garmentId;
 
-  final PrintSide side;
+  /// What this file is a print of — the unambiguous answer M27 orders from.
+  final PrintPlacement placement;
+
+  PrintSide get side => placement.side!;
+
   final int widthPx;
   final int heightPx;
   final int dpi;
@@ -226,7 +279,7 @@ class ProductionRenderer {
 
     // Where the artwork lands, at the recipe's own aspect so nothing is
     // stretched, and never wider than the printable area.
-    final art = fitInside(spec.placement, aspectOf(recipe));
+    final art = fitInside(spec.artworkArea, aspectOf(recipe));
     final artW = art.width.round(), artH = art.height.round();
     if (artW <= 0 || artH <= 0) {
       throw ProductionRenderException(
@@ -279,7 +332,7 @@ class ProductionRenderer {
       final bytes = data.buffer.asUint8List();
       return ProductionArtwork(
         recipeId: recipe.recipeId,
-        side: spec.side,
+        placement: spec.placement,
         widthPx: spec.canvasWidthPx,
         heightPx: spec.canvasHeightPx,
         dpi: spec.dpi,
@@ -323,14 +376,14 @@ class ProductionRenderer {
     }
     // Nothing may print outside the printable area, however it was arranged.
     canvas.save();
-    canvas.clipRect(spec.placement);
+    canvas.clipRect(spec.artworkArea);
 
     final a = spec.arrangement;
     if (!a.isIdentity) {
       final c = dst.center;
       canvas.translate(
-        c.dx + a.translation.dx * spec.placement.width,
-        c.dy + a.translation.dy * spec.placement.height,
+        c.dx + a.translation.dx * spec.artworkArea.width,
+        c.dy + a.translation.dy * spec.artworkArea.height,
       );
       canvas.rotate(a.rotation);
       canvas.scale(a.scale);

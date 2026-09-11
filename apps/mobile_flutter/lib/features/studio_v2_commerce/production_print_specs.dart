@@ -2,27 +2,50 @@ import 'package:design_studio/design_studio.dart';
 import 'package:flutter/painting.dart' show Rect;
 
 import '../merch/merch_variant_lookup.dart';
-import '../shared/garment_mockup/garment_mockup_spec.dart';
 import '../shared/garment_mockup/mockup_transform.dart';
-import '../shared/garment_mockup/placement_bake.dart';
 
-/// The Roavvy t-shirt's real print file, from the product configuration that
-/// already exists — never a number invented here.
+/// The Roavvy t-shirt's print geometry, in one place, with the provenance of
+/// every number written next to it.
 ///
-/// Source of truth: `resolvePrintDimensions(MerchProduct.tshirt)`, verified
-/// against Printful's own printfile for product 12 (printfile_id 1: 1800×2400
-/// at 150 DPI = 12"×16") and mirrored server-side in
-/// `apps/functions/src/printDimensions.ts`.
+/// The distinction this type exists to keep is between what the PROVIDER says
+/// and what our MOCKUP says. They are not the same, they have drifted, and a
+/// print file must be built from the first.
 ///
-/// This is the one layer allowed to know both the Studio and commerce, which
-/// is why the mapping lives here: `features/studio_v2` may not import the
-/// merch feature, and the design engine has no business knowing what a
-/// fulfiller's canvas is.
-abstract final class TshirtPrintFile {
-  /// Chest-logo geometry, in inches on the print file. These are the M167
-  /// server-side constants (`apps/functions/src/index.ts`) that the existing
-  /// order pipeline already prints to — restating them differently here is how
-  /// a chest logo comes out in a different place than the one that shipped.
+/// **Provider-backed** (Printful catalog product 12 / Gildan 64000):
+///  * canvas 1800×2400 at 150 DPI = 12"×16", transparent — `printfile_id 1`
+///    from `GET /mockup-generator/printfiles/12`, recorded in
+///    `resolvePrintDimensions` and mirrored in `apps/functions/src/printDimensions.ts`.
+///  * front AND back DTG print areas are both 12"×16" — `GET
+///    /v2/catalog-products/12/mockup-styles?technique=dtg` (2026-05-07),
+///    recorded at the top of `apps/functions/src/index.ts`.
+///  * the back placement's own print area is 1014×1352 on Printful's 3000×3000
+///    template — **0.75 aspect**, queried in M190 (commit e8c0eb85).
+///  * chest logos: 3.5"×3.5", 3.0" below the top of the print area, centred
+///    10.0" (wearer's left) or 2.0" (wearer's right) from the canvas left —
+///    the M167 constants in `index.ts` that the live order pipeline prints to.
+///
+/// **Mockup-only, and NOT usable as print geometry**:
+/// `BundledGarments.backPrintArea` is `(0.29, 0.10, 0.42, 0.56)` on a 487×640
+/// photograph, an aspect of 0.571. Its WIDTH is provider-derived and correct —
+/// 0.75 of the photographed torso, which measures 0.565 wide, giving 0.424 ≈
+/// 0.42. Its HEIGHT is not: a 12"×16" print 0.42 photo-widths across is 0.426
+/// photo-heights tall, not 0.56. The height was anchored to garment landmarks
+/// ("just below the collar") rather than derived from the 12:16 ratio, so the
+/// rect is 31% taller than the print it was calibrated from. It is preview
+/// geometry, and production does not read it.
+///
+/// See `docs/engineering` — and the measurement checklist in the M26.1 report —
+/// for what still needs a physical sample to confirm.
+abstract final class TshirtPrintProfile {
+  /// Printful catalog product (Gildan 64000) and its DTG printfile.
+  static const int providerProductId = 12;
+  static const int providerPrintfileId = 1;
+
+  /// The printable area, in inches. Front and back are the same area.
+  static const double printAreaWidthInches = 12.0;
+  static const double printAreaHeightInches = 16.0;
+
+  /// Chest-logo geometry, in inches on the print file (M167, `index.ts`).
   static const double logoInches = 3.5;
   static const double logoTopInches = 3.0;
   static const double leftChestCentreInches = 10.0;
@@ -37,72 +60,83 @@ abstract final class TshirtPrintFile {
     }
     return dims;
   }
+
+  /// The canvas, as pixels.
+  static Rect get canvas {
+    final d = dimensions;
+    return Rect.fromLTWH(0, 0, d.widthPx.toDouble(), d.heightPx.toDouble());
+  }
+
+  /// Where artwork may print, in canvas pixels, for [placement].
+  ///
+  /// A full print fills the whole printable area — the canvas IS the printable
+  /// area, at 12"×16". A chest logo is a fixed physical size in a fixed
+  /// physical place, so it is measured in inches exactly as the fulfiller
+  /// measures it.
+  static Rect artworkArea(PrintPlacement placement) {
+    final d = dimensions;
+    switch (placement) {
+      case PrintPlacement.backFull:
+      case PrintPlacement.frontFull:
+        return canvas;
+      case PrintPlacement.frontLeftChest:
+      case PrintPlacement.frontRightChest:
+        final px = logoInches * d.dpi;
+        final centre =
+            (placement == PrintPlacement.frontLeftChest
+                ? leftChestCentreInches
+                : rightChestCentreInches) *
+            d.dpi;
+        return Rect.fromLTWH(
+          centre - px / 2,
+          logoTopInches * d.dpi,
+          px,
+          px,
+        );
+      case PrintPlacement.none:
+        throw ProductionRenderException(
+          'PrintPlacement.none has no printable area',
+        );
+    }
+  }
 }
 
-/// The print file spec for one face of the customer's finished design.
+/// What the customer's front choice means at the production boundary.
 ///
-/// Returns **null** for a front with no print (`FrontFit.none`): there is no
-/// artwork, so there is no file, and the commerce layer sends nothing rather
-/// than a blank image.
+/// Total and explicit: every [FrontFit] maps to exactly one [PrintPlacement],
+/// and `full` maps to [PrintPlacement.frontFull] — which is a different thing
+/// from a chest logo and can no longer be confused with one, because no string
+/// is involved.
+PrintPlacement frontPlacementOf(StudioController c) => switch (c.frontFit) {
+  FrontFit.none => PrintPlacement.none,
+  FrontFit.full => PrintPlacement.frontFull,
+  FrontFit.chest =>
+    c.chestRight
+        ? PrintPlacement.frontRightChest
+        : PrintPlacement.frontLeftChest,
+};
+
+/// The print file spec for one [placement] of the customer's finished design.
+///
+/// Returns **null** for [PrintPlacement.none]: there is no artwork, so there is
+/// no file, and the commerce layer sends nothing rather than a blank image.
 ///
 /// [arrangement] is what the customer left on the Placement step. It is baked
 /// into the file because the fulfiller drops the image into a fixed printable
 /// area — an arrangement that lives outside the image does not survive the
 /// hand-off.
 ProductionRenderSpec? tshirtPrintSpec(
-  StudioController c,
-  PrintSide side, {
+  PrintPlacement placement, {
   MockupTransform arrangement = MockupTransform.identity,
 }) {
-  if (side == PrintSide.front && c.frontFit == FrontFit.none) return null;
-
-  final dims = TshirtPrintFile.dimensions;
-  final canvas = Rect.fromLTWH(
-    0,
-    0,
-    dims.widthPx.toDouble(),
-    dims.heightPx.toDouble(),
-  );
-
-  final Rect placement;
-  if (side == PrintSide.front && c.frontFit == FrontFit.chest) {
-    // A chest logo is a fixed physical size in a fixed physical place, so it
-    // is measured in inches on the canvas, exactly as the fulfiller measures
-    // it — not scaled off the mockup photograph.
-    final px = TshirtPrintFile.logoInches * dims.dpi;
-    final centre =
-        (c.chestRight
-            ? TshirtPrintFile.rightChestCentreInches
-            : TshirtPrintFile.leftChestCentreInches) *
-        dims.dpi;
-    placement = Rect.fromLTWH(
-      centre - px / 2,
-      TshirtPrintFile.logoTopInches * dims.dpi,
-      px,
-      px,
-    );
-  } else {
-    // Everything else fills the printable area — at the SHAPE the preview
-    // showed it in. The garment's print region is normalised to its
-    // photograph, so its true aspect depends on the photo's proportions;
-    // reading it off the fractions alone is how a design previews at one shape
-    // and prints at another.
-    final (area, photo) =
-        side == PrintSide.front
-            ? (c.frontPrintRect(), BundledGarments.tintBaseFrontSize)
-            : (BundledGarments.backPrintArea, BundledGarments.tintBaseBackSize);
-    placement = ProductionRenderer.fitInside(
-      canvas,
-      printAreaAspect(area, photo),
-    );
-  }
-
+  if (!placement.printsSomething) return null;
+  final dims = TshirtPrintProfile.dimensions;
   return ProductionRenderSpec(
-    side: side,
+    placement: placement,
     canvasWidthPx: dims.widthPx,
     canvasHeightPx: dims.heightPx,
     dpi: dims.dpi,
-    placement: placement,
+    artworkArea: TshirtPrintProfile.artworkArea(placement),
     transparent: dims.transparent,
     productKey: 'tshirt',
     arrangement: PrintArrangement(
@@ -133,18 +167,18 @@ Future<List<ProductionArtwork>> renderPrintFiles(
   final garment = c.garment;
   final out = <ProductionArtwork>[];
 
-  for (final (side, recipe, arrangement) in [
-    (PrintSide.back, c.hero, backPlacement),
-    (PrintSide.front, c.frontFace, frontPlacement),
+  for (final (placement, recipe, arrangement) in [
+    (PrintPlacement.backFull, c.hero, backPlacement),
+    (frontPlacementOf(c), c.frontFace, frontPlacement),
   ]) {
-    final spec = tshirtPrintSpec(c, side, arrangement: arrangement);
+    final spec = tshirtPrintSpec(placement, arrangement: arrangement);
     if (spec == null) continue;
     final art = await printer.render(recipe, spec);
     out.add(
       ProductionArtwork(
         recipeId: art.recipeId,
         garmentId: garment.garmentId,
-        side: art.side,
+        placement: art.placement,
         widthPx: art.widthPx,
         heightPx: art.heightPx,
         dpi: art.dpi,

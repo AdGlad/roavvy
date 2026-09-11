@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 import 'package:design_forge/design_forge.dart';
 import 'package:design_forge_render/design_forge_render.dart';
 import 'package:design_studio/design_studio.dart';
-import 'package:flutter/painting.dart' hide Orientation;
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_flutter/features/shared/garment_mockup/garment_mockup_spec.dart';
 import 'package:mobile_flutter/features/shared/garment_mockup/mockup_transform.dart';
@@ -53,6 +53,7 @@ class _FlatResolver implements AssetResolver {
   }) async => null;
 }
 
+/// Shared with `print_placement_test.dart`.
 StudioController studio() => StudioController(
   generator: LabShowcaseGenerator(
     silhouettesByShape: const {},
@@ -77,7 +78,7 @@ void main() {
 
   group('the print file is the product configuration, not a guess', () {
     test('its size is the one Printful was verified to want', () {
-      final dims = TshirtPrintFile.dimensions;
+      final dims = TshirtPrintProfile.dimensions;
       expect((dims.widthPx, dims.heightPx), (1800, 2400));
       expect(dims.dpi, 150);
       expect(dims.transparent, isTrue);
@@ -120,21 +121,21 @@ void main() {
     test('a spec that does not fit its canvas is refused, not clamped', () {
       expect(
         () => ProductionRenderSpec(
-          side: PrintSide.back,
+          placement: PrintPlacement.backFull,
           canvasWidthPx: 1800,
           canvasHeightPx: 2400,
           dpi: 150,
-          placement: const Rect.fromLTWH(0, 0, 2000, 2400),
+          artworkArea: const Rect.fromLTWH(0, 0, 2000, 2400),
         ),
         throwsA(isA<ProductionRenderException>()),
       );
       expect(
         () => ProductionRenderSpec(
-          side: PrintSide.back,
+          placement: PrintPlacement.backFull,
           canvasWidthPx: 0,
           canvasHeightPx: 2400,
           dpi: 150,
-          placement: const Rect.fromLTWH(0, 0, 10, 10),
+          artworkArea: const Rect.fromLTWH(0, 0, 10, 10),
         ),
         throwsA(isA<ProductionRenderException>()),
       );
@@ -259,9 +260,9 @@ void main() {
       // those pixels.
       final c = studio();
       addTearDown(c.dispose);
-      final spec = tshirtPrintSpec(c, PrintSide.back)!;
+      final spec = tshirtPrintSpec(PrintPlacement.backFull)!;
       final art = ProductionRenderer.fitInside(
-        spec.placement,
+        spec.artworkArea,
         ProductionRenderer.aspectOf(c.hero),
       );
       expect(art.height, greaterThan(1024));
@@ -282,7 +283,7 @@ void main() {
       c.setSide(true);
       c.setFrontFit(FrontFit.none);
 
-      expect(tshirtPrintSpec(c, PrintSide.front), isNull);
+      expect(tshirtPrintSpec(frontPlacementOf(c)), isNull);
       late List<ProductionArtwork> files;
       await tester.runAsync(() async => files = await renderPrintFiles(c));
       expect(files, hasLength(1));
@@ -296,23 +297,23 @@ void main() {
       c.setFrontFit(FrontFit.chest);
 
       c.setChestSide(false);
-      final left = tshirtPrintSpec(c, PrintSide.front)!;
+      final left = tshirtPrintSpec(frontPlacementOf(c))!;
       c.setChestSide(true);
-      final right = tshirtPrintSpec(c, PrintSide.front)!;
+      final right = tshirtPrintSpec(frontPlacementOf(c))!;
 
       const dpi = 150;
-      expect(left.placement.width, TshirtPrintFile.logoInches * dpi);
-      expect(left.placement.height, TshirtPrintFile.logoInches * dpi);
-      expect(left.placement.top, TshirtPrintFile.logoTopInches * dpi);
+      expect(left.artworkArea.width, TshirtPrintProfile.logoInches * dpi);
+      expect(left.artworkArea.height, TshirtPrintProfile.logoInches * dpi);
+      expect(left.artworkArea.top, TshirtPrintProfile.logoTopInches * dpi);
       expect(
-        left.placement.center.dx,
-        TshirtPrintFile.leftChestCentreInches * dpi,
+        left.artworkArea.center.dx,
+        TshirtPrintProfile.leftChestCentreInches * dpi,
       );
       expect(
-        right.placement.center.dx,
-        TshirtPrintFile.rightChestCentreInches * dpi,
+        right.artworkArea.center.dx,
+        TshirtPrintProfile.rightChestCentreInches * dpi,
       );
-      expect(left.placement.center.dx, isNot(right.placement.center.dx));
+      expect(left.artworkArea.center.dx, isNot(right.artworkArea.center.dx));
     });
 
     testWidgets('a full front fills the printable area, a chest logo does not', (
@@ -323,13 +324,13 @@ void main() {
       c.setSide(true);
 
       c.setFrontFit(FrontFit.full);
-      final full = tshirtPrintSpec(c, PrintSide.front)!;
+      final full = tshirtPrintSpec(frontPlacementOf(c))!;
       c.setFrontFit(FrontFit.chest);
-      final chest = tshirtPrintSpec(c, PrintSide.front)!;
+      final chest = tshirtPrintSpec(frontPlacementOf(c))!;
 
       expect(
-        full.placement.height,
-        greaterThan(chest.placement.height * 3),
+        full.artworkArea.height,
+        greaterThan(chest.artworkArea.height * 3),
         reason: 'these are not the same print',
       );
     });
@@ -346,12 +347,12 @@ void main() {
         final printer = ProductionRenderer(c.service.renderer);
         backAlone = await printer.render(
           c.hero,
-          tshirtPrintSpec(c, PrintSide.back)!,
+          tshirtPrintSpec(PrintPlacement.backFull)!,
         );
-        await printer.render(c.frontFace, tshirtPrintSpec(c, PrintSide.front)!);
+        await printer.render(c.frontFace, tshirtPrintSpec(frontPlacementOf(c))!);
         backWithFront = await printer.render(
           c.hero,
-          tshirtPrintSpec(c, PrintSide.back)!,
+          tshirtPrintSpec(PrintPlacement.backFull)!,
         );
       });
 
@@ -379,28 +380,32 @@ void main() {
   });
 
   group('preview and print are one interpretation at two sizes', () {
-    test('the print file keeps the shape the preview showed', () {
-      final c = studio();
-      addTearDown(c.dispose);
-      final spec = tshirtPrintSpec(c, PrintSide.back)!;
+    test('the printable area is the provider geometry, not the mockup', () {
+      // M26.1: the mockup's back rect is 0.571 because its HEIGHT was anchored
+      // to garment landmarks, not derived from the 12:16 print it was
+      // calibrated against. Production reads the provider geometry.
+      final spec = tshirtPrintSpec(PrintPlacement.backFull)!;
+      expect(spec.artworkArea, TshirtPrintProfile.canvas);
       expect(
-        spec.placement.width / spec.placement.height,
-        closeTo(
-          printAreaAspect(
-            BundledGarments.backPrintArea,
-            BundledGarments.tintBaseBackSize,
-          ),
-          0.001,
+        spec.artworkArea.width / spec.artworkArea.height,
+        closeTo(12.0 / 16.0, 0.001),
+      );
+      expect(
+        printAreaAspect(
+          BundledGarments.backPrintArea,
+          BundledGarments.tintBaseBackSize,
         ),
+        closeTo(0.571, 0.01),
+        reason: 'the mockup convention is still what it was — and unused here',
       );
     });
 
     test('the artwork keeps the recipe aspect the preview renders at', () {
       final c = studio();
       addTearDown(c.dispose);
-      final spec = tshirtPrintSpec(c, PrintSide.back)!;
+      final spec = tshirtPrintSpec(PrintPlacement.backFull)!;
       final art = ProductionRenderer.fitInside(
-        spec.placement,
+        spec.artworkArea,
         ProductionRenderer.aspectOf(c.hero),
       );
       final (pw, ph) = RenderService.dimsFor(
@@ -408,8 +413,8 @@ void main() {
         1024,
       );
       expect(art.width / art.height, closeTo(pw / ph, 0.01));
-      expect(art.width, lessThanOrEqualTo(spec.placement.width + 0.5));
-      expect(art.height, lessThanOrEqualTo(spec.placement.height + 0.5));
+      expect(art.width, lessThanOrEqualTo(spec.artworkArea.width + 0.5));
+      expect(art.height, lessThanOrEqualTo(spec.artworkArea.height + 0.5));
     });
 
     testWidgets('an arrangement moves the print the way it moved the preview', (
@@ -434,21 +439,38 @@ void main() {
     testWidgets('an arrangement cannot print outside the printable area', (
       tester,
     ) async {
+      // Shown on the chest, where the printable area is a 3.5" square and the
+      // canvas around it is 12"×16" of nothing. A design shoved and blown up
+      // must still stop at the square's edge.
       final c = studio();
       addTearDown(c.dispose);
+      c.setSide(true);
+      c.setFrontFit(FrontFit.chest);
+      c.setChestSide(false);
+
+      final spec = tshirtPrintSpec(
+        frontPlacementOf(c),
+        arrangement: const MockupTransform(
+          translation: Offset(0.9, 0.9),
+          scale: 3,
+        ),
+      )!;
+
       late List<int> outside;
       await tester.runAsync(() async {
-        final f =
-            (await renderPrintFiles(
-              c,
-              backPlacement: const MockupTransform(
-                translation: Offset(0.9, 0.9),
-                scale: 3,
-              ),
-            )).first;
+        final f = await ProductionRenderer(
+          c.service.renderer,
+        ).render(c.frontFace, spec);
         final img = await decode(f.bytes);
         final alpha = await alphaReader(img);
-        outside = [alpha(0, 0), alpha(img.width - 1, img.height - 1), alpha(5, 1200)];
+        final area = spec.artworkArea;
+        outside = [
+          alpha(0, 0),
+          alpha(img.width - 1, img.height - 1),
+          alpha(area.left.round() - 12, area.center.dy.round()),
+          alpha(area.right.round() + 12, area.center.dy.round()),
+          alpha(area.center.dx.round(), area.bottom.round() + 12),
+        ];
         img.dispose();
       });
       expect(outside, everyElement(0));
@@ -462,7 +484,7 @@ void main() {
       final c = studio();
       addTearDown(c.dispose);
       final printer = ProductionRenderer(_BrokenRenderer());
-      final spec = tshirtPrintSpec(c, PrintSide.back)!;
+      final spec = tshirtPrintSpec(PrintPlacement.backFull)!;
 
       Object? thrown;
       await tester.runAsync(() async {
