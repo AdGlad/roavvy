@@ -42,6 +42,18 @@ const bool kStudioV2Enabled = bool.fromEnvironment('STUDIO_V2');
 Future<void> main() async {
   if (kStudioV2Enabled) {
     WidgetsFlutterBinding.ensureInitialized();
+    // The Studio asks who is signed in so saved designs belong to an account,
+    // and reads the live store price. Both go through Firebase, and an
+    // uninitialised FirebaseAuth throws out of build() — a black screen on
+    // launch. Failure here is survivable (no account → designs stay with the
+    // device), so it must not take the dev build down with it either.
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (e) {
+      _stage('STUDIO_V2: Firebase unavailable ($e) — device-scoped');
+    }
     // Wire the real on-device travel database so V2 reads the user's actual
     // trips (tripListProvider). Without this override roavvyDatabaseProvider
     // throws, tripListProvider errors, and StudioV2App hangs on a blank spinner.

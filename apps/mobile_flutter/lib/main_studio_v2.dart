@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import 'package:country_lookup/country_lookup.dart';
 import 'package:region_lookup/region_lookup.dart';
 
 import 'core/providers.dart';
+import 'firebase_options.dart';
 import 'data/db/roavvy_database.dart';
 import 'features/studio_v2_commerce/studio_v2_entry.dart';
 
@@ -22,6 +24,18 @@ import 'features/studio_v2_commerce/studio_v2_entry.dart';
 /// V1 flow completely untouched.)
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The Studio asks who is signed in so saved designs belong to an account,
+  // and reads the live store price. Both go through Firebase, and an
+  // uninitialised FirebaseAuth throws out of build() — a black screen on
+  // launch. Failure is survivable (no account → designs stay with the device),
+  // so it must not take this entrypoint down either.
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('[studio_v2] Firebase unavailable ($e) — device-scoped');
+  }
   // Wire the real on-device travel database so the studio boots with the user's
   // actual trips. Without this override `roavvyDatabaseProvider` throws,
   // `tripListProvider` errors, and StudioV2App would hang on a blank spinner.

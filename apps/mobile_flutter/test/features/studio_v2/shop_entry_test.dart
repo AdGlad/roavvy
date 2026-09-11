@@ -12,6 +12,7 @@ import 'package:mobile_flutter/features/merch/merch_shop_screen.dart';
 import 'package:mobile_flutter/features/merch/shopify_pricing_repository.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_app.dart';
 import 'package:mobile_flutter/features/studio_v2/studio_v2_screen.dart';
+import 'package:mobile_flutter/features/studio_v2_commerce/studio_v2_entry.dart';
 import 'package:shared_models/shared_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -102,6 +103,44 @@ void main() {
   });
 
   group('Shop → Studio', () {
+    testWidgets('the Studio opens even when Firebase is not there at all', (
+      tester,
+    ) async {
+      // The dev entrypoints run without Firebase. Asking an uninitialised
+      // FirebaseAuth for a stream throws straight out of build(), which is a
+      // black screen on launch — so the entry must survive it and fall back to
+      // device-scoped saves.
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStateProvider.overrideWith(
+              (_) => throw StateError(
+                "[core/no-app] No Firebase App '[DEFAULT]' has been created",
+              ),
+            ),
+            effectiveVisitsProvider.overrideWith((_) async => roavvyVisits()),
+            tripListProvider.overrideWith((_) async => roavvyTrips()),
+            shopifyPricingProvider.overrideWith((_) async => throw 'no network'),
+            merchCartProvider.overrideWith((_) => Stream.value([])),
+            merchCartCountProvider.overrideWith((_) => 0),
+          ],
+          child: const MaterialApp(home: StudioV2Entry(embedded: true)),
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 150));
+      }
+
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('v2-instant-deck')), findsOneWidget);
+    });
+
+
     testWidgets('the card opens Instant on the real travel', (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1.0;
