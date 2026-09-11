@@ -13,6 +13,7 @@ library design_studio;
 
 export 'src/lab_styles.dart';
 export 'src/lab_showcase_generator.dart';
+export 'src/production_render.dart';
 export 'src/render_service.dart';
 export 'src/studio_context.dart';
 export 'src/studio_controller.dart';
