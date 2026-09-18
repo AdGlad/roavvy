@@ -375,25 +375,31 @@ void main() {
   });
 
   group('ripped flag', () {
-    test('keeps a central vertical band and clears the sides (the gash)',
-        () async {
+    test('keeps several diagonal torn strips with transparent gaps', () async {
       final img = await solid(64, 64, 200, 40, 40);
       final params = kPrintStylePresets[PrintStyleId.rippedFlag]!
           .copyWith(seed: 5)
           .resolvedFor(ArtworkDetail.none);
       final after = await rgbaOf(await pipeline.apply(img, params));
-      int alphaAt(int x, int y) => after[(y * 64 + x) * 4 + 3];
 
-      // The centre column keeps ink across most rows…
-      var centreInk = 0;
-      for (var y = 0; y < 64; y++) {
-        if (alphaAt(32, y) > 128) centreInk++;
+      var kept = 0;
+      var cleared = 0;
+      for (var i = 0; i < 64 * 64; i++) {
+        final a = after[i * 4 + 3];
+        if (a > 128) kept++;
+        if (a < 16) cleared++;
       }
-      expect(centreInk, greaterThan(20));
+      // A torn-slash design must contain substantial visible flag AND garment.
+      expect(kept, greaterThan(64 * 64 * 0.25));
+      expect(cleared, greaterThan(64 * 64 * 0.15));
 
-      // …and the far edges are torn away (transparent — the garment shows).
-      expect(alphaAt(1, 32), 0);
-      expect(alphaAt(62, 32), 0);
+      // Rows should not share the same keep pattern: diagonal strips shift as
+      // they cross the artwork.
+      List<int> inkXs(int y) => [
+        for (var x = 0; x < 64; x++)
+          if (after[(y * 64 + x) * 4 + 3] > 128) x,
+      ];
+      expect(inkXs(16), isNot(equals(inkXs(48))));
     });
   });
 }
