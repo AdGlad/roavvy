@@ -37,7 +37,8 @@ void main() {
 
     // Generate a broad pool so the curated rippedFlag exemplar is present.
     const generator = ProceduralDesignGenerator();
-    final result = generator.generate(context, seed: 260918, count: 60, poolSize: 120);
+    final result =
+        generator.generate(context, seed: 260918, count: 60, poolSize: 120);
     final design = result.designs.firstWhere(
       (d) => d.recipe.printStyle == PrintStyleId.rippedFlag,
       orElse: () => throw StateError('rippedFlag curated recipe not generated'),
@@ -50,19 +51,30 @@ void main() {
       suppressText: true,
     );
 
+    // CardImageRenderer completes from post-frame callbacks. Keep pumping the
+    // simulator while the queued render is outstanding, matching the proven
+    // device render-capture harness.
     final Uint8List base = await tester.runAsync(
-      () => thumbnailer.renderThumbnail(design.recipe.toDesignParams(), const []),
-    ) ?? Uint8List(0);
+          () => _drive(
+            tester,
+            thumbnailer.renderThumbnail(
+              design.recipe.toDesignParams(),
+              const [],
+            ),
+          ),
+        ) ??
+        Uint8List(0);
     expect(base, isNotEmpty);
 
     // This is the production treatment path: recipe -> PrintStyleParams ->
     // PrintStylePipeline. It exercises the branch's generateGashBytes code.
     final styled = await tester.runAsync(
-      () => PrintStylePipeline.instance.applyToBytes(
-        base,
-        design.recipe.toPrintStyleParams(),
-      ),
-    ) ?? Uint8List(0);
+          () => PrintStylePipeline.instance.applyToBytes(
+            base,
+            design.recipe.toPrintStyleParams(),
+          ),
+        ) ??
+        Uint8List(0);
     expect(styled, isNotEmpty);
 
     binding.reportData = <String, dynamic>{
@@ -79,4 +91,27 @@ void main() {
       }
     };
   }, timeout: const Timeout(Duration(minutes: 3)));
+}
+
+/// Pump real frames while CardImageRenderer's queued/post-frame work completes.
+Future<Uint8List> _drive(WidgetTester tester, Future<Uint8List> future) async {
+  Uint8List? bytes;
+  Object? error;
+  var done = false;
+  // ignore: unawaited_futures
+  future.then<void>((b) {
+    bytes = b;
+    done = true;
+  }, onError: (Object e) {
+    error = e;
+    done = true;
+  });
+
+  for (var i = 0; i < 240 && !done; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await tester.pump();
+  }
+
+  if (error != null) throw error!;
+  return bytes ?? Uint8List(0);
 }
