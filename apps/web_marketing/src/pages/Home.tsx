@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom'
 
-const APP_STORE_URL = 'https://apps.apple.com/'
-
 export default function Home() {
   return (
     <>
@@ -33,7 +31,7 @@ function HeroSection() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="inline-flex items-center gap-2 bg-sky-400/10 border border-sky-400/20 rounded-full px-4 py-1.5 mb-8">
           <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-          <span className="text-sky-400 text-sm font-medium">Now available on iOS</span>
+          <span className="text-sky-400 text-sm font-medium">iOS app in active development</span>
         </div>
 
         <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-tight tracking-tight max-w-4xl mx-auto">
@@ -44,26 +42,18 @@ function HeroSection() {
         </h1>
 
         <p className="mt-6 text-xl md:text-2xl text-slate-400 leading-relaxed max-w-2xl mx-auto">
-          Roavvy is an AI-powered travel discovery platform that transforms your photo library into a living map of your life — without ever uploading your private photos.
+          Roavvy is a privacy-first travel discovery app that turns the location metadata in your photo library into a living map of your travels — without uploading your private photos.
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary text-base px-8 py-4 animate-glow"
-          >
-            <AppleIcon />
-            Download Free on the App Store
-          </a>
+          <Link to="/features" className="btn-primary text-base px-8 py-4 animate-glow">Explore the working product<ArrowIcon /></Link>
           <Link to="/features" className="btn-secondary text-base px-8 py-4">
             See how it works
             <ArrowIcon />
           </Link>
         </div>
         <p className="mt-4 text-slate-600 text-sm">
-          Free forever &middot; iOS 16+ &middot; Android coming soon
+          iOS product in active development &middot; App Store release planned
         </p>
 
         {/* App screenshots */}
@@ -220,7 +210,7 @@ function GuideSection() {
 
             <div className="mt-8 flex flex-col gap-3">
               {[
-                'AI-powered on-device scanning — your photos never leave your phone',
+                'On-device photo metadata scanning — your photos never leave your phone',
                 'Automatic country and landmark detection from GPS metadata',
                 'An interactive world map that grows with every trip',
                 'Travel achievements, heritage discovery, and cinematic travel replays',
@@ -365,18 +355,10 @@ function CtaSection() {
           Your travel identity is<br />already in your pocket
         </h2>
         <p className="section-subheading">
-          Download Roavvy and turn years of hidden memories into a living story you can revisit, share, wear, and keep building.
+          Explore Roavvy and see how years of travel memories become a living story you can revisit, share, wear, and keep building.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary text-base px-8 py-4"
-          >
-            <AppleIcon />
-            Download Free on the App Store
-          </a>
+          <Link to="/features" className="btn-primary text-base px-8 py-4">Explore Roavvy<ArrowIcon /></Link>
           <Link to="/features" className="btn-secondary text-base px-8 py-4">
             See all features
             <ArrowIcon />
@@ -430,15 +412,7 @@ function FailureSection() {
             <p className="section-subheading">
               The places you've been are part of who you are. Without a way to see, celebrate, and share them — they fade. Roavvy keeps your travel identity alive, for good.
             </p>
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary mt-8 inline-flex"
-            >
-              <AppleIcon />
-              Download Free on iOS
-            </a>
+            <Link to="/features" className="btn-primary mt-8 inline-flex">Explore Roavvy<ArrowIcon /></Link>
           </div>
         </div>
       </div>
@@ -463,7 +437,7 @@ function SuccessSection() {
     {
       icon: '🎬',
       title: 'Cinematic travel replays',
-      body: 'Rediscover forgotten memories through AI-generated travel replays that bring your journeys back to life, visually and emotionally.',
+      body: 'Rediscover forgotten memories through cinematic travel replays that bring your journeys back to life, visually and emotionally.',
     },
     {
       icon: '👕',
@@ -504,15 +478,7 @@ function SuccessSection() {
         </div>
 
         <div className="mt-16 text-center">
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary text-base px-10 py-4"
-          >
-            <AppleIcon />
-            Download Roavvy — Free on iOS
-          </a>
+          <Link to="/features" className="btn-primary text-base px-10 py-4">Explore the product<ArrowIcon /></Link>
         </div>
       </div>
     </section>
