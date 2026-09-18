@@ -1,6 +1,8 @@
 name: Torn Slash Visual
 
 on:
+  push:
+    branches: [feat/torn-slash-flag-recipe]
   pull_request:
     branches: [main]
   workflow_dispatch:
