@@ -1,12 +1,11 @@
 import { Link } from 'react-router-dom'
 
-const APP_STORE_URL = 'https://apps.apple.com/'
-
 export default function About() {
   return (
     <>
       <MissionSection />
       <StorySection />
+      <FounderSection />
       <ValuesSection />
       <AndroidSection />
       <AboutCta />
@@ -50,6 +49,27 @@ function StorySection() {
             Roavvy is free. It will stay free. The only thing we sell is personalised merchandise — physical products that earn their price because they mean something to the person wearing them.
           </p>
         </div>
+      </div>
+    </section>
+  )
+}
+
+
+function FounderSection() {
+  return (
+    <section className="bg-navy-900 py-24">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <span className="section-label">Founder</span>
+        <h2 className="section-heading text-3xl">Adam Gladstone</h2>
+        <p className="text-slate-400 text-sm leading-relaxed mt-6">
+          Roavvy was founded and is being built by Adam Gladstone, a technology product leader with experience across cloud technology, product management, architecture, and digital product development.
+        </p>
+        <p className="text-slate-400 text-sm leading-relaxed mt-4">
+          Adam is a Google Cloud Certified Professional Cloud Architect and leads the product direction and development of Roavvy.
+        </p>
+        <a href="https://au.linkedin.com/in/adamgladstone" target="_blank" rel="noopener noreferrer" className="btn-secondary mt-8 inline-flex">
+          Verify Adam on LinkedIn
+        </a>
       </div>
     </section>
   )
@@ -110,7 +130,7 @@ function AndroidSection() {
         </div>
         <h2 className="text-2xl font-bold text-white mb-4">Android is on the way</h2>
         <p className="text-slate-400 text-sm leading-relaxed max-w-xl mx-auto">
-          Roavvy is currently available on iOS. Android support is actively in development. If you're an Android user, check back soon — your travel story will be waiting.
+          Roavvy is currently being developed for iOS ahead of its public App Store release. Android support is planned for a later stage.
         </p>
       </div>
     </section>
@@ -122,16 +142,9 @@ function AboutCta() {
     <section className="bg-gradient-to-b from-sky-950/40 to-navy-900 py-24 text-center">
       <div className="max-w-xl mx-auto px-4">
         <h2 className="text-3xl font-bold text-white mb-4">Ready to see your travel story?</h2>
-        <p className="text-slate-400 text-sm mb-8">Free on iOS. No sign-up required to start scanning.</p>
+        <p className="text-slate-400 text-sm mb-8">Roavvy is in active iOS development ahead of its public App Store release.</p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary text-base px-8 py-4"
-          >
-            Download Free on the App Store
-          </a>
+          <Link to="/features" className="btn-primary text-base px-8 py-4">Explore the product</Link>
           <Link to="/features" className="btn-secondary text-base px-8 py-4">
             Explore features
           </Link>
