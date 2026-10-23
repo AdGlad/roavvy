@@ -399,9 +399,14 @@ Uint8List generateGashBytes({
   double halfWidth = 0.22,
   double raggedness = 0.08,
 }) {
+  // Torn-slash keep mask. The source flag remains intact; this mask reveals it
+  // through several broad, overlapping diagonal rips. Transparent gaps between
+  // the rips let the garment show through. Kept under the historical
+  // generateGashBytes name so persisted rippedFlag recipes remain compatible.
   final out = Uint8List(w * h * 4);
-  double octave(double t, int cells, int salt) {
-    final p = t * cells;
+
+  double noise(double t, int salt) {
+    final p = t * 9.0;
     final i0 = p.floor();
     final f = p - i0;
     final a = _hash01(i0 * 374761393 ^ (seed + salt) * 668265263);
@@ -410,28 +415,47 @@ Uint8List generateGashBytes({
     return a + (b - a) * s;
   }
 
-  // Ragged per-row boundary offset in -0.5..0.5 (broad bays + fine tongues).
-  double edge(double t, int salt) =>
-      (0.6 * octave(t, 7, salt) + 0.4 * octave(t, 29, salt + 53)) - 0.5;
+  // Parallel slash centres in normalised artwork space. Small deterministic
+  // offsets keep the silhouette organic while preserving the strong direction.
+  const angle = -0.42; // about -24 degrees
+  final slope = math.tan(angle);
+  const slashCount = 6;
+  const baseWidth = 0.105;
+  final aa = 1.8 / math.max(w, h);
 
-  final shoulder = 1.6 / (w - 1);
   for (var y = 0; y < h; y++) {
     final ny = y / (h - 1);
-    final left = 0.5 - halfWidth + raggedness * edge(ny, 11) * 2.0;
-    final right = 0.5 + halfWidth + raggedness * edge(ny, 71) * 2.0;
     for (var x = 0; x < w; x++) {
       final nx = x / (w - 1);
-      double a;
-      if (nx > left + shoulder && nx < right - shoulder) {
-        a = 1.0;
-      } else if (nx > left - shoulder && nx < right + shoulder) {
-        final near = math.min((nx - left).abs(), (nx - right).abs());
-        a = (near / shoulder).clamp(0.0, 1.0);
-        if (_hash2(x, y, seed ^ 0x6a5b) < 0.14) a = 1.0; // stray fibre
-      } else {
-        a = 0.0;
+      var keep = 0.0;
+      for (var i = 0; i < slashCount; i++) {
+        final centreY =
+            0.08 + i * 0.165 + (_hash01(seed ^ (i * 0x45d9f3b)) - 0.5) * 0.055;
+        final local = ny - (centreY + slope * (nx - 0.5));
+        final edgeWarp =
+            (noise(nx + i * 0.13, 31 + i * 17) - 0.5) *
+            raggedness *
+            0.9;
+        final widthJitter =
+            0.78 + _hash01(seed ^ (i * 0x27d4eb2d)) * 0.55;
+        final half = baseWidth * widthJitter;
+        final d = (local - edgeWarp).abs();
+        var a = ((half + aa - d) / (aa * 2)).clamp(0.0, 1.0);
+
+        // Taper slash ends and cut occasional ragged bites from the boundary.
+        final endTaper = math.min(
+          (nx / 0.10).clamp(0.0, 1.0),
+          ((1.0 - nx) / 0.10).clamp(0.0, 1.0),
+        );
+        a *= endTaper;
+        if (a > 0 &&
+            d > half * 0.62 &&
+            _hash2(x ~/ 5, y ~/ 5, seed ^ (i * 0x9e37)) < 0.12) {
+          a *= 0.18;
+        }
+        if (a > keep) keep = a;
       }
-      out[(y * w + x) * 4 + 3] = (a * 255).round().clamp(0, 255);
+      out[(y * w + x) * 4 + 3] = (keep * 255).round().clamp(0, 255);
     }
   }
   return out;
