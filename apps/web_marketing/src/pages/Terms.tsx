@@ -28,7 +28,7 @@ export default function Terms() {
 
       <Section title="4. Photo Metadata Scanning">
         <p>Roavvy requests access to your device's photo library in order to read GPS coordinates embedded in photo metadata. This process occurs entirely on your device. No photos or photo content are uploaded to our servers.</p>
-        <p>Only derived metadata — such as GPS coordinates used to determine countries visited — may be processed or stored. By granting photo library access, you authorise Roavvy to perform this on-device scan.</p>
+        <p>Only derived metadata, such as GPS coordinates used to determine countries visited, may be processed or stored. By granting photo library access, you authorise Roavvy to perform this on-device scan.</p>
         <p>You may revoke photo library access at any time through your device's privacy settings.</p>
       </Section>
 

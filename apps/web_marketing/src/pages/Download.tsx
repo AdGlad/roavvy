@@ -11,7 +11,7 @@ export default function Download() {
             Get Roavvy
           </h1>
           <p className="section-subheading text-xl">
-            Coming soon to iOS — free to download. Start discovering your travel story in minutes.
+            Coming soon to iOS and free to download. Start discovering your travel story in minutes.
           </p>
 
           <div className="mt-10 flex flex-col items-center gap-6">
@@ -40,13 +40,13 @@ export default function Download() {
       {/* Key benefits */}
       <section className="bg-navy-950 py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-white text-center mb-12">Everything — completely free</h2>
+          <h2 className="text-2xl font-bold text-white text-center mb-12">Everything, completely free</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {[
               { icon: '🌍', title: 'World travel map', body: 'Automatic country detection from your photo library. See your journey on a beautiful interactive globe.' },
-              { icon: '🏅', title: 'Travel achievements', body: 'Earn badges for countries, continents, and UNESCO heritage sites — automatically, based on your real travels.' },
+              { icon: '🏅', title: 'Travel achievements', body: 'Earn badges for countries, continents, and UNESCO heritage sites automatically, based on your real travels.' },
               { icon: '🏛️', title: 'Daily heritage challenge', body: 'A new UNESCO World Heritage Site puzzle every day. Track your streak and share your results.' },
-              { icon: '🔒', title: 'Privacy by design', body: 'Your photos never leave your phone. Country detection is 100% on-device — no uploads required.' },
+              { icon: '🔒', title: 'Privacy by design', body: 'Your photos never leave your phone. Country detection is 100% on-device, with no uploads required.' },
               { icon: '📤', title: 'Shareable travel cards', body: 'Create and share travel stats, country count cards, and daily challenge scores.' },
               { icon: '👕', title: 'Personalised merchandise', body: 'Order custom travel products featuring the countries from your actual journey.' },
             ].map(({ icon, title, body }) => (

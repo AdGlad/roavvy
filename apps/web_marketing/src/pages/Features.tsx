@@ -8,7 +8,7 @@ export default function Features() {
     <>
       <PageHero
         label="Features"
-        title="Your travel story — visual, interactive, and alive"
+        title="Your travel story: visual, interactive, and alive"
         subtitle="Roavvy is an AI-powered travel discovery platform built around your real journey. Every feature starts with your photos and ends with something worth sharing."
       />
       <PhotoScanFeature />
@@ -44,13 +44,13 @@ function PhotoScanFeature() {
             <span className="section-label">AI-powered photo scanning</span>
             <h2 className="section-heading">Your camera roll knows everywhere you've been</h2>
             <p className="section-subheading">
-              Roavvy's AI reads the GPS coordinates embedded in your existing photos — entirely on your device. No uploads, no cloud, no privacy trade-offs. Your travel history appears in seconds.
+              Roavvy's AI reads the GPS coordinates embedded in your existing photos, entirely on your device. No uploads, no cloud, no privacy trade-offs. Your travel history appears in seconds.
             </p>
 
             <ul className="mt-8 space-y-4">
               {[
                 'Scans up to 2,000 photos per session',
-                'AI-powered on-device GPS extraction — zero uploads',
+                'AI-powered on-device GPS extraction with zero uploads',
                 'Incremental rescans automatically capture new trips',
                 'Rediscovers forgotten memories from years of travel',
                 'No photo content is ever transmitted or stored externally',
@@ -67,7 +67,7 @@ function PhotoScanFeature() {
             <VideoCard
               src={SCAN_VIDEO}
               poster={SCAN_POSTER}
-              caption="On-device photo scanning — see your countries appear in seconds"
+              caption="On-device photo scanning: see your countries appear in seconds"
             />
           </div>
         </div>
@@ -88,9 +88,9 @@ function WorldMapFeature() {
           </div>
           <div className="order-1 lg:order-2">
             <span className="section-label">Living world map</span>
-            <h2 className="section-heading">Your travel history — visual, interactive, and alive</h2>
+            <h2 className="section-heading">Your travel history: visual, interactive, and alive</h2>
             <p className="section-subheading">
-              Watch countries light up as Roavvy discovers your visits. Pan, zoom, and explore a beautiful interactive world map that grows with every trip — a living record of who you are as a traveller.
+              Watch countries light up as Roavvy discovers your visits. Pan, zoom, and explore a beautiful interactive world map that grows with every trip, a living record of who you are as a traveller.
             </p>
 
             <div className="mt-8 grid grid-cols-2 gap-4">
@@ -132,7 +132,7 @@ function AchievementsFeature() {
           <span className="section-label">Achievements & identity</span>
           <h2 className="section-heading">Your milestones deserve to be recognised</h2>
           <p className="section-subheading max-w-2xl mx-auto">
-            Every country, continent, and UNESCO World Heritage Site you've visited is a real achievement. Roavvy recognises them automatically — building a travel identity that reflects who you've become.
+            Every country, continent, and UNESCO World Heritage Site you've visited is a real achievement. Roavvy recognises them automatically, building a travel identity that reflects who you've become.
           </p>
         </div>
 
@@ -167,7 +167,7 @@ function DailyChallengeFeature() {
             <span className="section-label">Daily challenge</span>
             <h2 className="section-heading">A new piece of the world to discover every day</h2>
             <p className="section-subheading">
-              A fresh UNESCO World Heritage Site challenge every morning. Use clues to identify the site, build streaks, and share your results — a daily ritual for curious travellers.
+              A fresh UNESCO World Heritage Site challenge every morning. Use clues to identify the site, build streaks, and share your results. A daily ritual for curious travellers.
             </p>
 
             <div className="mt-8 space-y-4">
@@ -189,7 +189,7 @@ function DailyChallengeFeature() {
             <VideoCard
               src={CHALLENGE_VIDEO}
               poster={CHALLENGE_POSTER}
-              caption="Daily UNESCO World Heritage challenge — guess from clues"
+              caption="Daily UNESCO World Heritage challenge: guess from clues"
             />
           </div>
         </div>
@@ -225,14 +225,14 @@ function MerchFeature() {
             <span className="section-label">Personalised merchandise</span>
             <h2 className="section-heading">Turn your travel history into something you can wear</h2>
             <p className="section-subheading">
-              Order t-shirts, prints, and passport-style collectibles featuring the actual countries from your own journey. Not a generic souvenir — a tangible piece of your real travel identity.
+              Order t-shirts, prints, and passport-style collectibles featuring the actual countries from your own journey. Not a generic souvenir, but a tangible piece of your real travel identity.
             </p>
 
             <ul className="mt-8 space-y-3">
               {[
                 "Flags from the exact countries you've stood in",
                 'Custom layouts generated from your real travel map',
-                'Print-on-demand — no stock, no waste, delivered worldwide',
+                'Print-on-demand: no stock, no waste, delivered worldwide',
                 'From custom travel shirts to passport-style collectibles',
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3">
@@ -260,7 +260,7 @@ function PrivacyFeature() {
     {
       icon: '🔍',
       title: 'GPS only, not images',
-      body: 'Roavvy reads only the GPS coordinates embedded in photo metadata — not the photo content itself.',
+      body: 'Roavvy reads only the GPS coordinates embedded in photo metadata, not the photo content itself.',
     },
     {
       icon: '💾',
@@ -323,9 +323,6 @@ function VideoCard({ src, poster, caption }: { src: string; poster: string; capt
         className="w-full aspect-[9/16] object-cover bg-navy-800"
       >
         <source src={src} type="video/mp4" />
-        <div className="aspect-[9/16] flex items-center justify-center bg-navy-800 text-slate-600 text-sm">
-          Video placeholder — add {src}
-        </div>
       </video>
       <div className="px-4 py-3 border-t border-slate-800/60">
         <p className="text-slate-400 text-sm text-center">{caption}</p>

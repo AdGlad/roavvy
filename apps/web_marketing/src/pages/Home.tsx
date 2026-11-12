@@ -43,7 +43,7 @@ function HeroSection() {
         </h1>
 
         <p className="mt-6 text-xl md:text-2xl text-slate-400 leading-relaxed max-w-2xl mx-auto">
-          Roavvy is an AI-powered travel discovery platform that transforms your photo library into a living map of your life — without ever uploading your private photos.
+          Roavvy is an AI-powered travel discovery platform that transforms your photo library into a living map of your life, without ever uploading your private photos.
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -88,7 +88,7 @@ function HeroSection() {
 
 function SocialProofSection() {
   const stats = [
-    { value: '100%', label: 'Free — always' },
+    { value: '100%', label: 'Free, always' },
     { value: '195+', label: 'Countries detectable' },
     { value: '1,000+', label: 'UNESCO sites mapped' },
     { value: '0', label: 'Photos ever uploaded' },
@@ -117,7 +117,7 @@ function ProblemSection() {
     {
       icon: '📸',
       title: 'Memories buried and forgotten',
-      body: 'Thousands of travel photos sit unsorted in camera rolls. The story of where you have been is invisible — even to you.',
+      body: 'Thousands of travel photos sit unsorted in camera rolls. The story of where you have been is invisible, even to you.',
     },
     {
       icon: '🗺️',
@@ -127,7 +127,7 @@ function ProblemSection() {
     {
       icon: '🏆',
       title: 'Milestones uncelebrated',
-      body: 'Reaching 30 countries, discovering a UNESCO World Heritage site — these are real achievements that vanish without a trace.',
+      body: 'Reaching 30 countries, discovering a UNESCO World Heritage site: these are real achievements that vanish without a trace.',
     },
     {
       icon: '🧢',
@@ -182,7 +182,7 @@ function ScreenshotsSection() {
           <span className="section-label">See it in action</span>
           <h2 className="section-heading">Everything your travel story needs</h2>
           <p className="section-subheading max-w-xl mx-auto">
-            From your interactive world map to daily challenges, achievements, cinematic replays, and personalised merch — all powered by your own photos, entirely on your device.
+            From your interactive world map to daily challenges, achievements, cinematic replays, and personalised merch, all powered by your own photos, entirely on your device.
           </p>
         </div>
 
@@ -213,15 +213,15 @@ function GuideSection() {
               Your digital travel<br />companion
             </h2>
             <p className="section-subheading">
-              Roavvy acts like a digital travel companion — helping you relive experiences, celebrate milestones, and turn memories into something tangible.
+              Roavvy acts like a digital travel companion, helping you relive experiences, celebrate milestones, and turn memories into something tangible.
             </p>
             <p className="text-slate-500 mt-4 leading-relaxed">
-              You are the traveller. Roavvy is the platform that makes your journey visible. Your photos never leave your device — everything is processed privately on-device, revealing a living map of your real travels in seconds.
+              You are the traveller. Roavvy is the platform that makes your journey visible. Your photos never leave your device. Everything is processed privately on-device, revealing a living map of your real travels in seconds.
             </p>
 
             <div className="mt-8 flex flex-col gap-3">
               {[
-                'AI-powered on-device scanning — your photos never leave your phone',
+                'AI-powered on-device scanning: your photos never leave your phone',
                 'Automatic country and landmark detection from GPS metadata',
                 'An interactive world map that grows with every trip',
                 'Travel achievements, heritage discovery, and cinematic travel replays',
@@ -252,7 +252,7 @@ function PlanSection() {
     {
       num: '01',
       title: 'Scan your photo library',
-      body: 'Roavvy reads GPS coordinates from your existing photos — entirely on your device. No uploads. No cloud. No privacy trade-offs.',
+      body: 'Roavvy reads GPS coordinates from your existing photos, entirely on your device. No uploads. No cloud. No privacy trade-offs.',
       icon: '📱',
     },
     {
@@ -366,7 +366,7 @@ function CtaSection() {
           Your travel identity is<br />already in your pocket
         </h2>
         <p className="section-subheading">
-          Roavvy is coming soon to iOS — turning years of hidden memories into a living story you can revisit, share, wear, and keep building.
+          Roavvy is coming soon to iOS, turning years of hidden memories into a living story you can revisit, share, wear, and keep building.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <AppStoreCta
@@ -397,7 +397,7 @@ function FailureSection() {
   const costs = [
     'Years of travel remain buried and disconnected in your camera roll',
     'Countries you visited are gradually lost from memory, with no record left behind',
-    'Your travel story stays invisible — no single place to see it, share it, or celebrate it',
+    'Your travel story stays invisible, with no single place to see it, share it, or celebrate it',
     'Personal milestones go unrecognised and uncelebrated',
     'Generic mass-produced souvenirs fail to capture who you are as a traveller',
   ]
@@ -431,7 +431,7 @@ function FailureSection() {
               Every journey deserves to be more than a forgotten photo
             </h2>
             <p className="section-subheading">
-              The places you've been are part of who you are. Without a way to see, celebrate, and share them — they fade. Roavvy keeps your travel identity alive, for good.
+              The places you've been are part of who you are. Without a way to see, celebrate, and share them, they fade. Roavvy keeps your travel identity alive, for good.
             </p>
             <AppStoreCta
               className="btn-primary mt-8 inline-flex"
@@ -458,7 +458,7 @@ function SuccessSection() {
     {
       icon: '🌍',
       title: 'A living world map',
-      body: "A beautiful, interactive visual record of every country you've visited — growing automatically as you scan more photos.",
+      body: "A beautiful, interactive visual record of every country you've visited, growing automatically as you scan more photos.",
     },
     {
       icon: '🏅',
@@ -473,17 +473,17 @@ function SuccessSection() {
     {
       icon: '👕',
       title: 'Personalised merchandise',
-      body: 'Order t-shirts, prints, and travel products featuring the actual countries from your own journey. Not a souvenir — a statement.',
+      body: 'Order t-shirts, prints, and travel products featuring the actual countries from your own journey. Not a souvenir. A statement.',
     },
     {
       icon: '📤',
       title: 'Shareable travel identity',
-      body: "Share your world map, achievement cards, and travel story. Show the world where you've been — and who you are as a traveller.",
+      body: "Share your world map, achievement cards, and travel story. Show the world where you've been and who you are as a traveller.",
     },
     {
       icon: '🔒',
       title: 'Private by design',
-      body: 'Your photos never leave your device. Roavvy reads only GPS metadata on-device — no uploads, no cloud, no compromises.',
+      body: 'Your photos never leave your device. Roavvy reads only GPS metadata on-device. No uploads, no cloud, no compromises.',
     },
   ]
 
@@ -494,7 +494,7 @@ function SuccessSection() {
           <span className="section-label">The outcome</span>
           <h2 className="section-heading">A living identity built from your real adventures</h2>
           <p className="section-subheading max-w-2xl mx-auto">
-            Roavvy users don't just track countries — they build a living travel identity they can revisit, share, wear, and continue building for the rest of their lives.
+            Roavvy users don't just track countries. They build a living travel identity they can revisit, share, wear, and continue building for the rest of their lives.
           </p>
         </div>
 
@@ -513,11 +513,11 @@ function SuccessSection() {
             className="btn-primary text-base px-10 py-4"
             live={<>
             <AppleIcon />
-            Download Roavvy — Free on iOS
+            Download Roavvy free on iOS
             </>}
             soon={<>
             <AppleIcon />
-            Roavvy — coming soon to iOS
+            Roavvy is coming soon to iOS
             </>}
           />
         </div>
@@ -551,7 +551,7 @@ function PrivacyBadge() {
         <div className="text-6xl mb-6">🔒</div>
         <h3 className="text-white font-bold text-xl mb-3">Privacy First</h3>
         <p className="text-slate-400 text-sm leading-relaxed">
-          Your photos never leave your device. Country detection happens entirely on-device using GPS metadata — not your actual images.
+          Your photos never leave your device. Country detection happens entirely on-device using GPS metadata, not your actual images.
         </p>
         <div className="mt-6 flex items-center gap-2 text-sky-400 text-xs font-medium bg-sky-400/10 px-4 py-2 rounded-full border border-sky-400/20">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

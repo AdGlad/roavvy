@@ -14,7 +14,7 @@ export default function Privacy() {
         <p>Roavvy's core feature is the on-device scanning of GPS coordinates from your photo library. This means:</p>
         <ul>
           <li>Your photos are <strong>never uploaded</strong> to our servers or any third-party server</li>
-          <li>Only GPS coordinate metadata is read — not photo content, faces, or personal details</li>
+          <li>Only GPS coordinate metadata is read, not photo content, faces, or personal details</li>
           <li>Country detection is performed entirely on your device</li>
           <li>You remain in control of photo library access and can revoke it at any time</li>
         </ul>
@@ -30,8 +30,8 @@ export default function Privacy() {
         </ul>
         <p><strong className="text-white">Data that may be stored or transmitted:</strong></p>
         <ul>
-          <li>Derived travel data (country codes, visit dates) — used to power the map and achievements</li>
-          <li>Anonymous usage analytics — used to improve the App (if applicable)</li>
+          <li>Derived travel data (country codes, visit dates), used to power the map and achievements</li>
+          <li>Anonymous usage analytics, used to improve the App (if applicable)</li>
           <li>Account information if you create an account (email, display name)</li>
           <li>Merchandise order details if you place an order (name, delivery address)</li>
         </ul>

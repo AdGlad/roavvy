@@ -29,11 +29,11 @@ const topics = [
     faqs: [
       {
         q: 'Why does Roavvy need photo library access?',
-        a: 'Roavvy reads GPS coordinates embedded in your photo metadata to detect the countries you have visited. It does not access photo content, faces, or any visual data — only location coordinates. Your photos are never uploaded anywhere.',
+        a: 'Roavvy reads GPS coordinates embedded in your photo metadata to detect the countries you have visited. It does not access photo content, faces, or any visual data, only location coordinates. Your photos are never uploaded anywhere.',
       },
       {
         q: 'How long does scanning take?',
-        a: 'Scanning 2,000 photos typically takes 10–30 seconds depending on your device. Larger libraries may take a little longer on the first scan. All subsequent scans are incremental and significantly faster.',
+        a: 'Scanning 2,000 photos typically takes 10 to 30 seconds depending on your device. Larger libraries may take a little longer on the first scan. All subsequent scans are incremental and significantly faster.',
       },
       {
         q: 'Not all my countries are showing up',
@@ -51,7 +51,7 @@ const topics = [
     faqs: [
       {
         q: 'Are my photos uploaded to any server?',
-        a: 'No. Roavvy reads GPS metadata entirely on your device. Your photos never leave your phone — not even as thumbnails, previews, or compressed copies. This is a core design principle, not an afterthought.',
+        a: 'No. Roavvy reads GPS metadata entirely on your device. Your photos never leave your phone, not even as thumbnails, previews, or compressed copies. This is a core design principle, not an afterthought.',
       },
       {
         q: 'What data does Roavvy store?',
@@ -77,7 +77,7 @@ const topics = [
       },
       {
         q: 'How long does delivery take?',
-        a: 'Most orders are delivered within 7–14 business days. International orders may take slightly longer depending on your location and local customs. You will receive a tracking number by email once your order ships.',
+        a: 'Most orders are delivered within 7 to 14 business days. International orders may take slightly longer depending on your location and local customs. You will receive a tracking number by email once your order ships.',
       },
       {
         q: 'Can I change or cancel my order?',
@@ -95,11 +95,11 @@ const topics = [
     faqs: [
       {
         q: 'Is Roavvy free?',
-        a: 'Yes — Roavvy is completely free to download and use. There are no subscription tiers, no premium features, and no paywalls. Every feature in the app is available to all users at no cost.',
+        a: 'Yes. Roavvy is completely free to download and use. There are no subscription tiers, no premium features, and no paywalls. Every feature in the app is available to all users at no cost.',
       },
       {
         q: 'How do I pay for merchandise?',
-        a: 'Merchandise orders are paid for at checkout within the app. We accept Visa, Mastercard, American Express, Apple Pay, and PayPal. All payments are processed securely — we do not store your card details.',
+        a: 'Merchandise orders are paid for at checkout within the app. We accept Visa, Mastercard, American Express, Apple Pay, and PayPal. All payments are processed securely and we do not store your card details.',
       },
       {
         q: 'I was charged for an order I didn\'t place',
@@ -107,7 +107,7 @@ const topics = [
       },
       {
         q: 'Are there any hidden fees?',
-        a: 'No. The app is free. For merchandise, the price shown at checkout is the total you pay — including production and shipping. No hidden fees are added after you place your order.',
+        a: 'No. The app is free. For merchandise, the price shown at checkout is the total you pay, including production and shipping. No hidden fees are added after you place your order.',
       },
     ],
   },
@@ -143,7 +143,7 @@ export default function Support() {
           <span className="section-label">Support</span>
           <h1 className="section-heading text-4xl md:text-5xl">How can we help?</h1>
           <p className="section-subheading">
-            Find answers to common questions below, or reach us directly by email — we aim to reply within one business day.
+            Find answers to common questions below, or reach us directly by email. We aim to reply within one business day.
           </p>
           <a
             href={`mailto:${CONTACT_EMAIL}`}

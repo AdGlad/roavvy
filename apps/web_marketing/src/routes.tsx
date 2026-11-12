@@ -14,15 +14,15 @@ import NotFound from './pages/NotFound'
 // Every route here is pre-rendered to static HTML at build time
 // (scripts/prerender.mjs). `title` becomes that page's <title>.
 export const PAGES = [
-  { path: '/', title: 'Roavvy — Your Travel Story, Finally Visible' },
-  { path: '/features', title: 'Features — Roavvy' },
-  { path: '/download', title: 'Download — Roavvy' },
-  { path: '/support', title: 'Support — Roavvy' },
-  { path: '/about', title: 'About Roavvy — Team & Company' },
-  { path: '/investors', title: 'Investors — Roavvy' },
-  { path: '/terms', title: 'Terms & Conditions — Roavvy' },
-  { path: '/privacy', title: 'Privacy Policy — Roavvy' },
-  { path: '/refund', title: 'Refund Policy — Roavvy' },
+  { path: '/', title: 'Roavvy | Your Travel Story, Finally Visible' },
+  { path: '/features', title: 'Features | Roavvy' },
+  { path: '/download', title: 'Download | Roavvy' },
+  { path: '/support', title: 'Support | Roavvy' },
+  { path: '/about', title: 'About Roavvy | Team & Company' },
+  { path: '/investors', title: 'Investors | Roavvy' },
+  { path: '/terms', title: 'Terms & Conditions | Roavvy' },
+  { path: '/privacy', title: 'Privacy Policy | Roavvy' },
+  { path: '/refund', title: 'Refund Policy | Roavvy' },
 ]
 
 export function AppRoutes() {
