@@ -1,4 +1,4 @@
-const SUPPORT_EMAIL = 'support@roavvy.com'
+import { CONTACT_EMAIL } from '../site'
 const LAST_UPDATED = '15 June 2026'
 
 export default function Terms() {
@@ -134,7 +134,7 @@ export function ContactBlock() {
         <strong className="text-white">Christopher Adam Gladstone trading as Roavvy</strong><br />
         ABN: 76 540 390 025<br />
         North Curl Curl, NSW, Australia<br />
-        Email: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-sky-400 hover:text-sky-300 transition-colors">{SUPPORT_EMAIL}</a><br />
+        Email: <a href={`mailto:${CONTACT_EMAIL}`} className="text-sky-400 hover:text-sky-300 transition-colors">{CONTACT_EMAIL}</a><br />
         Website: <a href="https://www.roavvy.com" className="text-sky-400 hover:text-sky-300 transition-colors">www.roavvy.com</a>
       </p>
     </div>

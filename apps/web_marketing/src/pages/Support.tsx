@@ -1,4 +1,4 @@
-const SUPPORT_EMAIL = 'support@roavvy.com'
+import { CONTACT_EMAIL } from '../site'
 
 const topics = [
   {
@@ -7,7 +7,7 @@ const topics = [
     faqs: [
       {
         q: 'Where can I download Roavvy?',
-        a: 'Roavvy is available free on the Apple App Store. Search for "Roavvy" or tap the Download button on our website at roavvy.com/download. iOS 16.0 or later is required.',
+        a: 'Roavvy is coming soon to the Apple App Store. It will be free to download and requires iOS 16.0 or later. Check roavvy.com/download for launch updates.',
       },
       {
         q: 'What iOS version is required?',
@@ -59,7 +59,7 @@ const topics = [
       },
       {
         q: 'How do I delete my travel data?',
-        a: 'You can delete all your travel history from Settings within the app. To permanently delete your account and all associated data, email us at support@roavvy.com and we will process the deletion within 30 days, in line with your rights under GDPR.',
+        a: `You can delete all your travel history from Settings within the app. To permanently delete your account and all associated data, email us at ${CONTACT_EMAIL} and we will process the deletion within 30 days, in line with your rights under GDPR.`,
       },
       {
         q: 'Does Roavvy share my location history?',
@@ -81,11 +81,11 @@ const topics = [
       },
       {
         q: 'Can I change or cancel my order?',
-        a: 'Orders can be changed or cancelled within 1 hour of placing them by contacting us immediately at support@roavvy.com. After production has started, we are unable to modify orders as each item is printed specifically for you.',
+        a: `Orders can be changed or cancelled within 1 hour of placing them by contacting us immediately at ${CONTACT_EMAIL}. After production has started, we are unable to modify orders as each item is printed specifically for you.`,
       },
       {
         q: 'My order arrived damaged or incorrect',
-        a: "We're sorry to hear that. Please email support@roavvy.com within 14 days of receiving your order, including your order reference number and clear photos of the issue. We will arrange a replacement or full refund promptly.",
+        a: `We're sorry to hear that. Please email ${CONTACT_EMAIL} within 14 days of receiving your order, including your order reference number and clear photos of the issue. We will arrange a replacement or full refund promptly.`,
       },
     ],
   },
@@ -103,7 +103,7 @@ const topics = [
       },
       {
         q: 'I was charged for an order I didn\'t place',
-        a: 'If you see an unexpected charge, please contact us immediately at support@roavvy.com with your order reference (if you have it) and we will investigate and resolve the issue as quickly as possible.',
+        a: `If you see an unexpected charge, please contact us immediately at ${CONTACT_EMAIL} with your order reference (if you have it) and we will investigate and resolve the issue as quickly as possible.`,
       },
       {
         q: 'Are there any hidden fees?',
@@ -117,7 +117,7 @@ const topics = [
     faqs: [
       {
         q: 'The app crashed or froze',
-        a: 'Force-close the app by swiping it away in the app switcher, then reopen it. If the issue persists, restart your device. Please email us at support@roavvy.com with your device model, iOS version, and a description of what you were doing when it crashed.',
+        a: `Force-close the app by swiping it away in the app switcher, then reopen it. If the issue persists, restart your device. Please email us at ${CONTACT_EMAIL} with your device model, iOS version, and a description of what you were doing when it crashed.`,
       },
       {
         q: 'A feature is not working as expected',
@@ -125,11 +125,11 @@ const topics = [
       },
       {
         q: 'I found an incorrect country detection',
-        a: "Country detection relies on GPS data embedded in your photos at the time they were taken. If a country has been incorrectly assigned, you can edit it manually in the app. If you believe there is a systematic error, please report it to support@roavvy.com so we can investigate.",
+        a: `Country detection relies on GPS data embedded in your photos at the time they were taken. If a country has been incorrectly assigned, you can edit it manually in the app. If you believe there is a systematic error, please report it to ${CONTACT_EMAIL} so we can investigate.`,
       },
       {
         q: 'How do I report a bug?',
-        a: 'Email support@roavvy.com with your device model, iOS version, a clear description of the bug, and the steps needed to reproduce it. Screenshots or a short screen recording are extremely helpful and speed up our investigation significantly.',
+        a: `Email ${CONTACT_EMAIL} with your device model, iOS version, a clear description of the bug, and the steps needed to reproduce it. Screenshots or a short screen recording are extremely helpful and speed up our investigation significantly.`,
       },
     ],
   },
@@ -146,11 +146,11 @@ export default function Support() {
             Find answers to common questions below, or reach us directly by email — we aim to reply within one business day.
           </p>
           <a
-            href={`mailto:${SUPPORT_EMAIL}`}
+            href={`mailto:${CONTACT_EMAIL}`}
             className="btn-primary mt-8 text-base px-8 py-4 inline-flex"
           >
             <EmailIcon />
-            {SUPPORT_EMAIL}
+            {CONTACT_EMAIL}
           </a>
         </div>
       </section>
@@ -199,11 +199,11 @@ export default function Support() {
             Send us an email and we'll get back to you within one business day. Please include your device model, iOS version, and a description of the issue.
           </p>
           <a
-            href={`mailto:${SUPPORT_EMAIL}`}
+            href={`mailto:${CONTACT_EMAIL}`}
             className="btn-primary text-base px-8 py-4 inline-flex"
           >
             <EmailIcon />
-            Email {SUPPORT_EMAIL}
+            Email {CONTACT_EMAIL}
           </a>
         </div>
       </section>

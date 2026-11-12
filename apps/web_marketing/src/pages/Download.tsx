@@ -1,5 +1,5 @@
-const APP_STORE_URL = 'https://apps.apple.com/'
-const SUPPORT_EMAIL = 'admin@roavvy.com'
+import AppStoreCta from '../components/AppStoreCta'
+import { CONTACT_EMAIL } from '../site'
 
 export default function Download() {
   return (
@@ -11,22 +11,27 @@ export default function Download() {
             Get Roavvy
           </h1>
           <p className="section-subheading text-xl">
-            Free on iOS. Start discovering your travel story in minutes.
+            Coming soon to iOS — free to download. Start discovering your travel story in minutes.
           </p>
 
           <div className="mt-10 flex flex-col items-center gap-6">
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <AppStoreCta
               className="inline-flex items-center gap-4 bg-black hover:bg-slate-900 border border-slate-700 hover:border-slate-500 text-white rounded-2xl px-8 py-5 transition-all duration-200 shadow-2xl hover:-translate-y-1 group"
-            >
+              live={<>
               <AppleIcon size={40} />
               <div className="text-left">
                 <div className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Download on the</div>
                 <div className="text-2xl font-bold tracking-tight leading-tight">App Store</div>
               </div>
-            </a>
+              </>}
+              soon={<>
+              <AppleIcon size={40} />
+              <div className="text-left">
+                <div className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Coming soon to the</div>
+                <div className="text-2xl font-bold tracking-tight leading-tight">App Store</div>
+              </div>
+              </>}
+            />
             <p className="text-slate-600 text-sm">iOS 16.0 or later required &middot; iPhone and iPad</p>
           </div>
         </div>
@@ -87,7 +92,7 @@ export default function Download() {
           <h2 className="text-xl font-bold text-white mb-3">Need help?</h2>
           <p className="text-slate-500 text-sm mb-6">If you have trouble downloading or setting up Roavvy, we're here to help.</p>
           <a
-            href={`mailto:${SUPPORT_EMAIL}`}
+            href={`mailto:${CONTACT_EMAIL}`}
             className="btn-secondary text-sm"
           >
             Contact support &rarr;

@@ -1,4 +1,5 @@
 import { LegalPage, Section, ContactBlock } from './Terms'
+import { CONTACT_EMAIL } from '../site'
 
 const LAST_UPDATED = '1 June 2026'
 
@@ -45,13 +46,13 @@ export default function Refund() {
           <li>Contact us within 14 days of receiving your order</li>
           <li>Provide your order reference number</li>
           <li>Include clear photographs showing the issue</li>
-          <li>Email us at admin@roavvy.com</li>
+          <li>Email us at {CONTACT_EMAIL}</li>
         </ul>
         <p>We will assess your claim and, where valid, arrange a replacement or refund. Roavvy reserves the right to request the return of the defective item before issuing a remedy, though in most cases this is not required.</p>
       </Section>
 
       <Section title="6. Delivery Issues">
-        <p>If your order has not arrived within the estimated delivery window, please contact us at admin@roavvy.com with your order reference. We will investigate with the fulfilment provider and arrange a replacement or refund if the order is confirmed lost in transit.</p>
+        <p>If your order has not arrived within the estimated delivery window, please contact us at {CONTACT_EMAIL} with your order reference. We will investigate with the fulfilment provider and arrange a replacement or refund if the order is confirmed lost in transit.</p>
         <p>Roavvy is not liable for delivery delays caused by customs, weather, or other circumstances beyond our control. Delivery estimates are provided in good faith but are not guaranteed.</p>
       </Section>
 

@@ -1,7 +1,6 @@
+import AppStoreCta from './AppStoreCta'
 import { Link } from 'react-router-dom'
-
-const SUPPORT_EMAIL = 'support@roavvy.com'
-const APP_STORE_URL = 'https://apps.apple.com/'
+import { COMPANY, CONTACT_EMAIL } from '../site'
 
 export default function Footer() {
   return (
@@ -63,7 +62,7 @@ export default function Footer() {
                 </li>
               ))}
               <li>
-                <a href={`mailto:${SUPPORT_EMAIL}`} className="text-slate-500 hover:text-sky-400 text-sm transition-colors">
+                <a href={`mailto:${CONTACT_EMAIL}`} className="text-slate-500 hover:text-sky-400 text-sm transition-colors">
                   Contact
                 </a>
               </li>
@@ -91,22 +90,26 @@ export default function Footer() {
 
         <div className="border-t border-slate-800/60 mt-10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-slate-600 text-sm">
-            &copy; 2026 Roavvy. All rights reserved. &middot; Free to download and use.
+            &copy; 2026 {COMPANY.legalName} &middot; ABN {COMPANY.abn} &middot; {COMPANY.location}
           </p>
           <div className="flex items-center gap-4">
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <AppStoreCta
               className="text-slate-600 hover:text-sky-400 text-sm transition-colors flex items-center gap-1.5"
-            >
+              live={<>
               <svg className="w-4 h-4" viewBox="0 0 814 1000" fill="currentColor">
                 <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 405.5 8.2 319.2 8.2 237.2c0-137.7 90-210.4 176-210.4 46.5 0 85.4 30.7 114.9 30.7 28.2 0 71.4-32.5 124.8-32.5 20.3 0 93.7 1.9 156.8 66.8zM586.8 37.9c-6.4 36.5-20.9 72.3-44.2 100.6-23.4 28.5-52.8 49.8-83.3 56.6 0-.6-.1-1.3-.1-1.9 0-35.6 16.1-74.1 38.3-99.7C520.6 65.6 566.4 43 586.8 37.9z" />
               </svg>
               App Store
-            </a>
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-slate-600 hover:text-sky-400 text-sm transition-colors">
-              {SUPPORT_EMAIL}
+              </>}
+              soon={<>
+              <svg className="w-4 h-4" viewBox="0 0 814 1000" fill="currentColor">
+                <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 405.5 8.2 319.2 8.2 237.2c0-137.7 90-210.4 176-210.4 46.5 0 85.4 30.7 114.9 30.7 28.2 0 71.4-32.5 124.8-32.5 20.3 0 93.7 1.9 156.8 66.8zM586.8 37.9c-6.4 36.5-20.9 72.3-44.2 100.6-23.4 28.5-52.8 49.8-83.3 56.6 0-.6-.1-1.3-.1-1.9 0-35.6 16.1-74.1 38.3-99.7C520.6 65.6 566.4 43 586.8 37.9z" />
+              </svg>
+              App Store — coming soon
+              </>}
+            />
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-slate-600 hover:text-sky-400 text-sm transition-colors">
+              {CONTACT_EMAIL}
             </a>
           </div>
         </div>

@@ -1,7 +1,6 @@
+import AppStoreCta from './AppStoreCta'
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-
-const APP_STORE_URL = 'https://apps.apple.com/'
 
 const links = [
   { to: '/', label: 'Home', exact: true },
@@ -49,15 +48,17 @@ export default function Nav() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <AppStoreCta
               className="btn-primary text-sm py-2 px-4"
-            >
+              live={<>
               <AppleIcon />
               Download
-            </a>
+              </>}
+              soon={<>
+              <AppleIcon />
+              Coming soon
+              </>}
+            />
           </div>
 
           {/* Mobile hamburger */}
@@ -92,15 +93,17 @@ export default function Nav() {
                 {label}
               </NavLink>
             ))}
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <AppStoreCta
               className="btn-primary text-sm mt-3 justify-center"
-            >
+              live={<>
               <AppleIcon />
               Download on App Store
-            </a>
+              </>}
+              soon={<>
+              <AppleIcon />
+              Coming soon to the App Store
+              </>}
+            />
           </nav>
         </div>
       )}

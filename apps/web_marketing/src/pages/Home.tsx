@@ -1,6 +1,5 @@
+import AppStoreCta from '../components/AppStoreCta'
 import { Link } from 'react-router-dom'
-
-const APP_STORE_URL = 'https://apps.apple.com/'
 
 export default function Home() {
   return (
@@ -33,7 +32,7 @@ function HeroSection() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="inline-flex items-center gap-2 bg-sky-400/10 border border-sky-400/20 rounded-full px-4 py-1.5 mb-8">
           <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-          <span className="text-sky-400 text-sm font-medium">Now available on iOS</span>
+          <span className="text-sky-400 text-sm font-medium">Coming soon to iOS</span>
         </div>
 
         <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-tight tracking-tight max-w-4xl mx-auto">
@@ -48,15 +47,17 @@ function HeroSection() {
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <AppStoreCta
             className="btn-primary text-base px-8 py-4 animate-glow"
-          >
+            live={<>
             <AppleIcon />
             Download Free on the App Store
-          </a>
+            </>}
+            soon={<>
+            <AppleIcon />
+            Coming soon to the App Store
+            </>}
+          />
           <Link to="/features" className="btn-secondary text-base px-8 py-4">
             See how it works
             <ArrowIcon />
@@ -365,18 +366,20 @@ function CtaSection() {
           Your travel identity is<br />already in your pocket
         </h2>
         <p className="section-subheading">
-          Download Roavvy and turn years of hidden memories into a living story you can revisit, share, wear, and keep building.
+          Roavvy is coming soon to iOS — turning years of hidden memories into a living story you can revisit, share, wear, and keep building.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <AppStoreCta
             className="btn-primary text-base px-8 py-4"
-          >
+            live={<>
             <AppleIcon />
             Download Free on the App Store
-          </a>
+            </>}
+            soon={<>
+            <AppleIcon />
+            Coming soon to the App Store
+            </>}
+          />
           <Link to="/features" className="btn-secondary text-base px-8 py-4">
             See all features
             <ArrowIcon />
@@ -430,15 +433,17 @@ function FailureSection() {
             <p className="section-subheading">
               The places you've been are part of who you are. Without a way to see, celebrate, and share them — they fade. Roavvy keeps your travel identity alive, for good.
             </p>
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <AppStoreCta
               className="btn-primary mt-8 inline-flex"
-            >
+              live={<>
               <AppleIcon />
               Download Free on iOS
-            </a>
+              </>}
+              soon={<>
+              <AppleIcon />
+              Coming soon to iOS
+              </>}
+            />
           </div>
         </div>
       </div>
@@ -504,15 +509,17 @@ function SuccessSection() {
         </div>
 
         <div className="mt-16 text-center">
-          <a
-            href={APP_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <AppStoreCta
             className="btn-primary text-base px-10 py-4"
-          >
+            live={<>
             <AppleIcon />
             Download Roavvy — Free on iOS
-          </a>
+            </>}
+            soon={<>
+            <AppleIcon />
+            Roavvy — coming soon to iOS
+            </>}
+          />
         </div>
       </div>
     </section>
