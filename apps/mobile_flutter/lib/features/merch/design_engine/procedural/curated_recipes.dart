@@ -153,18 +153,20 @@ List<ProceduralDesignRecipe> curatedExemplars(
         salt: 0x7044,
       ),
     );
-    // Ripped-through-fabric flag — the flag shows through a vertical torn gash
-    // (portrait), rest transparent so the garment shows around it.
+    // Torn-slash flag — the flag shows through broad diagonal ripped strips;
+    // the gaps are transparent so the garment shows through. Muted colour
+    // treatment gives the desaturated streetwear look from the reference.
     out.add(
       build(
         family: CompositionFamily.singleHero,
         hierarchy: HierarchyMode.singleFocal,
         hero: cc,
-        isPortrait: true,
-        heroScale: 0.9,
+        isPortrait: false,
+        heroScale: 0.92,
+        colour: ColorTreatment.muted,
         style: PrintStyleId.rippedFlag,
-        distress: 0.40,
-        grain: 0.25,
+        distress: 0.46,
+        grain: 0.30,
         showTitle: false,
         showFooter: false,
         salt: 0x7099,
