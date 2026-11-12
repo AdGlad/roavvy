@@ -14,7 +14,7 @@ export default function Footer() {
               <span className="text-lg font-bold text-white">Roavvy</span>
             </div>
             <p className="text-slate-500 text-sm leading-relaxed mb-5">
-              Free AI-powered travel app that turns your photo library into a living world map. Your journey, finally visible.
+              Free travel app that turns your photo library into a living world map. Your journey, finally visible.
             </p>
             {/* Payment methods */}
             <p className="text-slate-600 text-xs mb-2">Merchandise payments accepted:</p>

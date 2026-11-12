@@ -38,7 +38,7 @@ function InvestorHero() {
         </h1>
 
         <p className="text-xl text-slate-400 leading-relaxed max-w-3xl mx-auto">
-          Roavvy is an AI-powered travel discovery platform that transforms photo libraries into living maps of users' lives, unlocking achievements, cinematic travel replays, heritage discovery, and personalised merchandise, all without uploading a single private photo.
+          Roavvy is a travel discovery platform that transforms photo libraries into living maps of users' lives, unlocking achievements, animated travel replays, heritage discovery, and personalised merchandise, all without uploading a single private photo.
         </p>
 
         <div className="mt-10">
@@ -109,13 +109,13 @@ function ProblemSolutionSection() {
             <div className="text-sky-400 font-semibold text-sm mb-6 flex items-center gap-2">
               <span className="text-lg">💡</span> The Solution
             </div>
-            <h3 className="text-white text-2xl font-bold mb-4">Roavvy: the AI-powered travel discovery platform</h3>
+            <h3 className="text-white text-2xl font-bold mb-4">Roavvy: the travel discovery platform</h3>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              Roavvy scans photo GPS metadata on-device and transforms it into a multi-dimensional engagement platform: maps, cinematic replays, achievements, daily challenges, and personalised merchandise. Your travel history becomes visual, interactive, and alive.
+              Roavvy scans photo GPS metadata on-device and transforms it into a multi-dimensional engagement platform: maps, travel replays, achievements, daily challenges, and personalised merchandise. Your travel history becomes visual, interactive, and alive.
             </p>
             <ul className="space-y-3">
               {[
-                'AI-powered on-device scanning with no uploads and no privacy trade-offs',
+                'On-device scanning with no uploads and no privacy trade-offs',
                 'Living interactive world map built from real photo data',
                 'Achievement and badge system tied to real travel milestones',
                 'Daily UNESCO heritage challenges driving engagement and retention',
@@ -138,9 +138,9 @@ function ProblemSolutionSection() {
 
 function ProductSection() {
   const features = [
-    { icon: '🤖', title: 'AI photo scanning', body: 'On-device AI extracts GPS metadata from existing photo libraries. No cloud processing. Zero uploads. Instant results.' },
+    { icon: '📍', title: 'On-device photo scanning', body: 'Reads GPS metadata from existing photo libraries on the phone itself. No cloud processing. Zero uploads. Instant results.' },
     { icon: '🌍', title: 'Living world map', body: 'Interactive globe showing every country visited, growing automatically with every new scan.' },
-    { icon: '🎬', title: 'Cinematic replays', body: 'AI-generated travel replays that bring forgotten memories back to life, visually and emotionally.' },
+    { icon: '🎬', title: 'Travel replays', body: 'An animated replay of a user\'s travels on the globe, year by year, built from their own photo history.' },
     { icon: '🏆', title: 'Achievements', body: 'Badges for countries, continents, and UNESCO heritage sites. A gamified travel identity built from real adventures.' },
     { icon: '🏛️', title: 'Daily challenges', body: 'UNESCO World Heritage Site puzzles driving daily engagement, streaks, and social sharing.' },
     { icon: '👕', title: 'Personalised merchandise', body: 'Custom travel shirts, prints, and passport collectibles generated from real visited countries. Print-on-demand fulfilment.' },
@@ -255,7 +255,7 @@ function BusinessModelSection() {
 
 function WhyNowSection() {
   const reasons = [
-    { icon: '🤖', title: 'On-device AI is here', body: 'iOS 18+ on-device intelligence makes private, high-quality photo analysis possible without cloud costs or privacy trade-offs.' },
+    { icon: '📱', title: 'Phones can do the work', body: 'Modern iPhones can process an entire photo library privately on the device, with no cloud costs and no privacy trade-offs.' },
     { icon: '📸', title: 'Camera rolls are massive', body: 'The average user has 2,000+ photos. Richer GPS metadata, better camera hardware, and more frequent travel mean more data to work with.' },
     { icon: '🌏', title: 'Travel is recovering', body: 'Post-pandemic international travel has surpassed 2019 levels. Travel intent and spending are at record highs.' },
     { icon: '🎮', title: 'Gamification is mainstream', body: 'Wordle, Duolingo and Strava show that habit-forming daily engagement mechanics are proven to drive retention and sharing.' },
@@ -298,7 +298,7 @@ function FundingSection() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
           {[
-            { label: 'Product development', body: 'Expand iOS features, launch Android, deepen AI capabilities, and develop the social sharing layer.' },
+            { label: 'Product development', body: 'Expand iOS features, launch Android, add smarter trip insights, and develop the social sharing layer.' },
             { label: 'User acquisition', body: 'App Store optimisation, content marketing, influencer travel partnerships, and strategic launch in key travel markets.' },
             { label: 'Merchandise scale', body: 'Expand the personalised merchandise pipeline with a broader product range, faster fulfilment, and international shipping coverage.' },
           ].map(({ label, body }) => (
@@ -326,7 +326,7 @@ function InvestorCta() {
           Ready to back the travel identity platform?
         </h2>
         <p className="text-slate-400 text-lg mb-8">
-          Roavvy is building the platform where personal history becomes something worth celebrating. If you're excited about what travel, AI, and identity can become, we'd love to talk.
+          Roavvy is building the platform where personal history becomes something worth celebrating. If you're excited about what travel, technology, and identity can become, we'd love to talk.
         </p>
         <a
           href={`mailto:${CONTACT_EMAIL}?subject=Roavvy%20Investment%20Enquiry`}

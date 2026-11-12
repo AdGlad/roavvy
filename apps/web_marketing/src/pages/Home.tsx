@@ -43,7 +43,7 @@ function HeroSection() {
         </h1>
 
         <p className="mt-6 text-xl md:text-2xl text-slate-400 leading-relaxed max-w-2xl mx-auto">
-          Roavvy is an AI-powered travel discovery platform that transforms your photo library into a living map of your life, without ever uploading your private photos.
+          Roavvy is a travel discovery app that transforms your photo library into a living map of your life, without ever uploading your private photos.
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -182,7 +182,7 @@ function ScreenshotsSection() {
           <span className="section-label">See it in action</span>
           <h2 className="section-heading">Everything your travel story needs</h2>
           <p className="section-subheading max-w-xl mx-auto">
-            From your interactive world map to daily challenges, achievements, cinematic replays, and personalised merch, all powered by your own photos, entirely on your device.
+            From your interactive world map to daily challenges, achievements, travel replays, and personalised merch, all powered by your own photos, entirely on your device.
           </p>
         </div>
 
@@ -221,10 +221,10 @@ function GuideSection() {
 
             <div className="mt-8 flex flex-col gap-3">
               {[
-                'AI-powered on-device scanning: your photos never leave your phone',
+                'On-device scanning: your photos never leave your phone',
                 'Automatic country and landmark detection from GPS metadata',
                 'An interactive world map that grows with every trip',
-                'Travel achievements, heritage discovery, and cinematic travel replays',
+                'Travel achievements, heritage discovery, and animated travel replays',
               ].map((point) => (
                 <div key={point} className="flex items-start gap-3">
                   <svg className="w-5 h-5 text-sky-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -467,8 +467,8 @@ function SuccessSection() {
     },
     {
       icon: '🎬',
-      title: 'Cinematic travel replays',
-      body: 'Rediscover forgotten memories through AI-generated travel replays that bring your journeys back to life, visually and emotionally.',
+      title: 'Travel replays',
+      body: 'Watch your travels play back year by year on the globe, as each country, heritage site and achievement lights up in the order you found it.',
     },
     {
       icon: '👕',

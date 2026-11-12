@@ -9,7 +9,7 @@ export default function Features() {
       <PageHero
         label="Features"
         title="Your travel story: visual, interactive, and alive"
-        subtitle="Roavvy is an AI-powered travel discovery platform built around your real journey. Every feature starts with your photos and ends with something worth sharing."
+        subtitle="Roavvy is a travel discovery app built around your real journey. Every feature starts with your photos and ends with something worth sharing."
       />
       <PhotoScanFeature />
       <WorldMapFeature />
@@ -41,16 +41,16 @@ function PhotoScanFeature() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div>
-            <span className="section-label">AI-powered photo scanning</span>
+            <span className="section-label">On-device photo scanning</span>
             <h2 className="section-heading">Your camera roll knows everywhere you've been</h2>
             <p className="section-subheading">
-              Roavvy's AI reads the GPS coordinates embedded in your existing photos, entirely on your device. No uploads, no cloud, no privacy trade-offs. Your travel history appears in seconds.
+              Roavvy reads the GPS coordinates embedded in your existing photos, entirely on your device. No uploads, no cloud, no privacy trade-offs. Your travel history appears in seconds.
             </p>
 
             <ul className="mt-8 space-y-4">
               {[
                 'Scans up to 2,000 photos per session',
-                'AI-powered on-device GPS extraction with zero uploads',
+                'On-device GPS extraction with zero uploads',
                 'Incremental rescans automatically capture new trips',
                 'Rediscovers forgotten memories from years of travel',
                 'No photo content is ever transmitted or stored externally',
