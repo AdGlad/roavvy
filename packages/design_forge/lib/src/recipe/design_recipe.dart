@@ -1,6 +1,7 @@
 import 'canonical_json.dart';
 import 'design_axis.dart';
 import 'recipe_parts.dart';
+import 'torn_strips.dart';
 import 'versions.dart';
 
 /// The design "family" — the top-level look. Extensible: unknown names decode to
@@ -20,6 +21,10 @@ enum DesignFamily {
   achievements,
   stats,
   tornHero,
+
+  /// One flag turned to portrait and torn into ragged hanging strips — see
+  /// [TornStrips] (recipe type `portrait_torn_flag`).
+  portraitTornFlag,
   unknown;
 
   String get id => this == DesignFamily.unknown ? 'unknown' : name;
@@ -330,6 +335,7 @@ class DesignRecipe {
     this.palette,
     this.effects,
     this.typography,
+    this.tornStrips,
     this.motifs = const [],
     this.axisSeeds = const {},
     this.schemaVersion = kSchemaVersion,
@@ -358,6 +364,10 @@ class DesignRecipe {
   final Palette? palette;
   final Effects? effects;
   final Typography? typography;
+
+  /// Parameters of the `portrait_torn_flag` recipe; read only when the family
+  /// is [DesignFamily.portraitTornFlag].
+  final TornStrips? tornStrips;
   final List<Motif> motifs;
 
   /// Per-axis re-roll seeds, keyed by [DesignAxis.key]. Empty by default: an
@@ -387,6 +397,7 @@ class DesignRecipe {
         if (palette != null) 'palette': palette!.toJson(),
         if (effects != null) 'effects': effects!.toJson(),
         if (typography != null) 'typography': typography!.toJson(),
+        if (tornStrips != null) 'tornStrips': tornStrips!.toJson(),
         if (motifs.isNotEmpty)
           'motifs': [for (final m in motifs) m.toJson()],
         // Omitted when empty so pre-M2 recipes keep their exact recipeId; keys
@@ -447,6 +458,7 @@ class DesignRecipe {
         palette: _obj(json['palette'], Palette.fromJson),
         effects: _obj(json['effects'], Effects.fromJson),
         typography: _obj(json['typography'], Typography.fromJson),
+        tornStrips: _obj(json['tornStrips'], TornStrips.fromJson),
         motifs: [
           for (final m in (json['motifs'] as List? ?? const []))
             Motif.fromJson((m as Map).cast<String, Object?>()),
@@ -468,6 +480,7 @@ class DesignRecipe {
     Palette? palette,
     Effects? effects,
     Typography? typography,
+    TornStrips? tornStrips,
     List<Motif>? motifs,
     Map<String, int>? axisSeeds,
     RecipeProvenance? provenance,
@@ -482,6 +495,7 @@ class DesignRecipe {
         palette: palette ?? this.palette,
         effects: effects ?? this.effects,
         typography: typography ?? this.typography,
+        tornStrips: tornStrips ?? this.tornStrips,
         motifs: motifs ?? this.motifs,
         axisSeeds: axisSeeds ?? this.axisSeeds,
         schemaVersion: schemaVersion,

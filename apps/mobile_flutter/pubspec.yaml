@@ -122,6 +122,7 @@ flutter:
     - assets/geodata/ne_admin1.bin
     - assets/geodata/whs_sites.json
     - assets/flags/svg/
+    - assets/flags/svg/official/
     - assets/mobile_meta/
     - assets/mobile_png/
     - assets/audio/

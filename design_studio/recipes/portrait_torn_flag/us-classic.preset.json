@@ -1,0 +1,62 @@
+{
+  "format": "roavvy.design_preset",
+  "formatVersion": 1,
+  "recipeType": "portrait_torn_flag",
+  "name": "US Classic",
+  "notes": "Tuned against the distressed torn-flag reference (design_studio/reference_images/liked/us-flag-torn.jpg) on official 1.9:1 artwork; torn along the flag's own 13 stripes. Awaiting approval.",
+  "recipe": {
+    "schemaVersion": 1,
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "assetsVersion": "0.0.1",
+    "seed": 1,
+    "content": {
+      "flags": [
+        {
+          "code": "us",
+          "weight": 1.0
+        }
+      ]
+    },
+    "composition": {
+      "family": "portraitTornFlag",
+      "orientation": "portrait",
+      "sizeClass": "large"
+    },
+    "tornStrips": {
+      "rotateClockwise": true,
+      "mirror": false,
+      "margin": 0.04,
+      "flagAspect": 0.0,
+      "flagVariant": "official",
+      "cutMode": "flag",
+      "stripCount": 13,
+      "fringeCount": 9,
+      "fringeDepth": 0.35,
+      "spacingJitter": 0.08,
+      "gap": 0.04,
+      "widthWobble": 0.3,
+      "curvature": 0.75,
+      "waviness": 0.35,
+      "swayCoherence": 0.8,
+      "tearLength": 0.38,
+      "tearPoint": 0.75,
+      "tearJag": 0.6,
+      "topVariation": 0.18,
+      "breakChance": 0.35,
+      "blockWidth": 0.54,
+      "blockHeight": 0.4,
+      "blockTear": 0.6,
+      "edgeRoughness": 0.6,
+      "distress": 0.75,
+      "distressScale": 0.6,
+      "edgeWear": 0.3,
+      "saturation": 0.95,
+      "hueShift": 0.0,
+      "brightness": -0.08,
+      "vintage": 0.1,
+      "knockoutWhite": false
+    },
+    "recipeId": "748dc73163b8ec40"
+  }
+}

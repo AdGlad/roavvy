@@ -144,3 +144,4 @@
 | 157 | GitHub Actions CI quality gates on every pull request | Accepted | 7-step workflow: deps → analyze → format → unit → service → widget → coverage; no merge if any step fails |
 | 158 | Coverage philosophy: confidence over percentage | Accepted | Targets exist to guide prioritisation; business logic 85%→90%, revenue workflows 80%→90%, overall 50–65%→70%; high-risk areas prioritised over raw coverage |
 | 159 | Incremental test-and-fix discipline | Accepted | Small area → add tests → run → classify failures → fix → rerun → commit; tests must not be weakened; no milestone complete with unresolved failures |
+| 179 | `portrait_torn_flag` recipe: flag-aware tearing on the shared engine | Accepted | One engine (Lab + mobile via `RenderService`); CPU rasteriser; cut lines from the flag's own stripes, never invented; presets = full recipe + stored recipeId; official artwork as a variant; golden + parity tests |

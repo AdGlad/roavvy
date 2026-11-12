@@ -14,6 +14,7 @@ export 'src/recipe/garment_design.dart';
 export 'src/recipe/procedural_recipe_codec.dart';
 export 'src/recipe/recipe_parts.dart';
 export 'src/recipe/shape_catalog.dart';
+export 'src/recipe/torn_strips.dart';
 export 'src/recipe/versions.dart';
 export 'src/library/design_library.dart';
 export 'src/travel/trip.dart';

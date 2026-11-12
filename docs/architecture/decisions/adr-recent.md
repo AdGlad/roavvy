@@ -1780,3 +1780,28 @@ The function catches all errors and falls back to `buildClues()` (template clues
 - No secrets to manage for AI clue generation
 - Service account must retain the `AI Platform User` (or `Vertex AI User`) IAM role on roavvy-prod and roavvy-dev
 - `@google-cloud/vertexai` must not be re-added as a dependency (deprecated)
+
+## ADR-179 — `portrait_torn_flag`: a flag-aware recipe on the shared engine, approved in the standalone Design Lab
+
+**Status:** Accepted
+
+**Context:**
+The distressed "torn flag" t-shirt design (portrait flag torn into ragged hanging strips) has to be developed and visually approved on macOS, without the phone, a simulator or Firebase, and then render identically in Roavvy. The first version cut every flag into 13 even strips — the anatomy of the US flag — so the Seychelles came out with stripes it does not have.
+
+**Decision:**
+1. **One engine.** The recipe is part of the shared engine: `DesignFamily.portraitTornFlag` + an optional, hashed `DesignRecipe.tornStrips` (`TornStrips`) in `packages/design_forge`, rendered by a dedicated composition stage (`TornFlagLayout`) in `packages/design_forge_render`. The macOS Design Lab and the mobile Studio both render it through `RenderService` (`packages/design_studio`); only the flag-asset resolver differs (repo disk vs app bundle, same files). No second renderer.
+2. **CPU geometry.** Strips, tears, distress and ink colour are computed by `TornStripsRaster`, pure Dart on byte buffers, on a background isolate. Bit-identical on every device; the only platform-dependent input is the flag SVG raster.
+3. **Cut lines come from the flag, never from the recipe.** `TornStripsRaster.lengthwiseBoundaries` finds colour boundaries running ≥ 40% of the flag's length; the flag is torn only there (US 12, Greece 8, Germany 2, Seychelles/France/Japan/Brazil 0). Bands much wider than a US stripe, and flags with no lengthwise stripes, stay whole and fray into tongues at the free end. Evenly spaced strips remain only as an explicit opt-in (`cutMode: even`).
+4. **Tear lines wander, they don't erode.** Each tear line drifts to either side of its cut, so neighbouring stripes keep their true widths.
+5. **Resolution-independent texture.** All lengths scale with the flag; noise adds octaves as resolution grows (finest ≈ 2 px) with contrast normalised, so a preview and the 3600×4500 print show the same design.
+6. **Presets are the full recipe.** `TornFlagPreset` files (`design_studio/recipes/portrait_torn_flag/*.preset.json`) wrap the complete `DesignRecipe` and its stored `recipeId`; a mismatch on load flags an engine change that would alter an approved design. Exports carry a sidecar JSON that reproduces the PNG exactly.
+7. **True-proportion artwork is a variant, not a replacement.** The bundled flags stay 4:3 (grids rely on uniform aspect). Official artwork lives in `assets/flags/svg/official/<code>.svg` (currently `us`, 1.9:1, generated to Executive Order 10834) and is selected by `TornStrips.flagVariant: 'official'`, falling back to the standard flag.
+8. **Guarded by goldens.** Committed presets are golden-tested through the full pipeline (`design_forge_render/test/goldens/portrait_torn_flag/`), the pure rasteriser by an exact hash, and the mobile parity test requires Roavvy's print path to match the engine goldens pixel for pixel.
+
+**Consequences:**
+- A new flag needs no code: its stripes (or lack of them) decide how it tears.
+- Changing the rasteriser on purpose means reviewing in the Lab, re-saving presets and updating goldens (`flutter test --update-goldens test/torn_flag_golden_test.dart` in `design_forge_render`).
+- Shared flag fix: `us.svg` / `um.svg` drew their stars with an SVG `<marker>`, which `flutter_svg` ignores (blank canton app-wide); the stars are now explicit paths at the same positions.
+- Mobile UI integration is deliberately deferred until the US design is approved.
+
+Docs: `docs/design/portrait-torn-flag-studio.md`.

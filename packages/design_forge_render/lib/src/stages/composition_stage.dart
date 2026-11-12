@@ -5,6 +5,7 @@ import 'package:design_forge/design_forge.dart';
 import 'data_layouts.dart';
 import 'multi_flag_layout.dart';
 import 'render_stage.dart';
+import 'torn_flag_layout.dart';
 
 /// Builds the artwork layer (transparent background) from the recipe's flags.
 ///  * 1 flag / `singleHero` → the flag, aspect-fit (or cover-bleed under a clip).
@@ -25,6 +26,11 @@ class CompositionStage extends RenderStage {
     // artwork from the recipe's travel entries.
     if (DataLayouts.handles(recipe.composition.family)) {
       await DataLayouts.build(recipe, ctx);
+      return;
+    }
+    // The portrait torn flag builds its own strips from one flag.
+    if (TornFlagLayout.handles(recipe.composition.family)) {
+      await TornFlagLayout.build(recipe, ctx);
       return;
     }
 
