@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
-// Tab index contract from ADR-052 / MainShell:
-// Scan is no longer a nav tab (removed when Shop was added). Nudge
-// notifications navigate to Map (0) where the Scan button is prominent.
-const int _kStatsTab = 2;
-const int _kScanTab = 0; // Map tab — Scan is a modal launched from Map
+import 'app_tab.dart';
+
+// Tabs are addressed by name (ADR-052, ADR-180): payloads are `tab:<name>`,
+// and MainShell resolves a hidden tab (Shop with commerce off) to Map.
+// Scan is not a tab; nudges open Map, where the Scan button lives.
+const AppTab _kStatsTab = AppTab.stats;
+const AppTab _kScanTab = AppTab.map;
 
 const int _kNudgeNotificationId = 0;
 const int _kAchievementNotificationId = 1;
@@ -14,11 +16,12 @@ const int _kMemoryPulseNotificationId = 2;
 const int _kYearInReviewNotificationId = 3;
 const int _kExclusiveDesignNotificationId = 4;
 const int _kStreakReminderNotificationId = 5;
-const int _kShopTab = 3;
+const AppTab _kShopTab = AppTab.shop;
 
 /// Base ID for the memory pulse batch (IDs 200–263, max 64 slots).
 const int _kMemoryPulseBatchBase = 200;
-const int _kMemoryPulseBatchSize = 64; // iOS allows up to 64 scheduled local notifications per app.
+const int _kMemoryPulseBatchSize =
+    64; // iOS allows up to 64 scheduled local notifications per app.
 
 /// Singleton service for local push notifications (ADR-056).
 ///
@@ -36,9 +39,9 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
 
-  /// Emits the tab index to switch to when a notification is tapped.
+  /// Emits the tab to switch to when a notification is tapped.
   /// [MainShell] adds a listener in [State.initState].
-  final ValueNotifier<int?> pendingTabIndex = ValueNotifier(null);
+  final ValueNotifier<AppTab?> pendingTab = ValueNotifier(null);
 
   /// Emits the tripId of a memory pulse notification tapped by the user.
   /// [_MemoryPulseSection] on the map screen listens to this (M91, ADR-136).
@@ -77,8 +80,8 @@ class NotificationService {
     final payload = response.payload;
     if (payload == null) return;
     if (payload.startsWith('tab:')) {
-      final tabIndex = int.tryParse(payload.substring(4));
-      if (tabIndex != null) pendingTabIndex.value = tabIndex;
+      final tab = AppTab.fromPayload(payload);
+      if (tab != null) pendingTab.value = tab;
     } else if (payload.startsWith('memoryPulse:country:')) {
       // New format (M118): "memoryPulse:country:XX"
       pendingMemoryCountryCode.value = payload.substring(20);
@@ -91,15 +94,14 @@ class NotificationService {
     }
   }
 
-  /// Returns the tab index embedded in the notification that cold-started the
-  /// app, or null if the app was not launched from a notification.
-  Future<int?> getLaunchTab() async {
+  /// Returns the tab named in the notification that cold-started the app, or
+  /// null if the app was not launched from a notification.
+  Future<AppTab?> getLaunchTab() async {
     if (!_initialized) return null;
     final details = await _plugin.getNotificationAppLaunchDetails();
     if (details == null || !details.didNotificationLaunchApp) return null;
     final payload = details.notificationResponse?.payload;
-    if (payload == null || !payload.startsWith('tab:')) return null;
-    return int.tryParse(payload.substring(4));
+    return AppTab.fromPayload(payload);
   }
 
   /// Returns the review year if a Year in Review notification cold-started the
@@ -172,7 +174,7 @@ class NotificationService {
   }
 
   /// Fires an immediate local notification for an achievement unlock.
-  /// Tapping it switches to the Stats tab (index 2).
+  /// Tapping it switches to the Stats tab.
   Future<void> scheduleAchievementUnlock({
     required String title,
     required String body,
@@ -183,12 +185,15 @@ class NotificationService {
       title,
       body,
       const NotificationDetails(iOS: DarwinNotificationDetails()),
-      payload: 'tab:$_kStatsTab',
+      payload: _kStatsTab.payload,
     );
   }
 
   /// Fires an immediate notification when an exclusive merch design unlocks
-  /// after a scan (M144). Tapping switches to the Shop tab (index 3).
+  /// after a scan (M144). Tapping switches to the Shop tab.
+  ///
+  /// Callers must only call this when commerce is on (ADR-180); with commerce
+  /// off there is no Shop and nothing to design, and the scan skips it.
   ///
   /// Uses a single notification slot — only the most recent exclusive unlock
   /// is kept if multiple designs unlock in the same scan.
@@ -201,7 +206,7 @@ class NotificationService {
       'New exclusive design unlocked!',
       'Design your "$designLabel" shirt now.',
       const NotificationDetails(iOS: DarwinNotificationDetails()),
-      payload: 'tab:$_kShopTab',
+      payload: _kShopTab.payload,
     );
   }
 
@@ -316,7 +321,7 @@ class NotificationService {
           interruptionLevel: InterruptionLevel.timeSensitive,
         ),
       ),
-      payload: 'tab:$_kStatsTab',
+      payload: _kStatsTab.payload,
       androidScheduleMode: AndroidScheduleMode.inexact,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
@@ -324,7 +329,7 @@ class NotificationService {
   }
 
   /// Cancels any pending scan nudge and schedules a new one 30 days from now.
-  /// Tapping it navigates to the Map tab (index 0) where the Scan button lives.
+  /// Tapping it navigates to the Map tab where the Scan button lives.
   Future<void> scheduleNudge() async {
     if (!_initialized) return;
     await _plugin.cancel(_kNudgeNotificationId);
@@ -334,7 +339,7 @@ class NotificationService {
       'Scan your recent photos to discover new countries.',
       tz.TZDateTime.now(tz.UTC).add(const Duration(days: 30)),
       const NotificationDetails(iOS: DarwinNotificationDetails()),
-      payload: 'tab:$_kScanTab',
+      payload: _kScanTab.payload,
       androidScheduleMode: AndroidScheduleMode.inexact,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,

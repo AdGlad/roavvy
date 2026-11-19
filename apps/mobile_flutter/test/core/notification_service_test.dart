@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/app_tab.dart';
 import 'package:mobile_flutter/core/notification_service.dart';
 
 void main() {
@@ -38,38 +39,38 @@ void main() {
     });
   });
 
-  group('NotificationService — pendingTabIndex ValueNotifier', () {
+  group('NotificationService — pendingTab ValueNotifier', () {
     test('starts as null', () {
-      expect(NotificationService.instance.pendingTabIndex.value, isNull);
+      expect(NotificationService.instance.pendingTab.value, isNull);
     });
 
     test('can be set and fires listeners', () {
-      int? received;
+      AppTab? received;
       void listener() {
-        received = NotificationService.instance.pendingTabIndex.value;
+        received = NotificationService.instance.pendingTab.value;
       }
 
-      NotificationService.instance.pendingTabIndex.addListener(listener);
-      NotificationService.instance.pendingTabIndex.value = 2;
-      expect(received, 2);
+      NotificationService.instance.pendingTab.addListener(listener);
+      NotificationService.instance.pendingTab.value = AppTab.stats;
+      expect(received, AppTab.stats);
 
       // Clean up.
-      NotificationService.instance.pendingTabIndex.removeListener(listener);
-      NotificationService.instance.pendingTabIndex.value = null;
+      NotificationService.instance.pendingTab.removeListener(listener);
+      NotificationService.instance.pendingTab.value = null;
     });
 
     test('resetting to null fires listener', () {
-      int? received = 99;
+      AppTab? received = AppTab.play;
       void listener() {
-        received = NotificationService.instance.pendingTabIndex.value;
+        received = NotificationService.instance.pendingTab.value;
       }
 
-      NotificationService.instance.pendingTabIndex.value = 3;
-      NotificationService.instance.pendingTabIndex.addListener(listener);
-      NotificationService.instance.pendingTabIndex.value = null;
+      NotificationService.instance.pendingTab.value = AppTab.shop;
+      NotificationService.instance.pendingTab.addListener(listener);
+      NotificationService.instance.pendingTab.value = null;
       expect(received, isNull);
 
-      NotificationService.instance.pendingTabIndex.removeListener(listener);
+      NotificationService.instance.pendingTab.removeListener(listener);
     });
   });
 }

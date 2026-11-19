@@ -2,7 +2,7 @@
 
 **Phase:** Free Launch (M184–M189)
 **Depends on:** M184
-**Status:** Todo
+**Status:** Done
 **Primary target:** `features/shell/main_shell.dart` · `core/notification_service.dart`
 
 ---
@@ -37,6 +37,6 @@ before one of them can go.
 
 ## 3. Acceptance
 
-- [ ] Commerce off: 4 tabs on phone and tablet (rail) layouts, and no cart badge.
-- [ ] Every notification lands on the right tab in both modes.
-- [ ] Commerce on: no change from today (existing shell tests still pass).
+- [x] Commerce off: 4 tabs on phone and tablet (rail) layouts, and no cart badge.
+- [x] Every notification lands on the right tab in both modes.
+- [x] Commerce on: no change from today (existing shell tests still pass).

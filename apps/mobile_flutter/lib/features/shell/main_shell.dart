@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/app_tab.dart';
 import '../../core/globe_overlay.dart';
 import '../../core/notification_service.dart';
 import '../../core/providers.dart';
@@ -26,12 +27,9 @@ import '../../core/commerce/commerce_flag.dart';
 
 /// Bottom navigation shell with tabs: Map · Journey · Stats · Shop · Play.
 ///
-/// Tab index contract (ADR-052):
-///   0 — Map
-///   1 — Journey (travel timeline)
-///   2 — Stats
-///   3 — Shop (Cart + Orders)
-///   4 — Play (World Leap)
+/// Tabs are addressed by name ([AppTab]), never by index (ADR-052, ADR-180).
+/// Shop is shown only when commerce is on ([commerceEnabledProvider]); with it
+/// off the shell has four tabs and a request for Shop lands on Map.
 ///
 /// Journal tab is retained in code (JournalScreen import + commented stack entry)
 /// for possible reinstatement.
@@ -43,18 +41,18 @@ import '../../core/commerce/commerce_flag.dart';
 /// and map state on tab switch. After a scan completes, [ScanScreen] calls
 /// [_goToMap] to return to Map (index 0).
 ///
-/// [initialTab] sets the selected tab on first render (default 0 = Map).
+/// [initialTab] sets the selected tab on first render (default Map).
 /// [openScanOnLoad] — when true, the scan modal is pushed automatically after
 /// the first frame. Used by [_OnboardingGate] when the user tapped "Scan my
 /// photos" during onboarding (Scan is no longer a nav tab — ADR-052).
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({
     super.key,
-    this.initialTab = 0,
+    this.initialTab = AppTab.map,
     this.openScanOnLoad = false,
   });
 
-  final int initialTab;
+  final AppTab initialTab;
   final bool openScanOnLoad;
 
   @override
@@ -64,7 +62,7 @@ class MainShell extends ConsumerStatefulWidget {
 String _todayLocal() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
 class _MainShellState extends ConsumerState<MainShell> {
-  late int _selectedIndex;
+  late AppTab _selected;
   late String _lastKnownDate;
   late AppLifecycleListener _lifecycleListener;
   Timer? _midnightTimer;
@@ -73,7 +71,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialTab;
+    _selected = widget.initialTab;
     _lastKnownDate = _todayLocal();
     _lifecycleListener = AppLifecycleListener(onResume: _onAppResume);
     _scheduleMidnightRefresh();
@@ -102,7 +100,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         // Firebase is not yet initialised (e.g. in widget tests).
       }
     });
-    NotificationService.instance.pendingTabIndex.addListener(_onPendingTab);
+    NotificationService.instance.pendingTab.addListener(_onPendingTab);
     NotificationService.instance.pendingMemoryTripId.addListener(
       _onPendingMemoryTripId,
     );
@@ -117,7 +115,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     _midnightTimer?.cancel();
     _rcUpdateSub?.cancel();
     _lifecycleListener.dispose();
-    NotificationService.instance.pendingTabIndex.removeListener(_onPendingTab);
+    NotificationService.instance.pendingTab.removeListener(_onPendingTab);
     NotificationService.instance.pendingMemoryTripId.removeListener(
       _onPendingMemoryTripId,
     );
@@ -156,7 +154,7 @@ class _MainShellState extends ConsumerState<MainShell> {
       RemoteConfigService.refresh().then((_) {
         if (mounted) {
           ref.invalidate(commerceRemoteSwitchProvider);
-        ref.invalidate(purchasingEnabledProvider);
+          ref.invalidate(purchasingEnabledProvider);
           ref.invalidate(purchasingEnabledForTemplateProvider);
         }
       }),
@@ -175,7 +173,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   /// Handles the cold-start case: app launched by tapping a notification.
   Future<void> _handleLaunchNotification() async {
     final tab = await NotificationService.instance.getLaunchTab();
-    if (tab != null && mounted) setState(() => _selectedIndex = tab);
+    if (tab != null && mounted) setState(() => _selected = tab);
 
     final countryCode =
         await NotificationService.instance.getLaunchMemoryCountryCode();
@@ -192,10 +190,10 @@ class _MainShellState extends ConsumerState<MainShell> {
 
   /// Handles foreground / background notification taps for tabs.
   void _onPendingTab() {
-    final tab = NotificationService.instance.pendingTabIndex.value;
+    final tab = NotificationService.instance.pendingTab.value;
     if (tab != null && mounted) {
-      setState(() => _selectedIndex = tab);
-      NotificationService.instance.pendingTabIndex.value = null;
+      setState(() => _selected = tab);
+      NotificationService.instance.pendingTab.value = null;
     }
   }
 
@@ -229,7 +227,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   /// Navigates to the country profile screen for [isoCode]. Switches to the
   /// Map tab first so the screen sits above the correct context.
   void _navigateToCountry(String isoCode) {
-    setState(() => _selectedIndex = 0); // switch to Map
+    setState(() => _selected = AppTab.map);
     final visits = ref.read(effectiveVisitsProvider).valueOrNull ?? [];
     final visit = visits.where((v) => v.countryCode == isoCode).firstOrNull;
     Navigator.of(context).push(
@@ -239,7 +237,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  void _goToMap() => setState(() => _selectedIndex = 0);
+  void _goToMap() => setState(() => _selected = AppTab.map);
 
   /// Starts a scan.
   ///
@@ -254,7 +252,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     // ignore: avoid_print
     print('[roavvy-scan] go-to-scan autoStart=$autoStart full=$forceFullScan');
     if (autoStart) {
-      setState(() => _selectedIndex = 0); // ensure Map tab is visible
+      setState(() => _selected = AppTab.map); // ensure Map tab is visible
       Navigator.of(context).push(
         PageRouteBuilder<void>(
           opaque: false,
@@ -281,14 +279,21 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final overlay = ref.watch(globeOverlayProvider);
-    final cartCount = ref.watch(merchCartCountProvider);
+    final commerce = ref.watch(commerceEnabledProvider);
+    // No cart reads at all when commerce is off (ADR-180).
+    final cartCount = commerce ? ref.watch(merchCartCountProvider) : 0;
+    final tabs = AppTab.visible(commerce: commerce);
+    // A tab that is not shown (Shop with commerce off) resolves to Map.
+    final selected = AppTab.resolve(_selected, commerce: commerce);
+    final selectedIndex = tabs.indexOf(selected);
+    void onSelect(int i) => setState(() => _selected = tabs[i]);
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
     final body = Stack(
       children: [
         IndexedStack(
-          index: _selectedIndex,
+          index: selectedIndex,
           // IndexedStack keeps every tab mounted (see class doc), so any
           // AnimationController/Ticker in an inactive tab (e.g. the Map
           // tab's globe auto-rotation) would otherwise keep ticking and
@@ -300,11 +305,11 @@ class _MainShellState extends ConsumerState<MainShell> {
           // and resumes unchanged when re-enabled, with no changes needed
           // inside the tab screens themselves.
           children: [
-            for (var i = 0; i < 5; i++)
+            for (final tab in tabs)
               TickerMode(
-                enabled: _selectedIndex == i,
-                child: switch (i) {
-                  0 => MapScreen(
+                enabled: tab == selected,
+                child: switch (tab) {
+                  AppTab.map => MapScreen(
                     onNavigateToScan:
                         () => _goToScan(autoStart: true, forceFullScan: true),
                     onNavigateToScanFull:
@@ -313,11 +318,11 @@ class _MainShellState extends ConsumerState<MainShell> {
                         () => _goToScan(autoStart: true, forceFullScan: false),
                   ),
                   // Journal — kept for possible reinstatement:
-                  // 1 => JournalScreen(onNavigateToScan: () => _goToScan(autoStart: true, forceFullScan: true)),
-                  1 => const TravelTimelineScreen(),
-                  2 => const StatsScreen(),
-                  3 => const MerchShopScreen(),
-                  _ => const WorldLeapLobbyScreen(),
+                  // AppTab.journal => JournalScreen(onNavigateToScan: () => _goToScan(autoStart: true, forceFullScan: true)),
+                  AppTab.journey => const TravelTimelineScreen(),
+                  AppTab.stats => const StatsScreen(),
+                  AppTab.shop => const MerchShopScreen(),
+                  AppTab.play => const WorldLeapLobbyScreen(),
                 },
               ),
           ],
@@ -373,8 +378,8 @@ class _MainShellState extends ConsumerState<MainShell> {
             NavigationRail(
               backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
               indicatorColor: Theme.of(context).colorScheme.primaryContainer,
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+              selectedIndex: selectedIndex,
+              onDestinationSelected: onSelect,
               labelType: NavigationRailLabelType.all,
               destinations: [
                 const NavigationRailDestination(
@@ -398,17 +403,18 @@ class _MainShellState extends ConsumerState<MainShell> {
                   selectedIcon: Icon(Icons.leaderboard),
                   label: Text('Stats'),
                 ),
-                NavigationRailDestination(
-                  icon: _CartBadgeIcon(
-                    icon: Icons.storefront_outlined,
-                    cartCount: cartCount,
+                if (commerce)
+                  NavigationRailDestination(
+                    icon: _CartBadgeIcon(
+                      icon: Icons.storefront_outlined,
+                      cartCount: cartCount,
+                    ),
+                    selectedIcon: _CartBadgeIcon(
+                      icon: Icons.storefront,
+                      cartCount: cartCount,
+                    ),
+                    label: const Text('Shop'),
                   ),
-                  selectedIcon: _CartBadgeIcon(
-                    icon: Icons.storefront,
-                    cartCount: cartCount,
-                  ),
-                  label: const Text('Shop'),
-                ),
                 const NavigationRailDestination(
                   icon: Icon(Icons.sports_esports_outlined),
                   selectedIcon: Icon(Icons.sports_esports),
@@ -429,8 +435,8 @@ class _MainShellState extends ConsumerState<MainShell> {
       bottomNavigationBar: NavigationBar(
         backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
         indicatorColor: Theme.of(context).colorScheme.primaryContainer,
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        selectedIndex: selectedIndex,
+        onDestinationSelected: onSelect,
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.map_outlined),
@@ -453,17 +459,18 @@ class _MainShellState extends ConsumerState<MainShell> {
             selectedIcon: Icon(Icons.leaderboard),
             label: 'Stats',
           ),
-          NavigationDestination(
-            icon: _CartBadgeIcon(
-              icon: Icons.storefront_outlined,
-              cartCount: cartCount,
+          if (commerce)
+            NavigationDestination(
+              icon: _CartBadgeIcon(
+                icon: Icons.storefront_outlined,
+                cartCount: cartCount,
+              ),
+              selectedIcon: _CartBadgeIcon(
+                icon: Icons.storefront,
+                cartCount: cartCount,
+              ),
+              label: 'Shop',
             ),
-            selectedIcon: _CartBadgeIcon(
-              icon: Icons.storefront,
-              cartCount: cartCount,
-            ),
-            label: 'Shop',
-          ),
           const NavigationDestination(
             icon: Icon(Icons.sports_esports_outlined),
             selectedIcon: Icon(Icons.sports_esports),

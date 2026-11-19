@@ -14,6 +14,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/flag_colours.dart';
 import '../../core/globe_overlay.dart';
+import '../../core/commerce/commerce_flag.dart';
 import '../../core/providers.dart';
 import '../map/country_centroids.dart';
 import '../map/country_visual_state.dart';
@@ -1355,7 +1356,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       }
 
       // Check for newly-unlocked exclusive merch designs (M144, ADR-176).
-      unawaited(_checkExclusiveDesignUnlocks(effective));
+      // ADR-180: exclusive designs are merch. With commerce off nothing is
+      // recorded or announced, so turning commerce on later still notifies.
+      if (ref.read(commerceEnabledProvider)) {
+        unawaited(_checkExclusiveDesignUnlocks(effective));
+      }
 
       // Flush dirty records to Firestore fire-and-forget (ADR-030).
       final uid = ref.read(currentUidProvider);
