@@ -1,4 +1,26 @@
-# Next tasks (planner handoff — updated 2026-09-03)
+# Next tasks (planner handoff, updated 2026-11-20)
+
+# PLAN: Free Launch, M184–M189 (ship v1.0 with commerce OFF)
+
+**Goal:** ship Roavvy to the App Store with no T-shirt generation and no purchasing. Everything else is free (there are no paywalls today; verified). The T-shirt work stays in the code behind a build flag, ready for a later reviewed release.
+**Architecture:** ADR-180. `ROAVVY_COMMERCE` dart-define (default off) && Remote Config `commerce_enabled` kill switch, one `commerce_entry` seam, hide never disable.
+
+| # | Milestone | Depends | Size | Doc |
+|---|---|---|---|---|
+| M184 | Commerce capability flag (one switch) | | S | `docs/dev/milestones/m184-commerce-capability-flag.md` |
+| M185 | App shell without a Shop (named tabs) | M184 | S/M | `m185-shell-without-shop.md` |
+| M186 | One seam for every commerce entry point (+ architecture test) | M184 | M/L | `m186-commerce-entry-seam.md` |
+| M187 | Commerce off end to end (no network, server refuses) | M184 | S/M | `m187-backend-commerce-off.md` |
+| M188 | Copy, legal and App Store listing for a free app | M186 | S + owner | `m188-free-launch-copy-and-store.md` |
+| M189 | Release candidate 1.0 → TestFlight → App Store | M184–M188 | M | `m189-free-launch-release-candidate.md` |
+
+**Sequencing:** M184 first (it changes no UI, so it is safe to merge). Then M185, M186 and M187 can run in parallel: they touch different files except `providers.dart`, so merge M184 first. M188 starts once M186 has fixed the UI. M189 last. M189-T3 (fixing the 41 out-of-date Studio V2 tests) can start at any time.
+
+**Owner decisions:** Terms/Privacy wording (M188-T2), website wording (M188-T4), prod functions deploy (M187-T4), App Store Connect submission (M189-T5).
+
+---
+
+# PREVIOUS HANDOFF (2026-09-03), retained below
 
 # PLAN — T-Shirt Experience, M175–M183
 

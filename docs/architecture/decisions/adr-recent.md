@@ -1805,3 +1805,23 @@ The distressed "torn flag" t-shirt design (portrait flag torn into ragged hangin
 - Mobile UI integration is deliberately deferred until the US design is approved.
 
 Docs: `docs/design/portrait-torn-flag-studio.md`.
+
+## ADR-180 — Commerce is a build capability; Remote Config can only switch it off
+
+**Status:** Accepted (M184)
+
+**Context:**
+v1.0 ships to the App Store with no T-shirt generation or purchasing; the Studio is not good enough yet. Commerce was governed by four unrelated flags (`purchasing_enabled` + 9 per-template keys, all fail-OPEN; `studio_v2_fulfilment_enabled`; the dev-only `STUDIO_V2` define), none of which hid an entry point. App Review guideline 2.3.1 forbids features that are hidden at review and switched on afterwards.
+
+**Decision:**
+1. `commerceEnabled = kCommerceBuild && remote('commerce_enabled')`. `kCommerceBuild = bool.fromEnvironment('ROAVVY_COMMERCE')`, default **false**. The remote key defaults true and is a kill switch only.
+2. Every existing commerce flag derives from it and is false when it is false.
+3. Every commerce route goes through one seam, `features/commerce_entry/` (`CommerceEntry` openers + `CommerceGate` widget). An architecture test forbids importing merch/studio_v2 screens anywhere else.
+4. Hide, never disable: commerce-off builds show no greyed buttons or "coming soon" placeholders.
+5. Tabs are addressed by name (`AppTab`), not index, so removing the Shop tab cannot redirect notifications.
+6. The server refuses too: `createMerchCart`/`getMerchPrices` check a `COMMERCE_ENABLED` functions param (default false in prod).
+
+**Consequences:**
+- Turning commerce on for users needs a new reviewed build with `ROAVVY_COMMERCE=true` **and** the server param on.
+- T-shirt development continues behind the define; the code stays in the binary as dead branches (acceptable).
+- CI runs the test suite in both modes.

@@ -28,6 +28,9 @@ class RemoteConfigService {
           kDebugMode ? Duration.zero : const Duration(hours: 1),
     ));
     await rc.setDefaults(const {
+      // ADR-180 kill switch: can only turn commerce off; the build decides
+      // whether it exists at all (ROAVVY_COMMERCE).
+      'commerce_enabled': true,
       'purchasing_enabled': true,
       // Per-template flags — all fail-open.
       'purchasing_enabled_passport': true,

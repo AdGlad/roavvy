@@ -41,6 +41,7 @@ import '../features/challenge/daily_challenge_service.dart';
 import '../features/challenge/daily_challenge_notifier.dart';
 import '../features/challenge/daily_challenge_stats.dart';
 import '../features/map/photo_gps_fetch_service.dart';
+import 'commerce/commerce_flag.dart';
 
 /// True when Image Playground (Apple Intelligence) is available on this device.
 /// Cached for the lifetime of the app; `false` on all non-iOS 18.1+ devices.
@@ -520,11 +521,12 @@ String remoteConfigKeyForTemplate(CardTemplateType t) => switch (t) {
       CardTemplateType.landmark => 'purchasing_enabled_landmark',
     };
 
-/// Whether in-app purchasing is enabled globally via Firebase Remote Config.
+/// Whether in-app purchasing is enabled globally.
 ///
-/// Defaults to [true] (fail-open). Toggle in the Firebase Console under
-/// Remote Config → purchasing_enabled.
+/// Always `false` when [commerceEnabledProvider] is off (ADR-180). Otherwise
+/// read from Remote Config → `purchasing_enabled` (defaults to `true`).
 final purchasingEnabledProvider = Provider<bool>((ref) {
+  if (!ref.watch(commerceEnabledProvider)) return false;
   return FirebaseRemoteConfig.instance.getBool('purchasing_enabled');
 });
 

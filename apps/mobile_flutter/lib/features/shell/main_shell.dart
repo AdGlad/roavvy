@@ -22,6 +22,7 @@ import '../scan/scan_screen.dart';
 import '../stats/stats_screen.dart';
 import '../travel_timeline/travel_timeline_screen.dart';
 import '../world_leap/presentation/screens/world_leap_lobby_screen.dart';
+import '../../core/commerce/commerce_flag.dart';
 
 /// Bottom navigation shell with tabs: Map · Journey · Stats · Shop · Play.
 ///
@@ -78,6 +79,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     _scheduleMidnightRefresh();
     _rcUpdateSub = RemoteConfigService.onUpdate.stream.listen((_) {
       if (mounted) {
+        ref.invalidate(commerceRemoteSwitchProvider);
         ref.invalidate(purchasingEnabledProvider);
         ref.invalidate(purchasingEnabledForTemplateProvider);
       }
@@ -153,7 +155,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     unawaited(
       RemoteConfigService.refresh().then((_) {
         if (mounted) {
-          ref.invalidate(purchasingEnabledProvider);
+          ref.invalidate(commerceRemoteSwitchProvider);
+        ref.invalidate(purchasingEnabledProvider);
           ref.invalidate(purchasingEnabledForTemplateProvider);
         }
       }),
