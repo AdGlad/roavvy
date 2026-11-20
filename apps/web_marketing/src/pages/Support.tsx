@@ -29,11 +29,11 @@ const topics = [
     faqs: [
       {
         q: 'Why does Roavvy need photo library access?',
-        a: 'Roavvy reads GPS coordinates embedded in your photo metadata to detect the countries you have visited. It does not access photo content, faces, or any visual data — only location coordinates. Your photos are never uploaded anywhere.',
+        a: 'Roavvy reads GPS coordinates embedded in your photo metadata to detect the countries you have visited. It does not access photo content, faces, or any visual data, only location coordinates. Your photos are never uploaded anywhere.',
       },
       {
         q: 'How long does scanning take?',
-        a: 'Scanning 2,000 photos typically takes 10–30 seconds depending on your device. Larger libraries may take a little longer on the first scan. All subsequent scans are incremental and significantly faster.',
+        a: 'Scanning 2,000 photos typically takes 10 to 30 seconds depending on your device. Larger libraries may take a little longer on the first scan. All subsequent scans are incremental and significantly faster.',
       },
       {
         q: 'Not all my countries are showing up',
@@ -51,7 +51,7 @@ const topics = [
     faqs: [
       {
         q: 'Are my photos uploaded to any server?',
-        a: 'No. Roavvy reads GPS metadata entirely on your device. Your photos never leave your phone — not even as thumbnails, previews, or compressed copies. This is a core design principle, not an afterthought.',
+        a: 'No. Roavvy reads GPS metadata entirely on your device. Your photos never leave your phone, not even as thumbnails, previews, or compressed copies. This is a core design principle, not an afterthought.',
       },
       {
         q: 'What data does Roavvy store?',
@@ -68,46 +68,20 @@ const topics = [
     ],
   },
   {
-    icon: '👕',
-    title: 'Merchandise and orders',
-    faqs: [
-      {
-        q: 'How do I order a personalised t-shirt?',
-        a: 'Open the Merch section in the app, choose a design generated from your visited countries, select your size and product type, and complete checkout. Your order is sent directly to our print-on-demand fulfilment partner for production.',
-      },
-      {
-        q: 'How long does delivery take?',
-        a: 'Most orders are delivered within 7–14 business days. International orders may take slightly longer depending on your location and local customs. You will receive a tracking number by email once your order ships.',
-      },
-      {
-        q: 'Can I change or cancel my order?',
-        a: `Orders can be changed or cancelled within 1 hour of placing them by contacting us immediately at ${CONTACT_EMAIL}. After production has started, we are unable to modify orders as each item is printed specifically for you.`,
-      },
-      {
-        q: 'My order arrived damaged or incorrect',
-        a: `We're sorry to hear that. Please email ${CONTACT_EMAIL} within 14 days of receiving your order, including your order reference number and clear photos of the issue. We will arrange a replacement or full refund promptly.`,
-      },
-    ],
-  },
-  {
     icon: '💳',
     title: 'Payments and billing',
     faqs: [
       {
         q: 'Is Roavvy free?',
-        a: 'Yes — Roavvy is completely free to download and use. There are no subscription tiers, no premium features, and no paywalls. Every feature in the app is available to all users at no cost.',
+        a: 'Yes. Roavvy is completely free to download and use. There are no subscription tiers, no premium features, and no paywalls. Every feature in the app is available to all users at no cost.',
       },
       {
-        q: 'How do I pay for merchandise?',
-        a: 'Merchandise orders are paid for at checkout within the app. We accept Visa, Mastercard, American Express, Apple Pay, and PayPal. All payments are processed securely — we do not store your card details.',
+        q: 'Will Roavvy ever charge me?',
+        a: 'Not today: the app has no purchases or subscriptions. We plan to offer optional personalised merchandise later, and we will always show the full price before you buy anything.',
       },
       {
-        q: 'I was charged for an order I didn\'t place',
-        a: `If you see an unexpected charge, please contact us immediately at ${CONTACT_EMAIL} with your order reference (if you have it) and we will investigate and resolve the issue as quickly as possible.`,
-      },
-      {
-        q: 'Are there any hidden fees?',
-        a: 'No. The app is free. For merchandise, the price shown at checkout is the total you pay — including production and shipping. No hidden fees are added after you place your order.',
+        q: 'I was charged by someone claiming to be Roavvy',
+        a: `If you see an unexpected charge, please contact us immediately at ${CONTACT_EMAIL} with details of the charge and we will investigate and resolve the issue as quickly as possible.`,
       },
     ],
   },
@@ -143,7 +117,7 @@ export default function Support() {
           <span className="section-label">Support</span>
           <h1 className="section-heading text-4xl md:text-5xl">How can we help?</h1>
           <p className="section-subheading">
-            Find answers to common questions below, or reach us directly by email — we aim to reply within one business day.
+            Find answers to common questions below, or reach us directly by email. We aim to reply within one business day.
           </p>
           <a
             href={`mailto:${CONTACT_EMAIL}`}

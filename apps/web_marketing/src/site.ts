@@ -22,8 +22,8 @@ export const FOUNDER = {
   founded: '2025',
   photo: '/images/founder.jpg',
   bio: [
-    'Adam is a technology and startup entrepreneur and a lifelong technologist. As the founder of Roavvy he builds the product end to end — the iOS app, the on-device country detection, and the Google Cloud platform behind it.',
-    "He also travels extensively around the world. Roavvy grew out of that: the thousands of photos on his own phone already held a complete record of everywhere he'd been, and no app was using it. Roavvy turns that record into a living travel map — privately, on your own device.",
+    'Adam is a technology and startup entrepreneur and a lifelong technologist. As the founder of Roavvy he builds the product end to end: the iOS app, the on-device country detection, and the Google Cloud platform behind it.',
+    "He also travels extensively around the world. Roavvy grew out of that: the thousands of photos on his own phone already held a complete record of everywhere he'd been, and no app was using it. Roavvy turns that record into a living travel map, privately, on your own device.",
   ],
   linkedin: 'https://www.linkedin.com/in/adamgladstone/',
 }

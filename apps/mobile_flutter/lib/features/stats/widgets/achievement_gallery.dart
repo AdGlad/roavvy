@@ -7,7 +7,7 @@ import '../../../core/country_names.dart';
 import '../../../core/providers.dart';
 import '../../../core/theme/roavvy_colours.dart';
 import '../../challenge/daily_challenge_stats.dart';
-import '../../merch/achievement_merch_option_screen.dart';
+import '../../commerce_entry/commerce_entry.dart';
 
 /// Tabbed achievement gallery for the Stats screen (M97, ADR-148).
 ///
@@ -572,10 +572,13 @@ class _AchievementRow extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         _RarityBadge(rarity: rarity),
-                        if (isUnlocked && achievement.merch != null) ...[
-                          const SizedBox(width: 6),
-                          _MerchChip(achievement: achievement),
-                        ],
+                        if (isUnlocked && achievement.merch != null)
+                          CommerceGate(
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: _MerchChip(achievement: achievement),
+                            ),
+                          ),
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -910,13 +913,7 @@ class _MerchChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
-      onPressed:
-          () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder:
-                  (_) => AchievementMerchOptionScreen(achievement: achievement),
-            ),
-          ),
+      onPressed: () => CommerceEntry.openAchievementMerch(context, achievement),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         minimumSize: Size.zero,

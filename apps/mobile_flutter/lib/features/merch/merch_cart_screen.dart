@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/commerce/commerce_flag.dart';
 import '../../core/providers.dart';
 import 'merch_cart_item.dart';
 import 'merch_cart_item_card.dart';
@@ -17,6 +18,10 @@ import 'merch_variant_lookup.dart';
 /// Uses a Firestore snapshot stream so the cart updates automatically when items
 /// are added or updated (e.g. after createMerchCart completes).
 final merchCartProvider = StreamProvider<List<MerchCartItem>>((ref) {
+  // No cart listener at all in a commerce-off session (ADR-180, M187).
+  if (!ref.watch(commerceEnabledProvider)) {
+    return Stream.value(const <MerchCartItem>[]);
+  }
   final uid = ref.watch(currentUidProvider);
   if (uid == null) return Stream.value(const <MerchCartItem>[]);
   return MerchCartRepository(FirebaseFirestore.instance).watchActive(uid);

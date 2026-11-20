@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../merch/shopify_pricing_repository.dart';
 import '../studio_v2/host/studio_identity.dart';
-import '../studio_v2/host/studio_v2_trace.dart';
 import '../studio_v2/studio_v2_app.dart';
 import 'studio_v2_cart_adapter.dart';
 
@@ -51,8 +50,8 @@ class StudioV2Entry extends ConsumerWidget {
       final auth = ref.watch(authStateProvider);
       authLoading = auth.isLoading;
       uid = auth.value?.uid;
-    } catch (e) {
-      v2trace('auth unavailable, saving to the device scope: $e');
+    } catch (_) {
+      // Auth unavailable: designs save to the device scope.
     }
     if (authLoading) {
       return const Scaffold(

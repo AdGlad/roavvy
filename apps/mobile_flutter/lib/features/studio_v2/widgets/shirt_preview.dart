@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import '../../shared/garment_mockup/garment_mockup_canvas.dart';
 import '../../shared/garment_mockup/garment_mockup_spec.dart';
 import '../../shared/garment_mockup/mockup_transform.dart';
-import '../host/studio_v2_trace.dart';
 import '../host/studio_garments.dart';
 
 /// The Studio hero, on an actual shirt: the live [DesignRecipe] rendered through
@@ -114,10 +113,9 @@ class _ShirtPreviewState extends State<ShirtPreview> {
         transparent: true,
       );
       if (mounted) setState(() => _artwork = img);
-    } catch (e) {
+    } catch (_) {
       // A transient render failure must never take the shell down; the next
       // recipe change retries.
-      v2trace('ShirtPreview.artwork.ERROR $e');
     }
   }
 
@@ -129,9 +127,7 @@ class _ShirtPreviewState extends State<ShirtPreview> {
       final img = await StudioGarments.load(spec);
       // A slower earlier load must not overwrite a newer garment.
       if (mounted && _garmentKey == key) setState(() => _garment = img);
-    } catch (e) {
-      v2trace('ShirtPreview.garment.ERROR $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadShading() async {
@@ -141,10 +137,9 @@ class _ShirtPreviewState extends State<ShirtPreview> {
     try {
       final img = await StudioGarments.loadShading(spec);
       if (mounted && _shadingKey == key) setState(() => _shading = img);
-    } catch (e) {
+    } catch (_) {
       // Losing the folds costs realism, never the preview: the shirt and the
       // print still render, just flat.
-      v2trace('ShirtPreview.shading.ERROR $e');
     }
   }
 

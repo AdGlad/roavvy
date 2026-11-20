@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/commerce/commerce_flag.dart';
+
 /// Shown wherever a real Shopify price isn't available. We never invent or
 /// default an amount that could disagree with the Shopify checkout — the exact
 /// total is confirmed there.
@@ -72,6 +74,8 @@ String buyerCountryCode() {
 ///
 /// Cached for the lifetime of the provider — re-fetched on app restart.
 final shopifyPricingProvider = FutureProvider<MerchPrices>((ref) async {
+  // No price fetch in a commerce-off session (ADR-180, M187).
+  if (!ref.watch(commerceEnabledProvider)) return MerchPrices.unknown;
   try {
     final callable = FirebaseFunctions.instance.httpsCallable(
       'getMerchPrices',

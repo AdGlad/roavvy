@@ -6,6 +6,7 @@ import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/commerce/commerce_flag.dart';
 import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/data/achievement_repository.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
@@ -21,11 +22,14 @@ Widget _pumpScreen(
   MockUser? mockUser,
   Future<void> Function(String uid, {String? shareToken})?
   deleteAccountOverride,
+  bool commerce = false,
 }) {
   final user = mockUser ?? MockUser(isAnonymous: false, uid: 'apple-uid');
   final mockAuth = MockFirebaseAuth(signedIn: true, mockUser: user);
   return ProviderScope(
     overrides: [
+      commerceBuildProvider.overrideWithValue(commerce),
+      commerceRemoteSwitchProvider.overrideWithValue(true),
       visitRepositoryProvider.overrideWithValue(repo),
       achievementRepositoryProvider.overrideWithValue(
         AchievementRepository(_makeDb()),
@@ -44,6 +48,21 @@ Widget _pumpScreen(
 
 void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
+
+  // ── Orders (ADR-180: hidden without commerce) ─────────────────────────────
+
+  for (final commerce in [false, true]) {
+    testWidgets('My orders ${commerce ? 'shown' : 'hidden'} when commerce is '
+        '${commerce ? 'on' : 'off'}', (tester) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_pumpScreen(_makeRepo(), commerce: commerce));
+      await tester.pumpAndSettle();
+      expect(find.text('Terms & Conditions'), findsOneWidget);
+      expect(find.text('My orders'), commerce ? findsOneWidget : findsNothing);
+    });
+  }
 
   // ── Sharing section — inactive state ──────────────────────────────────────
 

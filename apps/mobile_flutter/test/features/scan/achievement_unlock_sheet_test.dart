@@ -1,28 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/commerce/commerce_flag.dart';
 import 'package:mobile_flutter/features/scan/achievement_unlock_sheet.dart';
 import 'package:shared_models/shared_models.dart';
 
 Achievement get _achievement => kAchievements.first;
 final _unlockedAt = DateTime(2026, 1, 14, 10, 0);
 
-Future<void> pumpSheet(WidgetTester tester) async {
+Achievement get _merchAchievement =>
+    kAchievements.firstWhere((a) => a.merch != null);
+
+Future<void> pumpSheet(
+  WidgetTester tester, {
+  bool commerce = false,
+  Achievement? achievement,
+}) async {
   await tester.binding.setSurfaceSize(const Size(400, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder:
-              (context) => ElevatedButton(
-                onPressed:
-                    () => AchievementUnlockSheet.show(
-                      context,
-                      achievement: _achievement,
-                      unlockedAt: _unlockedAt,
-                    ),
-                child: const Text('Open'),
-              ),
+    ProviderScope(
+      overrides: [
+        commerceBuildProvider.overrideWithValue(commerce),
+        commerceRemoteSwitchProvider.overrideWithValue(true),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder:
+                (context) => ElevatedButton(
+                  onPressed:
+                      () => AchievementUnlockSheet.show(
+                        context,
+                        achievement: achievement ?? _achievement,
+                        unlockedAt: _unlockedAt,
+                      ),
+                  child: const Text('Open'),
+                ),
+          ),
         ),
       ),
     ),
@@ -74,15 +89,30 @@ void main() {
     });
   });
 
+  group('AchievementUnlockSheet — commerce (ADR-180)', () {
+    testWidgets('no merch CTA when commerce is off', (tester) async {
+      await pumpSheet(tester, achievement: _merchAchievement);
+      expect(find.text('Design your merch'), findsNothing);
+      expect(find.text('Share achievement'), findsOneWidget);
+    });
+
+    testWidgets('merch CTA shown when commerce is on', (tester) async {
+      await pumpSheet(tester, commerce: true, achievement: _merchAchievement);
+      expect(find.text('Design your merch'), findsOneWidget);
+    });
+  });
+
   group('StatsScreen — locked card does not open sheet', () {
     testWidgets('tapping locked card area does not show sheet', (tester) async {
       // A card with onTap=null should not open the sheet.
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AchievementUnlockSheet(
-              achievement: _achievement,
-              unlockedAt: _unlockedAt,
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: AchievementUnlockSheet(
+                achievement: _achievement,
+                unlockedAt: _unlockedAt,
+              ),
             ),
           ),
         ),

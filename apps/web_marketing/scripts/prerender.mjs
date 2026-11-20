@@ -37,7 +37,7 @@ for (const { path: url, title } of PAGES) {
   await writeFile(path.join(dist, file), page(url, title))
   console.log(`prerendered ${url} -> ${file}`)
 }
-await writeFile(path.join(dist, '404.html'), page('/__not-found__', 'Page not found — Roavvy', { indexable: false }))
+await writeFile(path.join(dist, '404.html'), page('/__not-found__', 'Page not found | Roavvy', { indexable: false }))
 console.log('prerendered 404.html')
 
 await rm(ssrDir, { recursive: true, force: true })

@@ -10,6 +10,7 @@ import '../../data/db/roavvy_database.dart';
 import 'widgets/achievement_gallery.dart';
 import 'widgets/achievement_timeline.dart';
 import 'widgets/daily_challenge_card.dart';
+import '../commerce_entry/commerce_entry.dart';
 import 'widgets/merch_moments_section.dart';
 import 'widgets/next_achievements_carousel.dart';
 import 'widgets/deepest_region_card.dart';
@@ -299,12 +300,15 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
             ),
 
             // ── Merch Moments ─────────────────────────────────────────────
+            // Commerce only (ADR-180): the whole section collapses when off.
             SliverToBoxAdapter(
-              child: _stagger(
-                _merchAnim,
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: MerchMomentsSection(unlockedById: unlockedById),
+              child: CommerceGate(
+                child: _stagger(
+                  _merchAnim,
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: MerchMomentsSection(unlockedById: unlockedById),
+                  ),
                 ),
               ),
             ),

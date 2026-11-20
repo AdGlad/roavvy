@@ -1,5 +1,5 @@
 import { CONTACT_EMAIL } from '../site'
-const LAST_UPDATED = '15 June 2026'
+const LAST_UPDATED = '20 November 2026'
 
 export default function Terms() {
   return (
@@ -28,7 +28,7 @@ export default function Terms() {
 
       <Section title="4. Photo Metadata Scanning">
         <p>Roavvy requests access to your device's photo library in order to read GPS coordinates embedded in photo metadata. This process occurs entirely on your device. No photos or photo content are uploaded to our servers.</p>
-        <p>Only derived metadata — such as GPS coordinates used to determine countries visited — may be processed or stored. By granting photo library access, you authorise Roavvy to perform this on-device scan.</p>
+        <p>Only derived metadata, such as GPS coordinates used to determine countries visited, may be processed or stored. By granting photo library access, you authorise Roavvy to perform this on-device scan.</p>
         <p>You may revoke photo library access at any time through your device's privacy settings.</p>
       </Section>
 
@@ -42,15 +42,13 @@ export default function Terms() {
         <p>By sharing User Content through the App's features, you grant Roavvy a limited licence to display and distribute that content as part of the normal operation of the App's sharing features. We do not claim ownership of your User Content.</p>
       </Section>
 
-      <Section title="7. Merchandise and Print-on-Demand Products">
-        <p>Roavvy offers personalised merchandise through third-party print-on-demand providers. When you place an order, you are purchasing a physical product manufactured by our fulfilment partner.</p>
-        <p>Merchandise orders are subject to additional terms from the relevant fulfilment provider. Roavvy acts as an intermediary and is not responsible for manufacturing defects beyond what is covered in our Refund Policy at www.roavvy.com/refund.</p>
-        <p>Delivery times, shipping costs, and customs charges are determined by the fulfilment provider and may vary by location.</p>
+      <Section title="7. A Free App">
+        <p>Roavvy is currently free. There are no purchases, subscriptions, or in-app payments in the App.</p>
+        <p>We may offer paid products, such as personalised travel merchandise, in future. If we do, we will update these Terms before anything can be bought, and the updated Terms will cover ordering, payment, delivery, and refunds.</p>
       </Section>
 
-      <Section title="8. Payments, Refunds, and Fulfilment">
-        <p>In-app purchases and subscriptions are processed through the Apple App Store and are subject to Apple's payment terms. Refunds for App Store purchases must be requested directly through Apple.</p>
-        <p>Refunds for merchandise orders are governed by our Refund Policy at www.roavvy.com/refund. Custom printed products cannot be returned unless damaged, defective, or incorrect.</p>
+      <Section title="8. Payments and Refunds">
+        <p>Because the App has no purchases, Roavvy does not take payments. If paid products are introduced, our Refund Policy at www.roavvy.com/refund will apply to them.</p>
       </Section>
 
       <Section title="9. Intellectual Property">

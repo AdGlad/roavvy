@@ -1,10 +1,16 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/commerce/commerce_flag.dart';
+
 /// The current Terms & Conditions version string.
 ///
 /// Bump this (e.g. '1.1', '2.0') whenever the T&C content changes.
 /// Existing users will be re-prompted to accept on next app launch.
-const kCurrentTermsVersion = '1.1';
+///
+/// A build without commerce (ADR-180) has its own Terms with no purchase
+/// clauses, so it carries its own version: 1.2 is the free-app Terms, 1.1 the
+/// commerce Terms. When commerce returns, give its Terms a version above 1.2.
+const kCurrentTermsVersion = kCommerceBuild ? '1.1' : '1.2';
 
 const _kPrefsKey = 'terms_accepted_version';
 

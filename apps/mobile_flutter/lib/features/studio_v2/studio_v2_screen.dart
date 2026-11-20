@@ -4,7 +4,6 @@ import 'package:flutter/material.dart' hide Orientation;
 
 import '../shared/garment_mockup/mockup_transform.dart';
 import 'commerce/garment_cart_request.dart';
-import 'host/studio_v2_trace.dart';
 import 'studio_v2_stage.dart';
 import 'studio_v2_theme.dart';
 import 'widgets/detail_workspace.dart';
@@ -88,7 +87,6 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
   }
 
   void _onControllerChanged() {
-    v2bump('controller.notify', detail: 'recipeId=${_c.current.recipeId}');
     if (mounted) setState(() {});
   }
 
@@ -175,7 +173,6 @@ class StudioV2ScreenState extends State<StudioV2Screen> {
 
   @override
   Widget build(BuildContext context) {
-    v2bump('StudioV2Screen.build', detail: 'stage=${_stage.name}');
     final canUndo = _c.history.isNotEmpty;
     // Instant is the front door, not step one of eleven. It owns the whole
     // viewport — no hero/controls/workspace/footer split, no undo button, no

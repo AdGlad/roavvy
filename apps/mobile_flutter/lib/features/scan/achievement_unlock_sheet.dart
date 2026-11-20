@@ -3,7 +3,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/theme/roavvy_colours.dart';
-import '../merch/achievement_merch_option_screen.dart';
+import '../commerce_entry/commerce_entry.dart';
 
 const _months = [
   'Jan',
@@ -132,25 +132,24 @@ class AchievementUnlockSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              if (achievement.merch != null) ...[
-                FilledButton(
-                  onPressed:
-                      () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder:
-                              (_) => AchievementMerchOptionScreen(
-                                achievement: achievement,
-                              ),
-                        ),
+              if (achievement.merch != null)
+                CommerceGate(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: FilledButton(
+                      onPressed:
+                          () => CommerceEntry.openAchievementMerch(
+                            context,
+                            achievement,
+                          ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: RoavvyColours.roavvyCoral,
+                        minimumSize: const Size.fromHeight(44),
                       ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: RoavvyColours.roavvyCoral,
-                    minimumSize: const Size.fromHeight(44),
+                      child: const Text('Design your merch'),
+                    ),
                   ),
-                  child: const Text('Design your merch'),
                 ),
-                const SizedBox(height: 8),
-              ],
             ],
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

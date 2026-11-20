@@ -2,6 +2,7 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/commerce/commerce_flag.dart';
 import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/features/scan/scan_summary_screen.dart';
 import 'package:mobile_flutter/features/xp/xp_event.dart';
@@ -34,10 +35,15 @@ Future<void> pumpSummary(
   List<String> newCodes = const [],
   VoidCallback? onDone,
   DateTime? lastScanAt,
+  bool commerce = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [xpNotifierProvider.overrideWith((_) => _StubXpNotifier())],
+      overrides: [
+        xpNotifierProvider.overrideWith((_) => _StubXpNotifier()),
+        commerceBuildProvider.overrideWithValue(commerce),
+        commerceRemoteSwitchProvider.overrideWithValue(true),
+      ],
       child: MaterialApp(
         home: ScanSummaryScreen(
           newCountries: newCountries,
@@ -233,11 +239,25 @@ void main() {
   });
 
   group('ScanSummaryScreen — commerce entry point (M29)', () {
+    testWidgets('no poster CTA when commerce is off (ADR-180)', (tester) async {
+      await pumpSummary(
+        tester,
+        newCountries: [_country('GB')],
+        newCodes: ['GB'],
+      );
+      expect(
+        find.textContaining('Get a poster with your new discoveries'),
+        findsNothing,
+      );
+      expect(find.textContaining('Create a travel card'), findsOneWidget);
+    });
+
     testWidgets('shows Get a poster CTA in State A', (tester) async {
       await pumpSummary(
         tester,
         newCountries: [_country('GB')],
         newCodes: ['GB'],
+        commerce: true,
       );
       expect(
         find.textContaining('Get a poster with your new discoveries'),

@@ -20,6 +20,7 @@ import 'package:confetti/confetti.dart';
 import '../../core/flag_colours.dart';
 import 'country_discovery_overlay.dart';
 import 'replay_overlay_widgets.dart';
+import '../commerce_entry/commerce_entry.dart';
 import 'replay_summary_screen.dart';
 import 'travel_replay_controller.dart';
 import 'travel_replay_engine.dart';
@@ -260,12 +261,6 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
   }
 
   void _replayAgain() => _ctrl?.play();
-
-  void _share(BuildContext ctx) {
-    ScaffoldMessenger.of(
-      ctx,
-    ).showSnackBar(const SnackBar(content: Text('Share coming soon')));
-  }
 
   void _createTShirt(BuildContext ctx) {
     Navigator.of(ctx).pop();
@@ -609,8 +604,10 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
               script: widget.script!,
               isVisible: isDone,
               onReplayAgain: _replayAgain,
-              onShare: () => _share(context),
-              onCreateTShirt: () => _createTShirt(context),
+              onCreateTShirt:
+                  CommerceEntry.isAvailable(ref)
+                      ? () => _createTShirt(context)
+                      : null,
             ),
           ),
       ],

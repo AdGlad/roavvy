@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../../core/theme/roavvy_colours.dart';
+import '../../commerce_entry/commerce_entry.dart';
 
 /// Category filter options for [NextAchievementsCarousel].
 enum _AchievementFilter {
@@ -424,15 +425,18 @@ class _NextAchievementCard extends StatelessWidget {
               ),
             ],
           ),
-          if (achievement.merch != null) ...[
-            const SizedBox(height: 5),
-            Text(
-              'Unlocks ${_merchLabel(achievement.merch!)}',
-              style: const TextStyle(color: Colors.white60, fontSize: 9),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          if (achievement.merch != null)
+            CommerceGate(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Text(
+                  'Unlocks ${_merchLabel(achievement.merch!)}',
+                  style: const TextStyle(color: Colors.white60, fontSize: 9),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
-          ],
         ],
       ),
     );

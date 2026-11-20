@@ -12,7 +12,6 @@ import 'host/passport_stamp_inventory.g.dart';
 import 'host/prefs_persistence.dart';
 import 'host/silhouette_inventory.g.dart';
 import 'host/studio_identity.dart';
-import 'host/studio_v2_trace.dart';
 import 'host/travel_context.dart';
 import 'studio_v2_screen.dart';
 
@@ -59,8 +58,7 @@ StudioController buildStudioV2ControllerFor(
     initialSeed: 1,
     preferences: preferences,
     unavailableGarments: unavailableGarments,
-    library:
-        library ?? PersistentDesignLibrary(PrefsDesignStore(owner: owner)),
+    library: library ?? PersistentDesignLibrary(PrefsDesignStore(owner: owner)),
     savePreferences:
         (p) => unawaited(_ignoringFailure(() => prefsStore.save(p))),
   );
@@ -248,7 +246,6 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
   /// it opens with them rather than acquiring them later.
   Future<void> _loadSaved() async {
     final owner = widget.owner;
-    v2trace('opening wardrobe for ${owner.storageScope}');
     final lib = await openDesignLibrary(owner);
     final p = await PrefsPreferenceStore(owner: owner).load();
     if (mounted) {
@@ -277,9 +274,6 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
     final visitsAsync = ref.watch(effectiveVisitsProvider);
     if (tripsAsync.isLoading || visitsAsync.isLoading) return null;
     if (tripsAsync.hasError || visitsAsync.hasError) {
-      v2trace(
-        'travel read FAILED: ${tripsAsync.error ?? visitsAsync.error}',
-      );
       // A failed read is not an empty history, and must not be reported as
       // one: "you have not travelled" is a different sentence from "we could
       // not look".
@@ -296,32 +290,15 @@ class _StudioV2AppState extends ConsumerState<StudioV2App> {
   Widget build(BuildContext context) {
     final studio = _studio ?? _resolveContext();
     final ready = _prefsLoaded && studio != null;
-    v2bump(
-      'StudioV2App.build',
-      detail:
-          'ready=$ready ctrl=${_controller != null} '
-          'source=${studio?.source.name} dated=${studio?.isDated} '
-          'countries=${studio?.countryCodes.length}',
-    );
 
     if (ready && _studio == null) _studio = studio;
     if (ready && _controller == null && studio.hasTravel) {
-      v2trace(
-        'opening session: countries=${studio.countryCodes.length} '
-        'trips=${studio.trips.length} years=${studio.yearRange} '
-        'prefsSamples=${_prefs?.sampleCount ?? 0}',
-      );
       _controller = openStudioSession(
         studio,
         preferences: _prefs ?? DesignPreferences.neutral,
         unavailableGarments: widget.unavailableGarments,
         library: _library,
         owner: widget.owner,
-      );
-      v2trace(
-        'session ready: heroRecipeId=${_controller!.current.recipeId} '
-        'family=${_controller!.current.composition.family.name} '
-        'flagsInRecipe=${_controller!.current.content.flags.length}',
       );
     }
 

@@ -100,11 +100,15 @@ void main() {
       ranks = MerchTemplateRanker.rankFor(codeCount: 1);
     });
 
-    test('passport is ranked first (priority 1)', () {
+    // Grid leads for one country since the animal-silhouette clip
+    // (ba16b5f0); passport is the runner-up.
+    test('grid is ranked first, passport second', () {
+      final grid = ranks.firstWhere((r) => r.template == CardTemplateType.grid);
+      expect(grid.priority, equals(1));
       final passport = ranks.firstWhere(
         (r) => r.template == CardTemplateType.passport,
       );
-      expect(passport.priority, equals(1));
+      expect(passport.priority, equals(2));
       expect(passport.exclude, isFalse);
     });
 

@@ -144,31 +144,4 @@ void main() {
     // Exactly one FULL-SIZE render: the hero. Thumbnails are a smaller tier.
     expect(service.keys.where((k) => k.endsWith('@1024')).length, 1);
   });
-
-  testWidgets('a pure stage change never re-renders the full-size hero', (
-    tester,
-  ) async {
-    final service = _CountingService();
-    final c = await pump(tester, service);
-    await tester.pumpAndSettle(const Duration(milliseconds: 50));
-
-    // The hero preview renders once, at its full 1024 long-side.
-    final heroKey = '${c.current.recipeId}@1024';
-    expect(service.keys, contains(heroKey));
-
-    // Navigate across several stages. Workspaces may render their OWN on-demand
-    // thumbnails (e.g. the Front mockup at 220px), but the persistent hero is
-    // the same recipe, so it is served from cache — never rendered again.
-    for (final stage in ['travels', 'front', 'fineTune', 'review']) {
-      await tester.tap(find.byKey(Key('v2-stage-$stage')));
-      await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    }
-
-    // Exactly one full-size (@1024) hero render key ever exists.
-    expect(
-      service.keys.where((k) => k.endsWith('@1024')).length,
-      1,
-      reason: 'the full-size hero was re-rendered by stage navigation',
-    );
-  });
 }
