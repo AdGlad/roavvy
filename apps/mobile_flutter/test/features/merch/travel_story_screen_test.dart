@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/commerce/commerce_flag.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'package:mobile_flutter/features/merch/pulse_merch_option.dart';
@@ -19,18 +20,17 @@ import 'package:mobile_flutter/features/merch/travel_story_summary_card.dart';
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 /// 5 visits across 2 continents (Europe).
-final _visits5 = [
-  'FR',
-  'DE',
-  'ES',
-  'IT',
-  'GB',
-].map((code) => EffectiveVisitedCountry(
-      countryCode: code,
-      hasPhotoEvidence: true,
-      firstSeen: DateTime(2024, 3, 1),
-      lastSeen: DateTime(2024, 3, 10),
-    )).toList();
+final _visits5 =
+    ['FR', 'DE', 'ES', 'IT', 'GB']
+        .map(
+          (code) => EffectiveVisitedCountry(
+            countryCode: code,
+            hasPhotoEvidence: true,
+            firstSeen: DateTime(2024, 3, 1),
+            lastSeen: DateTime(2024, 3, 10),
+          ),
+        )
+        .toList();
 
 final _trips2 = [
   TripRecord(
@@ -52,34 +52,74 @@ final _trips2 = [
 ];
 
 TravelStoryData _buildData({bool yearFilter = true}) => TravelStoryData.build(
-      year: 2024,
-      allVisits: _visits5,
-      allTrips: _trips2,
-      unlockedAchievements: {},
-      yearFilter: yearFilter,
-    );
+  year: 2024,
+  allVisits: _visits5,
+  allTrips: _trips2,
+  unlockedAchievements: {},
+  yearFilter: yearFilter,
+);
 
-Widget _wrap(Widget child) => ProviderScope(
-      child: MaterialApp(home: child),
-    );
+Widget _wrap(Widget child) => ProviderScope(child: MaterialApp(home: child));
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+Future<void> _pumpLastPage(
+  WidgetTester tester, {
+  required bool commerce,
+}) async {
+  tester.view.physicalSize = const Size(1200, 2600);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        commerceBuildProvider.overrideWithValue(commerce),
+        commerceRemoteSwitchProvider.overrideWithValue(true),
+      ],
+      child: MaterialApp(home: TravelStoryScreen(data: _buildData())),
+    ),
+  );
+  await tester.pump();
+  tester.widget<PageView>(find.byType(PageView)).controller!.jumpToPage(99);
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 2));
+}
+
 void main() {
-  group('TravelStoryScreen', () {
-    testWidgets('renders at least 4 pages (year + countries + identity + cta)',
-        (tester) async {
-      final data = _buildData();
-      await tester.pumpWidget(_wrap(TravelStoryScreen(data: data)));
-      await tester.pump();
-
-      // PageView is present.
-      expect(find.byType(PageView), findsOneWidget);
-
-      // Page 1: year text is visible.
-      expect(find.text('2024'), findsWidgets);
-      expect(find.textContaining('in travel'), findsOneWidget);
+  group('TravelStoryScreen — commerce (ADR-180)', () {
+    testWidgets('last page has no shirt when commerce is off', (tester) async {
+      await _pumpLastPage(tester, commerce: false);
+      expect(find.text('That was your 2024'), findsOneWidget);
+      expect(find.text('Share this story'), findsOneWidget);
+      expect(find.textContaining('shirt'), findsNothing);
+      expect(find.text('Design this shirt'), findsNothing);
     });
+
+    testWidgets('last page offers the shirt when commerce is on', (
+      tester,
+    ) async {
+      await _pumpLastPage(tester, commerce: true);
+      expect(find.text('Here is your 2024 shirt'), findsOneWidget);
+      expect(find.text('Design this shirt'), findsOneWidget);
+    });
+  });
+
+  group('TravelStoryScreen', () {
+    testWidgets(
+      'renders at least 4 pages (year + countries + identity + cta)',
+      (tester) async {
+        final data = _buildData();
+        await tester.pumpWidget(_wrap(TravelStoryScreen(data: data)));
+        await tester.pump();
+
+        // PageView is present.
+        expect(find.byType(PageView), findsOneWidget);
+
+        // Page 1: year text is visible.
+        expect(find.text('2024'), findsWidgets);
+        expect(find.textContaining('in travel'), findsOneWidget);
+      },
+    );
 
     testWidgets('close button dismisses the screen', (tester) async {
       final data = _buildData();
@@ -88,18 +128,19 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             home: Builder(
-              builder: (ctx) => ElevatedButton(
-                onPressed: () async {
-                  await Navigator.of(ctx).push(
-                    MaterialPageRoute<void>(
-                      fullscreenDialog: true,
-                      builder: (_) => TravelStoryScreen(data: data),
-                    ),
-                  );
-                  popped = true;
-                },
-                child: const Text('Open'),
-              ),
+              builder:
+                  (ctx) => ElevatedButton(
+                    onPressed: () async {
+                      await Navigator.of(ctx).push(
+                        MaterialPageRoute<void>(
+                          fullscreenDialog: true,
+                          builder: (_) => TravelStoryScreen(data: data),
+                        ),
+                      );
+                      popped = true;
+                    },
+                    child: const Text('Open'),
+                  ),
             ),
           ),
         ),
@@ -116,8 +157,9 @@ void main() {
       expect(popped, isTrue);
     });
 
-    testWidgets('skips continent page when continentCount equals 1',
-        (tester) async {
+    testWidgets('skips continent page when continentCount equals 1', (
+      tester,
+    ) async {
       // Build data with all visits in the same continent (Europe).
       final data = TravelStoryData(
         year: 2024,

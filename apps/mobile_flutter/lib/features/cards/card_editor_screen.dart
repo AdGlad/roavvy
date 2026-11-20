@@ -14,7 +14,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
-import '../merch/local_mockup_preview_screen.dart';
+import '../commerce_entry/commerce_entry.dart';
 import '../merch/merch_title_wordbank.dart';
 import '../scan/hero_providers.dart';
 import '../shared/thumbnail_channel.dart';
@@ -452,14 +452,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                           dateLabel,
                         ),
                     onPrint:
-                        () => _onPrint(
-                          context,
-                          effectiveCodes,
-                          allCodes,
-                          effectiveTrips,
-                          effectiveRange,
-                          showDateSlider,
-                        ),
+                        CommerceEntry.isAvailable(ref)
+                            ? () => _onPrint(
+                              context,
+                              effectiveCodes,
+                              allCodes,
+                              effectiveTrips,
+                              effectiveRange,
+                              showDateSlider,
+                            )
+                            : null,
                     onBook:
                         () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -625,14 +627,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                       dateLabel,
                     ),
                 onPrint:
-                    () => _onPrint(
-                      context,
-                      effectiveCodes,
-                      allCodes,
-                      effectiveTrips,
-                      effectiveRange,
-                      showDateSlider,
-                    ),
+                    CommerceEntry.isAvailable(ref)
+                        ? () => _onPrint(
+                          context,
+                          effectiveCodes,
+                          allCodes,
+                          effectiveTrips,
+                          effectiveRange,
+                          showDateSlider,
+                        )
+                        : null,
               ),
               SizedBox(height: MediaQuery.paddingOf(context).bottom + 8),
             ],
@@ -1133,34 +1137,31 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       unawaited(TravelCardService(FirebaseFirestore.instance).create(card));
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder:
-            (_) => LocalMockupPreviewScreen(
-              selectedCodes: codes,
-              allCodes: allCodes,
-              trips: _lastConfirmedTrips ?? const [],
-              artworkImageBytes: _artworkImageBytes!,
-              artworkConfirmationId: null,
-              initialTemplate: widget.templateType,
-              initialJourneyStyle: _journeyStyle,
-              confirmedAspectRatio: _aspectRatio,
-              confirmedEntryOnly: _entryOnly,
-              cardId: cardId,
-              titleOverride: _titleOverride,
-              subtitleOverride:
-                  widget.templateType == CardTemplateType.grid
-                      ? (_subtitleOverride ??
-                          MerchTitleWordbank.buildSubtitleLine(codes.length))
-                      : _subtitleOverride,
-              stampColor: null,
-              dateColor: null,
-              transparentBackground:
-                  widget.templateType == CardTemplateType.grid,
-              stampSizeMultiplier: _stampSizeMultiplier,
-              stampJitterFactor: _stampJitterFactor,
-              stampLayoutSeed: _stampLayoutSeed,
-            ),
+    CommerceEntry.openCardPrint(
+      context,
+      CardPrintRequest(
+        selectedCodes: codes,
+        allCodes: allCodes,
+        trips: _lastConfirmedTrips ?? const [],
+        artworkImageBytes: _artworkImageBytes!,
+        artworkConfirmationId: null,
+        initialTemplate: widget.templateType,
+        initialJourneyStyle: _journeyStyle,
+        confirmedAspectRatio: _aspectRatio,
+        confirmedEntryOnly: _entryOnly,
+        cardId: cardId,
+        titleOverride: _titleOverride,
+        subtitleOverride:
+            widget.templateType == CardTemplateType.grid
+                ? (_subtitleOverride ??
+                    MerchTitleWordbank.buildSubtitleLine(codes.length))
+                : _subtitleOverride,
+        stampColor: null,
+        dateColor: null,
+        transparentBackground: widget.templateType == CardTemplateType.grid,
+        stampSizeMultiplier: _stampSizeMultiplier,
+        stampJitterFactor: _stampJitterFactor,
+        stampLayoutSeed: _stampLayoutSeed,
       ),
     );
   }
@@ -1702,7 +1703,7 @@ class _PassportBottomBar extends StatelessWidget {
     required this.printing,
     required this.bottomPadding,
     required this.onShare,
-    required this.onPrint,
+    this.onPrint,
     required this.onBook,
   });
 
@@ -1710,7 +1711,9 @@ class _PassportBottomBar extends StatelessWidget {
   final bool printing;
   final double bottomPadding;
   final VoidCallback onShare;
-  final VoidCallback onPrint;
+
+  /// Null hides the Print button (commerce off, ADR-180).
+  final VoidCallback? onPrint;
   final VoidCallback onBook;
 
   @override
@@ -1739,23 +1742,25 @@ class _PassportBottomBar extends StatelessWidget {
                   label: const Text('Share'),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: (sharing || printing) ? null : onPrint,
-                  icon:
-                      printing
-                          ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator.adaptive(
-                              strokeWidth: 2,
-                            ),
-                          )
-                          : const Icon(Icons.print_outlined, size: 16),
-                  label: const Text('Print'),
+              if (onPrint != null) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: (sharing || printing) ? null : onPrint,
+                    icon:
+                        printing
+                            ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator.adaptive(
+                                strokeWidth: 2,
+                              ),
+                            )
+                            : const Icon(Icons.print_outlined, size: 16),
+                    label: const Text('Print'),
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
@@ -2003,13 +2008,15 @@ class _ActionBar extends StatelessWidget {
     required this.sharing,
     required this.printing,
     required this.onShare,
-    required this.onPrint,
+    this.onPrint,
   });
 
   final bool sharing;
   final bool printing;
   final VoidCallback onShare;
-  final VoidCallback onPrint;
+
+  /// Null hides the Print button (commerce off, ADR-180).
+  final VoidCallback? onPrint;
 
   @override
   Widget build(BuildContext context) {
@@ -2033,23 +2040,25 @@ class _ActionBar extends StatelessWidget {
               label: const Text('Share'),
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: (sharing || printing) ? null : onPrint,
-              icon:
-                  printing
-                      ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator.adaptive(
-                          strokeWidth: 2,
-                        ),
-                      )
-                      : const Icon(Icons.print_outlined),
-              label: const Text('Print'),
+          if (onPrint != null) ...[
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: (sharing || printing) ? null : onPrint,
+                icon:
+                    printing
+                        ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator.adaptive(
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : const Icon(Icons.print_outlined),
+                label: const Text('Print'),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/commerce/commerce_flag.dart';
 import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/data/achievement_repository.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
@@ -35,6 +36,9 @@ Widget shop({
   String? uid = 'uid-alice',
 }) => ProviderScope(
   overrides: [
+    // The Shop is commerce; these tests exercise a commerce build (ADR-180).
+    commerceBuildProvider.overrideWithValue(true),
+    commerceRemoteSwitchProvider.overrideWithValue(true),
     authStateProvider.overrideWith((_) => Stream<User?>.value(null)),
     currentUidProvider.overrideWithValue(uid),
     effectiveVisitsProvider.overrideWith((_) async => visits ?? roavvyVisits()),
@@ -119,13 +123,16 @@ void main() {
         ProviderScope(
           overrides: [
             authStateProvider.overrideWith(
-              (_) => throw StateError(
-                "[core/no-app] No Firebase App '[DEFAULT]' has been created",
-              ),
+              (_) =>
+                  throw StateError(
+                    "[core/no-app] No Firebase App '[DEFAULT]' has been created",
+                  ),
             ),
             effectiveVisitsProvider.overrideWith((_) async => roavvyVisits()),
             tripListProvider.overrideWith((_) async => roavvyTrips()),
-            shopifyPricingProvider.overrideWith((_) async => throw 'no network'),
+            shopifyPricingProvider.overrideWith(
+              (_) async => throw 'no network',
+            ),
             merchCartProvider.overrideWith((_) => Stream.value([])),
             merchCartCountProvider.overrideWith((_) => 0),
           ],
@@ -139,7 +146,6 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byKey(const Key('v2-instant-deck')), findsOneWidget);
     });
-
 
     testWidgets('the card opens Instant on the real travel', (tester) async {
       tester.view.physicalSize = const Size(390, 844);
@@ -156,9 +162,7 @@ void main() {
 
       expect(find.byKey(const Key('v2-instant-deck')), findsOneWidget);
 
-      final screen = tester.widget<StudioV2Screen>(
-        find.byType(StudioV2Screen),
-      );
+      final screen = tester.widget<StudioV2Screen>(find.byType(StudioV2Screen));
       // Real Roavvy travel, through the M25 mapping — never the fixtures.
       expect(screen.controller.allTravelledCodes.toSet(), {'pt', 'ma'});
       expect(screen.controller.allTravelledCodes, isNot(contains('us')));

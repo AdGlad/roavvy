@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/commerce/commerce_flag.dart';
 import '../../core/providers.dart';
 import '../studio_v2_commerce/studio_v2_entry.dart';
 import 'merch_cart_screen.dart';
@@ -79,6 +80,8 @@ class _DesignedForYouCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Unreachable without the Shop tab, but gated anyway (ADR-180).
+    if (!ref.watch(commerceEnabledProvider)) return const SizedBox.shrink();
     final visits = ref.watch(effectiveVisitsProvider);
     final count = visits.valueOrNull?.length ?? 0;
     if (visits.isLoading || count == 0) return const SizedBox.shrink();

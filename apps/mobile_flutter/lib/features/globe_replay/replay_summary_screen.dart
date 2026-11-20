@@ -16,7 +16,7 @@ class ReplaySummaryScreen extends StatefulWidget {
     required this.isVisible,
     required this.onReplayAgain,
     required this.onShare,
-    required this.onCreateTShirt,
+    this.onCreateTShirt,
   });
 
   final TravelReplayScript script;
@@ -26,7 +26,9 @@ class ReplaySummaryScreen extends StatefulWidget {
 
   final VoidCallback onReplayAgain;
   final VoidCallback onShare;
-  final VoidCallback onCreateTShirt;
+
+  /// Null hides the Create T-Shirt CTA (commerce off, ADR-180).
+  final VoidCallback? onCreateTShirt;
 
   @override
   State<ReplaySummaryScreen> createState() => _ReplaySummaryScreenState();
@@ -133,13 +135,15 @@ class _ReplaySummaryScreenState extends State<ReplaySummaryScreen>
                 onTap: widget.onShare,
                 filled: false,
               ),
-              const SizedBox(height: 12),
-              _cta(
-                icon: Icons.checkroom_rounded,
-                label: 'Create T-Shirt',
-                onTap: widget.onCreateTShirt,
-                filled: false,
-              ),
+              if (widget.onCreateTShirt != null) ...[
+                const SizedBox(height: 12),
+                _cta(
+                  icon: Icons.checkroom_rounded,
+                  label: 'Create T-Shirt',
+                  onTap: widget.onCreateTShirt!,
+                  filled: false,
+                ),
+              ],
             ],
           ),
         ),

@@ -5,7 +5,7 @@ import '../../core/country_names.dart';
 import '../../core/theme/roavvy_colours.dart';
 import '../../core/providers.dart';
 import '../journal/trip_detail_screen.dart';
-import '../merch/pulse_merch_option_screen.dart';
+import '../commerce_entry/commerce_entry.dart';
 import '../shared/hero_image_view.dart';
 import 'memory_anniversary_photo.dart';
 import 'memory_pulse_service.dart';
@@ -352,18 +352,16 @@ class _PrintMerchButton extends ConsumerWidget {
     final allVisits =
         ref.watch(effectiveVisitsProvider).valueOrNull ?? const [];
 
+    if (!CommerceEntry.isAvailable(ref)) return const SizedBox.shrink();
     return OutlinedButton.icon(
       onPressed: () {
-        Navigator.of(context).pop();
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder:
-                (_) => PulseMerchOptionScreen(
-                  hero: hero,
-                  allTrips: trips,
-                  allVisits: allVisits,
-                ),
-          ),
+        final nav = Navigator.of(context);
+        nav.pop();
+        CommerceEntry.openPulseMerch(
+          nav.context,
+          hero: hero,
+          allTrips: trips,
+          allVisits: allVisits,
         );
       },
       icon: const Icon(Icons.checkroom_outlined),

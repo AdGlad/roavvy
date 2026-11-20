@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../../core/theme/roavvy_colours.dart';
-import '../../merch/achievement_merch_option_screen.dart';
+import '../../commerce_entry/commerce_entry.dart';
 
 /// Gamified hero card for the Stats screen (M97 + M147).
 ///
@@ -366,25 +366,24 @@ class _TravelProgressHeroState extends State<TravelProgressHero>
                   ),
                 ),
 
-              const SizedBox(height: 14),
-
-              // ── Merch CTA ────────────────────────────────────────────────
-              FilledButton.icon(
-                icon: const Icon(Icons.dry_cleaning_outlined, size: 16),
-                label: const Text('Create your travel tee'),
-                onPressed:
-                    topAchievement == null
-                        ? null
-                        : () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder:
-                                (_) => AchievementMerchOptionScreen(
-                                  achievement: topAchievement,
-                                ),
-                          ),
-                        ),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 44),
+              // ── Merch CTA (commerce only, ADR-180) ───────────────────────
+              CommerceGate(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.dry_cleaning_outlined, size: 16),
+                    label: const Text('Create your travel tee'),
+                    onPressed:
+                        topAchievement == null
+                            ? null
+                            : () => CommerceEntry.openAchievementMerch(
+                              context,
+                              topAchievement,
+                            ),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 44),
+                    ),
+                  ),
                 ),
               ),
             ],

@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/providers.dart';
 import '../account/account_deletion_service.dart';
 import '../legal/terms_screen.dart';
-import '../merch/merch_orders_screen.dart';
+import '../commerce_entry/commerce_entry.dart';
 import '../sharing/share_token_service.dart';
 
 /// Privacy & account settings screen (ADR-042).
@@ -260,8 +260,10 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
                   _shareToken != null
                       ? _activeShareTile()
                       : _inactiveShareTile(),
-                  _SectionHeader('Orders'),
-                  _ordersTile(),
+                  if (CommerceEntry.isAvailable(ref)) ...[
+                    _SectionHeader('Orders'),
+                    _ordersTile(),
+                  ],
                   _SectionHeader('Account'),
                   _deleteAccountTile(),
                   _SectionHeader('Legal'),
@@ -304,10 +306,7 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
       leading: const Icon(Icons.shopping_bag_outlined),
       title: const Text('My orders'),
       trailing: const Icon(Icons.chevron_right),
-      onTap:
-          () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const MerchOrdersScreen()),
-          ),
+      onTap: () => CommerceEntry.openOrders(context),
     );
   }
 

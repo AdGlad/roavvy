@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../../core/commerce/commerce_flag.dart';
 import '../../core/providers.dart';
 import 'local_mockup_preview_screen.dart';
 import 'merch_preset.dart';
@@ -57,6 +58,11 @@ class _TravelStoryScreenState extends State<TravelStoryScreen> {
 
   List<Widget> _buildPages() {
     final d = widget.data;
+    // The story is free; only the shirt on the last page is commerce (ADR-180).
+    final commerce = ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(commerceEnabledProvider);
     final pages = <Widget>[
       // Page 1: Year banner
       _StoryPage(
@@ -97,7 +103,7 @@ class _TravelStoryScreenState extends State<TravelStoryScreen> {
         child: _CtaPage(
           data: d,
           summaryCardKey: _summaryCardKey,
-          onDesign: _openPreview,
+          onDesign: commerce ? _openPreview : null,
           onShare: _share,
           onDismiss: () => Navigator.of(context).pop(),
         ),
@@ -510,7 +516,9 @@ class _CtaPage extends StatelessWidget {
 
   final TravelStoryData data;
   final GlobalKey summaryCardKey;
-  final VoidCallback onDesign;
+
+  /// Null when commerce is off: no shirt preview or design CTA (ADR-180).
+  final VoidCallback? onDesign;
   final VoidCallback onShare;
   final VoidCallback onDismiss;
 
@@ -522,7 +530,9 @@ class _CtaPage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Here is your ${data.year} shirt',
+            onDesign == null
+                ? 'That was your ${data.year}'
+                : 'Here is your ${data.year} shirt',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -530,24 +540,26 @@ class _CtaPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          // Merch preview card
-          _StoryMerchPreview(data: data),
-          const SizedBox(height: 32),
-          // Design CTA
-          FilledButton.icon(
-            onPressed: onDesign,
-            icon: const Icon(Icons.checkroom_outlined),
-            label: const Text('Design this shirt'),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFFF6B6B),
-              minimumSize: const Size.fromHeight(48),
-              textStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
+          if (onDesign != null) ...[
+            // Merch preview card
+            _StoryMerchPreview(data: data),
+            const SizedBox(height: 32),
+            // Design CTA
+            FilledButton.icon(
+              onPressed: onDesign,
+              icon: const Icon(Icons.checkroom_outlined),
+              label: const Text('Design this shirt'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B6B),
+                minimumSize: const Size.fromHeight(48),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
           // Share CTA
           OutlinedButton.icon(
             onPressed: onShare,
@@ -562,9 +574,9 @@ class _CtaPage extends StatelessWidget {
           const SizedBox(height: 8),
           TextButton(
             onPressed: onDismiss,
-            child: const Text(
-              'Maybe later',
-              style: TextStyle(color: Colors.white38, fontSize: 13),
+            child: Text(
+              onDesign == null ? 'Done' : 'Maybe later',
+              style: const TextStyle(color: Colors.white38, fontSize: 13),
             ),
           ),
         ],

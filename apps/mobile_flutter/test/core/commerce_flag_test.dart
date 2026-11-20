@@ -10,17 +10,22 @@ void main() {
     final c = ProviderContainer(
       overrides: [
         if (build != null) commerceBuildProvider.overrideWithValue(build),
-        if (remote != null) commerceRemoteSwitchProvider.overrideWithValue(remote),
+        if (remote != null)
+          commerceRemoteSwitchProvider.overrideWithValue(remote),
       ],
     );
     addTearDown(c.dispose);
     return c;
   }
 
-  test('a build without ROAVVY_COMMERCE has no commerce', () {
-    expect(kCommerceBuild, isFalse);
-    expect(container().read(commerceEnabledProvider), isFalse);
-  });
+  test(
+    'a build without ROAVVY_COMMERCE has no commerce',
+    () {
+      expect(kCommerceBuild, isFalse);
+      expect(container().read(commerceEnabledProvider), isFalse);
+    },
+    skip: kCommerceBuild ? 'only meaningful in a default build' : null,
+  );
 
   test('the remote switch cannot turn commerce on in a commerce-off build', () {
     expect(
@@ -49,8 +54,11 @@ void main() {
     expect(c.read(purchasingEnabledProvider), isFalse);
     expect(c.read(studioV2FulfilmentEnabledProvider), isFalse);
     for (final t in CardTemplateType.values) {
-      expect(c.read(purchasingEnabledForTemplateProvider(t)), isFalse,
-          reason: '$t');
+      expect(
+        c.read(purchasingEnabledForTemplateProvider(t)),
+        isFalse,
+        reason: '$t',
+      );
     }
   });
 }

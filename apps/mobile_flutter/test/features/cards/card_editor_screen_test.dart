@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/core/commerce/commerce_flag.dart';
 import 'package:mobile_flutter/core/providers.dart';
 import 'package:mobile_flutter/features/cards/card_editor_screen.dart';
 import 'package:shared_models/shared_models.dart';
@@ -13,9 +14,12 @@ import 'package:shared_models/shared_models.dart';
 ProviderContainer _buildContainer({
   List<EffectiveVisitedCountry> visits = const [],
   List<TripRecord> trips = const [],
+  bool commerce = false,
 }) {
   return ProviderContainer(
     overrides: [
+      commerceBuildProvider.overrideWithValue(commerce),
+      commerceRemoteSwitchProvider.overrideWithValue(true),
       effectiveVisitsProvider.overrideWith((ref) async => visits),
       tripListProvider.overrideWith((ref) async => trips),
     ],
@@ -169,8 +173,30 @@ void main() {
   });
 
   group('CardEditorScreen — action buttons', () {
-    testWidgets('Share and Print buttons are visible', (tester) async {
+    testWidgets('Share shown, Print hidden when commerce is off', (
+      tester,
+    ) async {
       final container = _buildContainer(visits: _makeVisits(['GB', 'US']));
+      await tester.pumpWidget(
+        _wrap(
+          const CardEditorScreen(templateType: CardTemplateType.grid),
+          container,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('Share'), findsOneWidget);
+      expect(find.text('Print'), findsNothing);
+    });
+
+    testWidgets('Share and Print buttons are visible with commerce', (
+      tester,
+    ) async {
+      final container = _buildContainer(
+        visits: _makeVisits(['GB', 'US']),
+        commerce: true,
+      );
       await tester.pumpWidget(
         _wrap(
           const CardEditorScreen(templateType: CardTemplateType.grid),

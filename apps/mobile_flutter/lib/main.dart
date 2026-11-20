@@ -15,7 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 import 'app.dart';
-import 'features/studio_v2_commerce/studio_v2_entry.dart';
+import 'core/commerce/commerce_flag.dart';
+import 'features/commerce_entry/commerce_entry.dart';
 import 'core/notification_service.dart';
 import 'core/remote_config_service.dart';
 import 'core/providers.dart';
@@ -35,12 +36,15 @@ void _stage(String name) {
 
 /// Developer-only flag to boot the parallel T-Shirt Studio **V2** shell instead
 /// of the production app. Default `false` → production behaviour is unchanged.
-/// Enable with `flutter run --dart-define=STUDIO_V2=true` (or use the dedicated
+/// Enable with `flutter run --dart-define=STUDIO_V2=true --dart-define=ROAVVY_COMMERCE=true`
+/// (or use the dedicated
 /// entrypoint `lib/main_studio_v2.dart`). Never affects the V1 flow.
 const bool kStudioV2Enabled = bool.fromEnvironment('STUDIO_V2');
 
 Future<void> main() async {
-  if (kStudioV2Enabled) {
+  // Studio is commerce: a build without ROAVVY_COMMERCE never boots it, and
+  // the whole branch is tree-shaken out (ADR-180).
+  if (kStudioV2Enabled && kCommerceBuild) {
     WidgetsFlutterBinding.ensureInitialized();
     // The Studio asks who is signed in so saved designs belong to an account,
     // and reads the live store price. Both go through Firebase, and an
@@ -83,7 +87,7 @@ Future<void> main() async {
             regionGeo.buffer.asUint8List(),
           ),
         ],
-        child: const StudioV2Entry(),
+        child: CommerceEntry.studio(),
       ),
     );
     return;

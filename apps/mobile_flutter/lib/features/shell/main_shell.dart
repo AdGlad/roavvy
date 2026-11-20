@@ -17,8 +17,7 @@ import '../journal/journal_screen.dart';
 import '../journal/trip_detail_screen.dart';
 import '../map/country_profile_screen.dart';
 import '../map/map_screen.dart';
-import '../merch/merch_cart_screen.dart';
-import '../merch/merch_shop_screen.dart';
+import '../commerce_entry/commerce_entry.dart';
 import '../scan/scan_screen.dart';
 import '../stats/stats_screen.dart';
 import '../travel_timeline/travel_timeline_screen.dart';
@@ -321,7 +320,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                   // AppTab.journal => JournalScreen(onNavigateToScan: () => _goToScan(autoStart: true, forceFullScan: true)),
                   AppTab.journey => const TravelTimelineScreen(),
                   AppTab.stats => const StatsScreen(),
-                  AppTab.shop => const MerchShopScreen(),
+                  AppTab.shop => CommerceEntry.shopTab(),
                   AppTab.play => const WorldLeapLobbyScreen(),
                 },
               ),

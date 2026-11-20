@@ -13,7 +13,7 @@ import '../map/country_visual_state.dart';
 import '../map/country_celebration_carousel.dart';
 import '../map/discovery_overlay.dart';
 import '../map/rovy_bubble.dart';
-import '../merch/merch_country_selection_screen.dart';
+import '../commerce_entry/commerce_entry.dart';
 import '../merch/travel_story_data.dart';
 import '../merch/travel_story_screen.dart';
 import '../cards/card_type_picker_screen.dart';
@@ -610,20 +610,18 @@ class _NewDiscoveriesStateState extends ConsumerState<_NewDiscoveriesState>
                 child: const Text('Create a travel card →'),
               ),
             ),
-            // Secondary CTA — commerce entry point (ADR-085)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-              child: TextButton(
-                onPressed:
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder:
-                            (_) => MerchCountrySelectionScreen(
-                              preSelectedCodes: widget.newCodes,
-                            ),
+            // Secondary CTA — commerce entry point (ADR-085, ADR-180)
+            CommerceGate(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                child: TextButton(
+                  onPressed:
+                      () => CommerceEntry.openCountryMerch(
+                        context,
+                        preSelectedCodes: widget.newCodes,
                       ),
-                    ),
-                child: const Text('Get a poster with your new discoveries →'),
+                  child: const Text('Get a poster with your new discoveries →'),
+                ),
               ),
             ),
             // Primary CTA

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../../core/theme/roavvy_colours.dart';
-import '../../merch/achievement_merch_option_screen.dart';
+import '../../commerce_entry/commerce_entry.dart';
 
 /// Merch Moments section — up to 5 most recently unlocked merch-eligible
 /// achievements with an emotional gradient CTA (M97, ADR-148, M147).
@@ -145,14 +145,7 @@ class _MerchMomentTile extends StatelessWidget {
           // ── CTA button ────────────────────────────────────────
           FilledButton(
             onPressed:
-                () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder:
-                        (_) => AchievementMerchOptionScreen(
-                          achievement: achievement,
-                        ),
-                  ),
-                ),
+                () => CommerceEntry.openAchievementMerch(context, achievement),
             style: FilledButton.styleFrom(
               backgroundColor: RoavvyColours.roavvyGold,
               foregroundColor: Colors.black87,

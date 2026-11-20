@@ -2,7 +2,7 @@
 
 **Phase:** Free Launch (M184–M189)
 **Depends on:** M184
-**Status:** Todo
+**Status:** Done (manual walk → M189 device QA)
 **Primary target:** `features/commerce_entry/` (new) and the ~15 call sites below
 
 ---
@@ -64,6 +64,24 @@ card picker when commerce is off. Check each one: the shareable card templates s
 
 - [ ] With commerce off, a full manual walk of the app (scan → summary → story → map → trip
       sheet → stats → achievements → memory reveal → cards → replay → year in review →
-      settings) shows no route to generating or buying a garment.
-- [ ] Architecture and sweep tests are green and run in CI.
-- [ ] With commerce on, behaviour is identical to today.
+      settings) shows no route to generating or buying a garment. *(Device QA, M189.)*
+- [x] Architecture and sweep tests are green and run in CI (`flutter_ci.yml` runs the suite).
+- [x] With commerce on, behaviour is identical to today (affected tests pass with
+      `--dart-define=ROAVVY_COMMERCE=true`).
+
+## 6. As built
+
+- `features/commerce_entry/commerce_entry.dart`: `CommerceEntry` (`isAvailable`, openers for
+  achievement / pulse / country / card print / orders, `shopTab`, `studio`), `CardPrintRequest`,
+  `CommerceGate`. It re-exports `merchCartCountProvider` for the shell.
+- Every call site in §3 is hidden when commerce is off. Rows and button bars take a nullable
+  callback (`onPrint`, `onCreateTShirt`, `onDesign`); null hides the button.
+- Travel story: with commerce off the last page reads "That was your <year>" with Share and
+  Done, and there's no shirt preview.
+- `main.dart`: the dev `STUDIO_V2` boot now also needs `kCommerceBuild`, so release builds
+  tree-shake it out.
+- Card pickers never listed `frontRibbon`, so nothing was removed.
+- Allow-listed in the boundary test: `merch/travel_story_screen.dart` (the free story), plus
+  the dev entrypoints `main_studio_v2.dart` and `main_mockup_lab.dart`.
+- Out of scope, noted for M188/M189: the replay summary "Share" button shows "Share coming
+  soon". That is a placeholder App Review may flag.

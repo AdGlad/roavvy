@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
-import '../merch/merch_country_selection_screen.dart';
+import '../commerce_entry/commerce_entry.dart';
 import 'country_scene_icons.dart';
 
 final _kDayMonthYear = DateFormat('d MMM yyyy');
@@ -43,7 +44,7 @@ class TripDetailSheet extends StatelessWidget {
   }
 }
 
-class _TripDetailContent extends StatelessWidget {
+class _TripDetailContent extends ConsumerWidget {
   const _TripDetailContent({
     required this.trip,
     required this.isFirstVisit,
@@ -57,7 +58,8 @@ class _TripDetailContent extends StatelessWidget {
   final ScrollController scrollController;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final commerce = CommerceEntry.isAvailable(ref);
     final cs = Theme.of(context).colorScheme;
     final cc = trip.countryCode.toUpperCase();
     final countryName = kCountryNames[cc] ?? cc;
@@ -130,24 +132,23 @@ class _TripDetailContent extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _ActionButton(
-                    label: 'Design a shirt',
-                    icon: Icons.checkroom_outlined,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute(
-                          builder:
-                              (_) => MerchCountrySelectionScreen(
-                                preSelectedCodes: [cc],
-                              ),
-                        ),
-                      );
-                    },
+                if (commerce) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ActionButton(
+                      label: 'Design a shirt',
+                      icon: Icons.checkroom_outlined,
+                      onTap: () {
+                        final nav = Navigator.of(context);
+                        nav.pop();
+                        CommerceEntry.openCountryMerch(
+                          nav.context,
+                          preSelectedCodes: [cc],
+                        );
+                      },
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(width: 8),
                 Expanded(
                   child: _ActionButton(
@@ -290,20 +291,19 @@ class _AchievementDetailContent extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // CTA button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: FilledButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push<void>(
-                  MaterialPageRoute(
-                    builder: (_) => const MerchCountrySelectionScreen(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.checkroom_outlined),
-              label: const Text('Design your achievement shirt'),
+          // CTA button (commerce only, ADR-180)
+          CommerceGate(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: FilledButton.icon(
+                onPressed: () {
+                  final nav = Navigator.of(context);
+                  nav.pop();
+                  CommerceEntry.openCountryMerch(nav.context);
+                },
+                icon: const Icon(Icons.checkroom_outlined),
+                label: const Text('Design your achievement shirt'),
+              ),
             ),
           ),
 

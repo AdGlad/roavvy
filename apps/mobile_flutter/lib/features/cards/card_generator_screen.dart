@@ -14,7 +14,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
-import '../merch/local_mockup_preview_screen.dart';
+import '../commerce_entry/commerce_entry.dart';
 import 'artwork_confirmation_screen.dart';
 import 'artwork_confirmation_service.dart';
 import 'card_image_renderer.dart';
@@ -514,13 +514,15 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
                 printing: _printing,
                 onShare: () => _onShare(context, selectedCodes),
                 onPrint:
-                    () => _onPrint(
-                      context,
-                      selectedCodes,
-                      selectedTrips,
-                      effectiveRange,
-                      showDateSlider,
-                    ),
+                    CommerceEntry.isAvailable(ref)
+                        ? () => _onPrint(
+                          context,
+                          selectedCodes,
+                          selectedTrips,
+                          effectiveRange,
+                          showDateSlider,
+                        )
+                        : null,
               ),
               SizedBox(height: MediaQuery.paddingOf(context).bottom + 16),
             ],
@@ -846,27 +848,24 @@ class _CardGeneratorScreenState extends ConsumerState<CardGeneratorScreen> {
     // guarded by _navigateToPrint which sets them before calling this method.
     // Pass confirmedAspectRatio and confirmedEntryOnly so any template-change
     // re-render inside LocalMockupPreviewScreen uses consistent params.
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder:
-            (_) => LocalMockupPreviewScreen(
-              selectedCodes: codes,
-              allCodes: _cachedAllCodes,
-              trips: _lastConfirmedTrips ?? const [],
-              artworkImageBytes: _artworkImageBytes!,
-              artworkConfirmationId: _artworkConfirmationId!,
-              initialTemplate: _selected,
-              initialJourneyStyle: _journeyStyle,
-              confirmedAspectRatio: _aspectRatio,
-              confirmedEntryOnly: _entryOnly,
-              cardId: cardId,
-              titleOverride: _titleOverride,
-              stampColor: _stampColor,
-              dateColor: _dateColor,
-              // Use the confirmed params' value — always set before this is called.
-              transparentBackground:
-                  _lastConfirmedParams!.transparentBackground,
-            ),
+    CommerceEntry.openCardPrint(
+      context,
+      CardPrintRequest(
+        selectedCodes: codes,
+        allCodes: _cachedAllCodes,
+        trips: _lastConfirmedTrips ?? const [],
+        artworkImageBytes: _artworkImageBytes!,
+        artworkConfirmationId: _artworkConfirmationId!,
+        initialTemplate: _selected,
+        initialJourneyStyle: _journeyStyle,
+        confirmedAspectRatio: _aspectRatio,
+        confirmedEntryOnly: _entryOnly,
+        cardId: cardId,
+        titleOverride: _titleOverride,
+        stampColor: _stampColor,
+        dateColor: _dateColor,
+        // Use the confirmed params' value — always set before this is called.
+        transparentBackground: _lastConfirmedParams!.transparentBackground,
       ),
     );
   }
@@ -1559,13 +1558,15 @@ class _ActionBar extends StatelessWidget {
     required this.sharing,
     required this.printing,
     required this.onShare,
-    required this.onPrint,
+    this.onPrint,
   });
 
   final bool sharing;
   final bool printing;
   final VoidCallback onShare;
-  final VoidCallback onPrint;
+
+  /// Null hides the Print button (commerce off, ADR-180).
+  final VoidCallback? onPrint;
 
   @override
   Widget build(BuildContext context) {
@@ -1590,24 +1591,26 @@ class _ActionBar extends StatelessWidget {
               label: const Text('Share'),
             ),
           ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: (sharing || printing) ? null : onPrint,
-              icon:
-                  printing
-                      ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator.adaptive(
-                          strokeWidth: 2,
-                        ),
-                      )
-                      : const Icon(Icons.print_outlined),
-              label: const Text('Print your card'),
+          if (onPrint != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: (sharing || printing) ? null : onPrint,
+                icon:
+                    printing
+                        ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator.adaptive(
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : const Icon(Icons.print_outlined),
+                label: const Text('Print your card'),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

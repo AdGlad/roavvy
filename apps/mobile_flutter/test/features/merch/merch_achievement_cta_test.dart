@@ -9,6 +9,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_flutter/core/commerce/commerce_flag.dart';
 import 'package:shared_models/shared_models.dart';
 
 import 'package:mobile_flutter/features/scan/achievement_unlock_sheet.dart';
@@ -35,32 +37,39 @@ final _achNoMerch = Achievement(
 
 final _unlockedAt = DateTime(2025, 6, 1);
 
-Widget _wrap(Widget child) => MaterialApp(
-      home: Scaffold(body: child),
-    );
+// Merch CTAs only exist in a commerce build (ADR-180).
+Widget _wrap(Widget child) => ProviderScope(
+  overrides: [
+    commerceBuildProvider.overrideWithValue(true),
+    commerceRemoteSwitchProvider.overrideWithValue(true),
+  ],
+  child: MaterialApp(home: Scaffold(body: child)),
+);
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 void main() {
   group('AchievementUnlockSheet merch CTA', () {
     testWidgets(
-        'shows "Design your merch" button when unlocked and merch != null',
-        (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          AchievementUnlockSheet(
-            achievement: _achWithMerch,
-            unlockedAt: _unlockedAt,
+      'shows "Design your merch" button when unlocked and merch != null',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            AchievementUnlockSheet(
+              achievement: _achWithMerch,
+              unlockedAt: _unlockedAt,
+            ),
           ),
-        ),
-      );
-      await tester.pump();
+        );
+        await tester.pump();
 
-      expect(find.text('Design your merch'), findsOneWidget);
-    });
+        expect(find.text('Design your merch'), findsOneWidget);
+      },
+    );
 
-    testWidgets('hides merch button when unlocked but merch == null',
-        (tester) async {
+    testWidgets('hides merch button when unlocked but merch == null', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           AchievementUnlockSheet(
@@ -74,8 +83,9 @@ void main() {
       expect(find.text('Design your merch'), findsNothing);
     });
 
-    testWidgets('hides merch button when achievement is locked',
-        (tester) async {
+    testWidgets('hides merch button when achievement is locked', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           AchievementUnlockSheet(
