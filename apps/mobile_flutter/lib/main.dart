@@ -42,6 +42,11 @@ void _stage(String name) {
 const bool kStudioV2Enabled = bool.fromEnvironment('STUDIO_V2');
 
 Future<void> main() async {
+  // A release build is the App Store build: never the dev Studio shell
+  // (M189). `assert` is stripped from release, so this is a real check.
+  if (kReleaseMode && kStudioV2Enabled) {
+    throw StateError('STUDIO_V2 must not be set in a release build.');
+  }
   // Studio is commerce: a build without ROAVVY_COMMERCE never boots it, and
   // the whole branch is tree-shaken out (ADR-180).
   if (kStudioV2Enabled && kCommerceBuild) {
