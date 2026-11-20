@@ -71,7 +71,7 @@ stabilisation debt found in the 2026-11-20 state review.
 ## 5. Owner steps left
 
 1. **T4 device QA** on a physical iPhone, release build from `scripts/build_ios_release.sh`.
-   Walk the list in T2 above; confirm App Attest gives no 403 and that a network capture of a
+   Walk the list in T4 above; confirm App Attest gives no 403 and that a network capture of a
    full session shows no `getMerchPrices` / `createMerchCart` / Shopify calls.
 2. **T5** `scripts/build_ios_release.sh --build-number <n>` (pubspec is already `1.0.0+1`) →
    upload with Transporter or Xcode Organizer → TestFlight internal ≥ 3 days, Crashlytics clean →
