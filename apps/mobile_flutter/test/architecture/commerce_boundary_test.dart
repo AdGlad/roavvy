@@ -71,6 +71,23 @@ void main() {
     );
   });
 
+  test('commerce Cloud Functions are only called from commerce code', () {
+    // M187: a commerce-off session must make no commerce network calls, so
+    // the callables must stay behind the screens CommerceEntry gates.
+    final callable = RegExp(
+      r'''httpsCallable\(\s*['"](createMerchCart|getMerchPrices)['"]''',
+    );
+    final violations = <String>[];
+    for (final file
+        in Directory(lib).listSync(recursive: true).whereType<File>()) {
+      if (!file.path.endsWith('.dart')) continue;
+      final rel = file.path.replaceAll(r'\', '/').substring('$lib/'.length);
+      if (isCommerceOwner(rel)) continue;
+      if (callable.hasMatch(file.readAsStringSync())) violations.add(rel);
+    }
+    expect(violations, isEmpty);
+  });
+
   test('the rule catches a direct import (self-check)', () {
     expect(isCommerceRoute('features/merch/merch_orders_screen.dart'), isTrue);
     expect(

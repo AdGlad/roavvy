@@ -13,6 +13,7 @@ import type {
   ShopifyCartCreateResponse,
 } from './types';
 import { generateFlagGrid } from './imageGen';
+import { assertCommerceEnabled } from './commerceGate';
 import { PRINT_DIMENSIONS, PRINTFUL_VARIANT_IDS } from './printDimensions';
 export { scheduleDailyChallenge, getDailyChallenge } from './dailyChallenge';
 export { critiqueDesigns } from './aiCritic';
@@ -218,6 +219,7 @@ export const getMerchPrices = onCall<
   { countryCode?: string },
   Promise<{ tshirtPrice: ShopifyMoneyV2; posterPrice: ShopifyMoneyV2 }>
 >(async (request) => {
+  assertCommerceEnabled();
   const storefrontToken = process.env['SHOPIFY_STOREFRONT_TOKEN'];
   const storeDomain = process.env['SHOPIFY_STORE_DOMAIN'];
   if (!storefrontToken || !storeDomain) {
@@ -303,6 +305,9 @@ export const createMerchCart = onCall<
   async (request) => {
     const fnT0 = Date.now();
     const fnElapsed = () => `+${Date.now() - fnT0}ms`;
+
+    // ADR-180: refuse before any work when commerce is off.
+    assertCommerceEnabled();
 
     // Auth check
     if (!request.auth) {

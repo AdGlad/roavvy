@@ -43,6 +43,7 @@ const storage_1 = require("firebase-admin/storage");
 const https_1 = require("firebase-functions/v2/https");
 const crypto = __importStar(require("crypto"));
 const imageGen_1 = require("./imageGen");
+const commerceGate_1 = require("./commerceGate");
 const printDimensions_1 = require("./printDimensions");
 var dailyChallenge_1 = require("./dailyChallenge");
 Object.defineProperty(exports, "scheduleDailyChallenge", { enumerable: true, get: function () { return dailyChallenge_1.scheduleDailyChallenge; } });
@@ -208,6 +209,7 @@ const MERCH_PRICES_QUERY = `
  * Falls back to GBP if the country code is invalid or omitted.
  */
 exports.getMerchPrices = (0, https_1.onCall)(async (request) => {
+    (0, commerceGate_1.assertCommerceEnabled)();
     const storefrontToken = process.env['SHOPIFY_STOREFRONT_TOKEN'];
     const storeDomain = process.env['SHOPIFY_STORE_DOMAIN'];
     if (!storefrontToken || !storeDomain) {
@@ -274,6 +276,8 @@ exports.getMerchPrices = (0, https_1.onCall)(async (request) => {
 exports.createMerchCart = (0, https_1.onCall)({ timeoutSeconds: 300, memory: '2GiB' }, async (request) => {
     const fnT0 = Date.now();
     const fnElapsed = () => `+${Date.now() - fnT0}ms`;
+    // ADR-180: refuse before any work when commerce is off.
+    (0, commerceGate_1.assertCommerceEnabled)();
     // Auth check
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'Authentication required.');
