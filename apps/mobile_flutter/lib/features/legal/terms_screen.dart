@@ -315,17 +315,20 @@ class _TermsContent extends StatelessWidget {
           'Platform-generated designs without our written permission.',
         ),
 
-        // 10. Social features
-        h('Social Features'),
-        _p(
-          'Roavvy includes social features such as following other users, '
-          'liking content, and comments. You agree to use these features '
-          'respectfully and in accordance with our Community Guidelines.',
-        ),
-        _p(
-          'We reserve the right to remove any content, disable social features, '
-          'or suspend accounts that violate our Community Guidelines or these Terms.',
-        ),
+        // Social features: commerce Terms only. The free app has none (M188
+        // sign-off), so the free Terms don't claim them.
+        if (commerce) ...[
+          h('Social Features'),
+          _p(
+            'Roavvy includes social features such as following other users, '
+            'liking content, and comments. You agree to use these features '
+            'respectfully and in accordance with our Community Guidelines.',
+          ),
+          _p(
+            'We reserve the right to remove any content, disable social features, '
+            'or suspend accounts that violate our Community Guidelines or these Terms.',
+          ),
+        ],
 
         // 11. Privacy
         h('Privacy'),

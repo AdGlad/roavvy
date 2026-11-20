@@ -70,3 +70,9 @@ invites a rejection under 2.3 (accurate metadata), and it is also misleading.
 - In-app Terms §10 "Social Features" describes following, likes and comments. Confirm v1.0 has
   them, or remove the section.
 - Deploy the website from `apps/web_marketing` once signed off.
+
+## Owner decisions (2026-11-20)
+
+- Terms §10 Social Features: **removed from the free Terms** (the app has no social features).
+  It stays in the commerce Terms. Free Terms now end at §12 Governing Law; still v1.2 (unreleased).
+- Homepage testimonials (Sarah M., James K.): **removed** (not real users).

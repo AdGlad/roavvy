@@ -27,6 +27,7 @@ void main() {
       'Shopify',
       'Subscription',
       'Promotional',
+      'Social Features',
       'purchas', // purchase, purchasing (the free clause says "no purchases")
     ]) {
       final hits = RegExp(banned).allMatches(text).length;
@@ -34,7 +35,7 @@ void main() {
       expect(hits, allowed, reason: '"$banned" in the free Terms');
     }
     // Sections renumber with no gaps.
-    expect(text, contains('13. Governing Law'));
+    expect(text, contains('12. Governing Law'));
   });
 
   testWidgets('commerce Terms keep the merchandise clauses', (tester) async {
