@@ -18,6 +18,19 @@
 
 **Owner decisions:** Terms/Privacy wording (M188-T2), website wording (M188-T4), prod functions deploy (M187-T4), App Store Connect submission (M189-T5).
 
+**Progress (2026-11-20):** branches are stacked, each on the one before; no PRs yet.
+
+| M | Status | Commit · branch |
+|---|---|---|
+| M184 | Done | f8b14c41 · feat/m184-commerce-flag (off gcpstartup) |
+| M185 | Done | 4351b84d · feat/m185-shell-without-shop |
+| M186 | Done (#116 closed) | de09dafb · feat/m186-commerce-entry-seam |
+| M187 | Code done, deployed to dev; **prod functions deploy awaits owner** (#117 open) | f46a5b1c, fb391bbe · feat/m187-no-commerce-network |
+| M188 | Drafts done; **awaiting owner sign-off and website deploy** (#118 open) | a8949bc0 · feat/m188-free-launch-copy |
+| M189 | **Next** | branch off feat/m188-free-launch-copy |
+
+M188 open questions are in the "Open for the owner" section of its milestone doc (homepage testimonials, Terms §10 Social Features, privacy-label checks). Also carry into M189: the replay summary's "Share coming soon" placeholder (an App Review risk).
+
 ---
 
 # PREVIOUS HANDOFF (2026-09-03), retained below
