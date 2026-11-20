@@ -2,7 +2,7 @@
 
 **Phase:** Free Launch (M184–M189)
 **Depends on:** M184–M188
-**Status:** Todo
+**Status:** In progress (T1–T3, T6 done; T4–T5 need the owner and a device)
 **Primary target:** release build · `apps/mobile_flutter` · CI
 
 ---
@@ -44,7 +44,36 @@ stabilisation debt found in the 2026-11-20 state review.
 
 ## 3. Acceptance
 
-- [ ] The release script refuses a commerce or dev build.
-- [ ] `flutter analyze` reports 0 errors and `flutter test` passes in both modes.
+- [x] The release script refuses a commerce or dev build.
+- [x] `flutter analyze` reports 0 errors and `flutter test` passes in both modes.
 - [ ] The TestFlight build passes the full QA walk on a device.
 - [ ] Submitted to App Review.
+
+## 4. As built (2026-11-20, branch `feat/m189-release-hardening`)
+
+- **T1** `54fff3a2`: `scripts/build_ios_release.sh` (checked with `--dry-run`: clean args pass;
+  `ROAVVY_COMMERCE`, `STUDIO_V2`, env `STUDIO_V2_TRACE`, `-t lib/main_studio_v2.dart`, `--debug`
+  are each refused). `main.dart` throws in release if `STUDIO_V2` is set (a real check, since
+  `assert` is stripped in release).
+- **T2** `54fff3a2`: removed the `kDebugMode` auth-gate bypass and `/dev/quokka` route from
+  `app.dart` (manual revert of `8bf74e38`; the globe default was already restored and the
+  dev FAB already gone). `QuokkaPreviewScreen` is now unused but kept. Removed
+  `studio_v2_trace.dart` and every `v2trace`/`v2bump` call.
+- **T3** `8fc6ba7b`: 55 failures → 0, in both modes (2405 pass commerce off, 2404 + 1 skip on).
+  Deleted 7 Studio V2 files (40 tests) that tapped removed stage tabs; the `*_customise` and
+  `review_buy` tests cover the current flow. Dropped one stage-navigation case in
+  `startup_idle_test`. `merch_variant_screen_test` gets a ProviderScope with stubbed prices
+  (13). `merch_template_ranker_test` follows the deliberate grid-first change (1).
+- **Extra** `5201b1be`: the replay summary's Share button showed "Share coming soon"; it is now
+  hidden (App Review 2.1 risk).
+- **T6**: `docs/dev/current_state.md` rewritten for 1.0 and the commerce flag.
+
+## 5. Owner steps left
+
+1. **T4 device QA** on a physical iPhone, release build from `scripts/build_ios_release.sh`.
+   Walk the list in T2 above; confirm App Attest gives no 403 and that a network capture of a
+   full session shows no `getMerchPrices` / `createMerchCart` / Shopify calls.
+2. **T5** `scripts/build_ios_release.sh --build-number <n>` (pubspec is already `1.0.0+1`) →
+   upload with Transporter or Xcode Organizer → TestFlight internal ≥ 3 days, Crashlytics clean →
+   submit with `docs/product/app_store_listing_v1.md`.
+3. Before submitting: M187 prod functions deploy, M188 sign-off and website deploy.

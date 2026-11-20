@@ -27,7 +27,7 @@
 | M186 | Done (#116 closed) | de09dafb · feat/m186-commerce-entry-seam |
 | M187 | Code done, deployed to dev; **prod functions deploy awaits owner** (#117 open) | f46a5b1c, fb391bbe · feat/m187-no-commerce-network |
 | M188 | Drafts done; **awaiting owner sign-off and website deploy** (#118 open) | a8949bc0 · feat/m188-free-launch-copy |
-| M189 | **Next** | branch off feat/m188-free-launch-copy |
+| M189 | T1–T3, T6 + replay Share fix done; **T4 device QA and T5 TestFlight/submit await owner** (#119 open) | 54fff3a2, 8fc6ba7b, 5201b1be · feat/m189-release-hardening |
 
 M188 open questions are in the "Open for the owner" section of its milestone doc (homepage testimonials, Terms §10 Social Features, privacy-label checks). Also carry into M189: the replay summary's "Share coming soon" placeholder (an App Review risk).
 
