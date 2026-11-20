@@ -20,13 +20,15 @@ class RemoteConfigService {
   /// until the fetch lands; providers are refreshed via [onUpdate].
   static Future<void> initialise() async {
     final rc = FirebaseRemoteConfig.instance;
-    await rc.setConfigSettings(RemoteConfigSettings(
-      fetchTimeout: const Duration(seconds: 10),
-      // Debug/emulator: fetch on every call. Production: honour the 1-hour
-      // minimum enforced by the Firebase SDK to avoid quota exhaustion.
-      minimumFetchInterval:
-          kDebugMode ? Duration.zero : const Duration(hours: 1),
-    ));
+    await rc.setConfigSettings(
+      RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 10),
+        // Debug/emulator: fetch on every call. Production: honour the 1-hour
+        // minimum enforced by the Firebase SDK to avoid quota exhaustion.
+        minimumFetchInterval:
+            kDebugMode ? Duration.zero : const Duration(hours: 1),
+      ),
+    );
     await rc.setDefaults(const {
       // ADR-180 kill switch: can only turn commerce off; the build decides
       // whether it exists at all (ROAVVY_COMMERCE).

@@ -276,8 +276,9 @@ final globeRotationPausedProvider = StateProvider<bool>((ref) => false);
 /// view's FAB stack.
 enum MapOverlayMode { heatmap, heritage }
 
-final mapOverlayModeProvider =
-    StateProvider<MapOverlayMode>((ref) => MapOverlayMode.heatmap);
+final mapOverlayModeProvider = StateProvider<MapOverlayMode>(
+  (ref) => MapOverlayMode.heatmap,
+);
 
 /// Target (lat, lng) in degrees to animate the globe to. Set from outside
 /// (e.g. country flag strip); the globe resets this to null after arriving.
@@ -508,18 +509,18 @@ final travelSummaryProvider = FutureProvider<TravelSummary>((ref) async {
 
 /// Maps a [CardTemplateType] to its Remote Config key.
 String remoteConfigKeyForTemplate(CardTemplateType t) => switch (t) {
-      CardTemplateType.passport => 'purchasing_enabled_passport',
-      CardTemplateType.grid => 'purchasing_enabled_flags',
-      // Journeys are a flag-based design — share the flags purchasing gate.
-      CardTemplateType.journeys => 'purchasing_enabled_flags',
-      CardTemplateType.timeline => 'purchasing_enabled_tour_dates',
-      CardTemplateType.heart => 'purchasing_enabled_heart_flags',
-      CardTemplateType.frontRibbon => 'purchasing_enabled_ribbon',
-      CardTemplateType.typography => 'purchasing_enabled_typography',
-      CardTemplateType.badge => 'purchasing_enabled_badge',
-      CardTemplateType.wordCloud => 'purchasing_enabled_word_cloud',
-      CardTemplateType.landmark => 'purchasing_enabled_landmark',
-    };
+  CardTemplateType.passport => 'purchasing_enabled_passport',
+  CardTemplateType.grid => 'purchasing_enabled_flags',
+  // Journeys are a flag-based design — share the flags purchasing gate.
+  CardTemplateType.journeys => 'purchasing_enabled_flags',
+  CardTemplateType.timeline => 'purchasing_enabled_tour_dates',
+  CardTemplateType.heart => 'purchasing_enabled_heart_flags',
+  CardTemplateType.frontRibbon => 'purchasing_enabled_ribbon',
+  CardTemplateType.typography => 'purchasing_enabled_typography',
+  CardTemplateType.badge => 'purchasing_enabled_badge',
+  CardTemplateType.wordCloud => 'purchasing_enabled_word_cloud',
+  CardTemplateType.landmark => 'purchasing_enabled_landmark',
+};
 
 /// Whether in-app purchasing is enabled globally.
 ///
@@ -543,7 +544,9 @@ final purchasingEnabledProvider = Provider<bool>((ref) {
 final studioV2FulfilmentEnabledProvider = Provider<bool>((ref) {
   if (!ref.watch(purchasingEnabledProvider)) return false;
   try {
-    return FirebaseRemoteConfig.instance.getBool('studio_v2_fulfilment_enabled');
+    return FirebaseRemoteConfig.instance.getBool(
+      'studio_v2_fulfilment_enabled',
+    );
   } catch (_) {
     // No Remote Config (dev entrypoints, tests): closed, never open.
     return false;
@@ -582,51 +585,52 @@ class CountryDetailState {
 ///
 /// Keyed on isoCode so each country caches independently.
 /// Invalidated by [CountryProfileScreen] after trip edits/deletes.
-final countryDetailProvider =
-    FutureProvider.family<CountryDetailState, String>((ref, isoCode) async {
-  final tripRepo = ref.read(tripRepositoryProvider);
-  final regionRepo = ref.read(regionRepositoryProvider);
-  final heritageRepo = ref.read(heritageRepositoryProvider);
-  final visitRepo = ref.read(visitRepositoryProvider);
+final countryDetailProvider = FutureProvider.family<CountryDetailState, String>(
+  (ref, isoCode) async {
+    final tripRepo = ref.read(tripRepositoryProvider);
+    final regionRepo = ref.read(regionRepositoryProvider);
+    final heritageRepo = ref.read(heritageRepositoryProvider);
+    final visitRepo = ref.read(visitRepositoryProvider);
 
-  final (trips, regionVisits, visitedSites, assetIds) = await (
-    tripRepo.loadByCountry(isoCode),
-    regionRepo.loadByCountry(isoCode),
-    heritageRepo.loadByCountry(isoCode),
-    visitRepo.loadAssetIds(isoCode),
-  ).wait;
+    final (trips, regionVisits, visitedSites, assetIds) =
+        await (
+          tripRepo.loadByCountry(isoCode),
+          regionRepo.loadByCountry(isoCode),
+          heritageRepo.loadByCountry(isoCode),
+          visitRepo.loadAssetIds(isoCode),
+        ).wait;
 
-  final visitedRegionCodes =
-      regionVisits.map((r) => r.regionCode).toSet();
+    final visitedRegionCodes = regionVisits.map((r) => r.regionCode).toSet();
 
-  final allSites = WorldHeritageLookupService.sitesForCountry(isoCode);
-  final visitedSiteIds = visitedSites.map((s) => s.siteId).toSet();
-  final unvisitedSites =
-      allSites.where((s) => !visitedSiteIds.contains(s.siteId)).toList();
+    final allSites = WorldHeritageLookupService.sitesForCountry(isoCode);
+    final visitedSiteIds = visitedSites.map((s) => s.siteId).toSet();
+    final unvisitedSites =
+        allSites.where((s) => !visitedSiteIds.contains(s.siteId)).toList();
 
-  // Total region count from bundled binary (synchronous).
-  final totalRegions = regionPolygonsForCountry(isoCode).length;
+    // Total region count from bundled binary (synchronous).
+    final totalRegions = regionPolygonsForCountry(isoCode).length;
 
-  final stats = CountryStats.compute(
-    trips: trips,
-    visitedRegionCodes: visitedRegionCodes,
-    totalRegions: totalRegions,
-    visitedHeritageSites: visitedSites.length,
-    totalHeritageSites: allSites.length,
-    visit: null, // visit passed separately from caller
-  );
+    final stats = CountryStats.compute(
+      trips: trips,
+      visitedRegionCodes: visitedRegionCodes,
+      totalRegions: totalRegions,
+      visitedHeritageSites: visitedSites.length,
+      totalHeritageSites: allSites.length,
+      visit: null, // visit passed separately from caller
+    );
 
-  return CountryDetailState(
-    trips: trips,
-    visitedRegionCodes: visitedRegionCodes,
-    visitedSites: visitedSites,
-    unvisitedSites: unvisitedSites,
-    allSitesInCountry: allSites,
-    photoAssetIds: assetIds,
-    stats: stats,
-    totalRegions: totalRegions,
-  );
-});
+    return CountryDetailState(
+      trips: trips,
+      visitedRegionCodes: visitedRegionCodes,
+      visitedSites: visitedSites,
+      unvisitedSites: unvisitedSites,
+      allSitesInCountry: allSites,
+      photoAssetIds: assetIds,
+      stats: stats,
+      totalRegions: totalRegions,
+    );
+  },
+);
 
 /// Whether a specific shirt template type is available for purchase.
 ///
@@ -635,16 +639,16 @@ final countryDetailProvider =
 /// to [true] (fail-open).
 final purchasingEnabledForTemplateProvider =
     Provider.family<bool, CardTemplateType>((ref, template) {
-  if (!ref.watch(purchasingEnabledProvider)) return false;
-  final key = remoteConfigKeyForTemplate(template);
-  return FirebaseRemoteConfig.instance.getBool(key);
-});
+      if (!ref.watch(purchasingEnabledProvider)) return false;
+      final key = remoteConfigKeyForTemplate(template);
+      return FirebaseRemoteConfig.instance.getBool(key);
+    });
 
 /// UNESCO Nearby Explorer — provides location-based site discovery.
 final unescoNearbyProvider =
     AsyncNotifierProvider<UnescoNearbyNotifier, UnescoNearbyState>(
-  UnescoNearbyNotifier.new,
-);
+      UnescoNearbyNotifier.new,
+    );
 
 // ── Photo GPS cache & map thumbnails (M167–M170) ─────────────────────────────
 
@@ -654,12 +658,7 @@ final showPhotoThumbnailsProvider = StateProvider<bool>((ref) => true);
 
 /// Current flat-map viewport, updated via [MapOptions.onPositionChanged].
 /// null until the map first moves. Used by [MapPhotoStrip].
-typedef MapViewport = ({
-  double north,
-  double south,
-  double east,
-  double west
-});
+typedef MapViewport = ({double north, double south, double east, double west});
 
 final mapViewportProvider = StateProvider<MapViewport?>((ref) => null);
 
