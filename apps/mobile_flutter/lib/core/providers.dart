@@ -697,13 +697,17 @@ final photoGpsFetchServiceProvider = Provider<PhotoGpsFetchService>(
   ),
 );
 
-/// Triggers a background GPS fetch whenever the map screen is active (M155).
-///
-/// autoDispose so it re-runs each time the map tab is re-entered, picking up
-/// photos added by a new scan. [fetchAndCache] is idempotent — already-cached
+/// Triggers a background GPS fetch while the map screen is active (M155), and
+/// again whenever the visited countries change (after a scan), picking up
+/// photos added by it. [fetchAndCache] is idempotent — already-cached
 /// assets are skipped, so re-running after nothing changed is cheap.
 /// Invalidates [photoLocationsProvider] after completion.
 final photoGpsFetchProvider = FutureProvider.autoDispose<void>((ref) async {
+  // The map tab stays alive in the shell, so this provider is never disposed
+  // and "re-entering the tab" never re-runs it. Depend on the visits instead:
+  // every scan (and manual edit) refreshes them, so the photos a first scan
+  // finds reach the globe without an app restart (M189 QA).
+  await ref.watch(effectiveVisitsProvider.future);
   await ref.read(photoGpsFetchServiceProvider).fetchAndCache();
   ref.invalidate(photoLocationsProvider);
 });

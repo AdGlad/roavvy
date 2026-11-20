@@ -98,5 +98,7 @@
 		<string>com.roavvy.app.notification-refresh</string>
 	</array>
 
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

@@ -188,6 +188,12 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
   bool _openScanOnLoad = false;
   bool _termsShowing = false;
 
+  /// Set the moment the user accepts, so the gate never relies on re-reading
+  /// prefs. After the 10s watchdog fires, a reloading [termsAcceptedProvider]
+  /// still reports the stale `false`, which used to push a second Terms
+  /// screen on top of the app (M189 device QA).
+  bool _termsAcceptedNow = false;
+
   // T4 — show "Restoring your map…" only if startup takes > 2 s (ADR-160).
   bool _showRestoreIndicator = false;
   Timer? _restoreTimer;
@@ -233,6 +239,7 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
     );
     _termsShowing = false;
     if (accepted == true && mounted) {
+      setState(() => _termsAcceptedNow = true);
       ref.invalidate(termsAcceptedProvider);
     }
   }
@@ -272,7 +279,8 @@ class _OnboardingGateState extends ConsumerState<_OnboardingGate> {
       );
     }
 
-    final termsAccepted = termsAsync.valueOrNull ?? false;
+    final termsAccepted =
+        _termsAcceptedNow || (termsAsync.valueOrNull ?? false);
     if (!termsAccepted) {
       // Auto-push terms screen on the next frame.
       WidgetsBinding.instance.addPostFrameCallback((_) => _pushTerms());

@@ -44,51 +44,57 @@ class _TermsScreenState extends State<TermsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Terms & Conditions'),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: _TermsContent(theme: theme, commerce: widget.commerce),
+    // When acceptance is required there is nowhere to go back to: popping
+    // without accepting would leave the startup gate on a spinner.
+    return PopScope(
+      canPop: !widget.requireAccept,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Terms & Conditions'),
+          centerTitle: true,
+          automaticallyImplyLeading: !widget.requireAccept,
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: _TermsContent(theme: theme, commerce: widget.commerce),
+              ),
             ),
-          ),
-          const Divider(height: 1),
-          if (widget.requireAccept) ...[
-            _AcceptanceRow(
-              accepted: _accepted,
-              onChanged: (v) => setState(() => _accepted = v ?? false),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: FilledButton(
-                onPressed: (_accepted && !_saving) ? _onAccept : null,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+            const Divider(height: 1),
+            if (widget.requireAccept) ...[
+              _AcceptanceRow(
+                accepted: _accepted,
+                onChanged: (v) => setState(() => _accepted = v ?? false),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                child: FilledButton(
+                  onPressed: (_accepted && !_saving) ? _onAccept : null,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  child:
+                      _saving
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : const Text('Accept & Continue'),
                 ),
-                child:
-                    _saving
-                        ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                        : const Text('Accept & Continue'),
               ),
-            ),
-          ] else
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
+            ] else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

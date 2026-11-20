@@ -155,95 +155,126 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Scrolls when the keyboard is up: the full column (email, password and
+    // five sign-in options) is taller than the space above the keyboard.
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Roavvy',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
+        child: LayoutBuilder(
+          builder:
+              (context, constraints) => SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.all(32),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: (constraints.maxHeight - 64).clamp(
+                      0,
+                      double.infinity,
+                    ),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Roavvy',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _isSignUp
+                              ? 'Create your account'
+                              : 'Sign in to continue',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 32),
+                        if (_error != null) ...[
+                          Text(
+                            _error!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontSize: 13,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        if (_loading)
+                          const Center(child: CircularProgressIndicator())
+                        else ...[
+                          TextField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            autocorrect: false,
+                            decoration: const InputDecoration(
+                              labelText: 'Email',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Password',
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: _submitEmail,
+                            child: Text(
+                              _isSignUp ? 'Create account' : 'Sign in',
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed:
+                                () => setState(() {
+                                  _isSignUp = !_isSignUp;
+                                  _error = null;
+                                }),
+                            child: Text(
+                              _isSignUp
+                                  ? 'Already have an account? Sign in'
+                                  : 'No account? Create one',
+                            ),
+                          ),
+                          if (!kIsWeb) ...[
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: _signInWithApple,
+                              child: const Text('Sign in with Apple'),
+                            ),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: _signInWithGoogle,
+                              child: const Text('Sign in with Google'),
+                            ),
+                            const SizedBox(height: 8),
+                            ElevatedButton(
+                              onPressed: _signInWithFacebook,
+                              child: const Text('Sign in with Facebook'),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: _continueAnonymously,
+                            child: const Text('Continue anonymously'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                _isSignUp ? 'Create your account' : 'Sign in to continue',
-                style: const TextStyle(fontSize: 15, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              if (_error != null) ...[
-                Text(
-                  _error!,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 13,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (_loading)
-                const Center(child: CircularProgressIndicator())
-              else ...[
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _submitEmail,
-                  child: Text(_isSignUp ? 'Create account' : 'Sign in'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed:
-                      () => setState(() {
-                        _isSignUp = !_isSignUp;
-                        _error = null;
-                      }),
-                  child: Text(
-                    _isSignUp
-                        ? 'Already have an account? Sign in'
-                        : 'No account? Create one',
-                  ),
-                ),
-                if (!kIsWeb) ...[
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _signInWithApple,
-                    child: const Text('Sign in with Apple'),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _signInWithGoogle,
-                    child: const Text('Sign in with Google'),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _signInWithFacebook,
-                    child: const Text('Sign in with Facebook'),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: _continueAnonymously,
-                  child: const Text('Continue anonymously'),
-                ),
-              ],
-            ],
-          ),
         ),
       ),
     );
