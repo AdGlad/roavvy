@@ -15,7 +15,7 @@ class ReplaySummaryScreen extends StatefulWidget {
     required this.script,
     required this.isVisible,
     required this.onReplayAgain,
-    required this.onShare,
+    this.onShare,
     this.onCreateTShirt,
   });
 
@@ -25,7 +25,9 @@ class ReplaySummaryScreen extends StatefulWidget {
   final bool isVisible;
 
   final VoidCallback onReplayAgain;
-  final VoidCallback onShare;
+
+  /// Null hides the Share button (no share target yet; M189).
+  final VoidCallback? onShare;
 
   /// Null hides the Create T-Shirt CTA (commerce off, ADR-180).
   final VoidCallback? onCreateTShirt;
@@ -128,13 +130,15 @@ class _ReplaySummaryScreenState extends State<ReplaySummaryScreen>
                 onTap: widget.onReplayAgain,
                 filled: true,
               ),
-              const SizedBox(height: 12),
-              _cta(
-                icon: Icons.ios_share_rounded,
-                label: 'Share',
-                onTap: widget.onShare,
-                filled: false,
-              ),
+              if (widget.onShare != null) ...[
+                const SizedBox(height: 12),
+                _cta(
+                  icon: Icons.ios_share_rounded,
+                  label: 'Share',
+                  onTap: widget.onShare!,
+                  filled: false,
+                ),
+              ],
               if (widget.onCreateTShirt != null) ...[
                 const SizedBox(height: 12),
                 _cta(

@@ -262,12 +262,6 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
 
   void _replayAgain() => _ctrl?.play();
 
-  void _share(BuildContext ctx) {
-    ScaffoldMessenger.of(
-      ctx,
-    ).showSnackBar(const SnackBar(content: Text('Share coming soon')));
-  }
-
   void _createTShirt(BuildContext ctx) {
     Navigator.of(ctx).pop();
   }
@@ -610,7 +604,6 @@ class _GlobeReplayWidgetState extends ConsumerState<GlobeReplayWidget>
               script: widget.script!,
               isVisible: isDone,
               onReplayAgain: _replayAgain,
-              onShare: () => _share(context),
               onCreateTShirt:
                   CommerceEntry.isAvailable(ref)
                       ? () => _createTShirt(context)
