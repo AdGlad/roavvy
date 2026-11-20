@@ -1,6 +1,6 @@
 import { LegalPage, Section, ContactBlock } from './Terms'
 
-const LAST_UPDATED = '15 June 2026'
+const LAST_UPDATED = '20 November 2026'
 
 export default function Privacy() {
   return (
@@ -33,7 +33,6 @@ export default function Privacy() {
           <li>Derived travel data (country codes, visit dates), used to power the map and achievements</li>
           <li>Anonymous usage analytics, used to improve the App (if applicable)</li>
           <li>Account information if you create an account (email, display name)</li>
-          <li>Merchandise order details if you place an order (name, delivery address)</li>
         </ul>
       </Section>
 
@@ -42,7 +41,6 @@ export default function Privacy() {
         <ul>
           <li>Provide and improve the App and its features</li>
           <li>Display your personal travel map and achievements</li>
-          <li>Process merchandise orders and fulfilment</li>
           <li>Respond to support requests</li>
           <li>Comply with legal obligations</li>
         </ul>
@@ -55,13 +53,12 @@ export default function Privacy() {
       </Section>
 
       <Section title="6. Apple App Store">
-        <p>Roavvy is distributed through the Apple App Store. Apple may collect data about your device and app usage in accordance with Apple's Privacy Policy. In-app purchases are processed by Apple. We do not receive payment card details.</p>
+        <p>Roavvy is distributed through the Apple App Store. Apple may collect data about your device and app usage in accordance with Apple's Privacy Policy. The App does not currently offer in-app purchases, and we do not receive payment card details.</p>
         <p>For more information, see Apple's Privacy Policy at apple.com/legal/privacy.</p>
       </Section>
 
-      <Section title="7. Merchandise and Print-on-Demand">
-        <p>If you order merchandise through Roavvy, your order details (name, delivery address, email) are shared with our print-on-demand fulfilment provider solely for the purpose of manufacturing and delivering your order. We select fulfilment partners who maintain appropriate data protection standards.</p>
-        <p>Fulfilment partners are not permitted to use your data for marketing or any purpose other than order fulfilment.</p>
+      <Section title="7. Merchandise">
+        <p>Roavvy does not currently sell merchandise and does not collect names, delivery addresses, or order details. If we offer merchandise in future, we will update this policy before collecting any order information, including which fulfilment partners receive it and why.</p>
       </Section>
 
       <Section title="8. Your Rights">

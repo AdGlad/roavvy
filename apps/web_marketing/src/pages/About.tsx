@@ -47,10 +47,10 @@ function StorySection() {
             Roavvy was built to change that. By reading the location coordinates already embedded in your photos, entirely on your device and without uploading anything, Roavvy constructs a living map of your real travel history in seconds.
           </p>
           <p>
-            From there, it goes further. Achievements for the milestones you've hit. Daily challenges to keep your curiosity alive. Personalised merchandise so your travel identity can be worn, shared, and celebrated, not just stored in a folder.
+            From there, it goes further. Achievements for the milestones you've hit. Daily challenges to keep your curiosity alive. Travel cards so your travel identity can be shared and celebrated, not just stored in a folder.
           </p>
           <p>
-            Roavvy is free. It will stay free. The only thing we sell is personalised merchandise: physical products that earn their price because they mean something to the person wearing them.
+            Roavvy is free, and the app will stay free. Later we plan to offer personalised merchandise: physical products that earn their price because they mean something to the person wearing them.
           </p>
         </div>
       </div>
@@ -148,7 +148,7 @@ function ValuesSection() {
     {
       icon: '🆓',
       title: 'Free means free',
-      body: "Roavvy is free to download and free to use, forever. There are no subscription tiers, no locked features, and no paywalls. We generate revenue only through personalised merchandise that users choose to order.",
+      body: "Roavvy is free to download and free to use, forever. There are no subscription tiers, no locked features, and no paywalls. In future, we plan to earn revenue only through optional personalised merchandise.",
     },
     {
       icon: '🌍',

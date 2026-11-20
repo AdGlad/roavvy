@@ -170,7 +170,6 @@ const FEATURE_SCREENS = [
   { src: '/images/screenshots/achievements.jpg', alt: 'Travel achievements', label: 'Achievements' },
   { src: '/images/screenshots/daily-challange.jpg', alt: 'Daily UNESCO challenge', label: 'Daily Challenge' },
   { src: '/images/screenshots/travel-status.jpg', alt: 'Travel status overview', label: 'Travel Status' },
-  { src: '/images/screenshots/merchandise.jpg', alt: 'Personalised travel merchandise', label: 'Merch' },
   { src: '/images/screenshots/passport.jpg', alt: 'Travel passport', label: 'Passport' },
 ]
 
@@ -182,7 +181,7 @@ function ScreenshotsSection() {
           <span className="section-label">See it in action</span>
           <h2 className="section-heading">Everything your travel story needs</h2>
           <p className="section-subheading max-w-xl mx-auto">
-            From your interactive world map to daily challenges, achievements, travel replays, and personalised merch, all powered by your own photos, entirely on your device.
+            From your interactive world map to daily challenges, achievements, travel replays, and shareable travel cards, all powered by your own photos, entirely on your device.
           </p>
         </div>
 
@@ -264,7 +263,7 @@ function PlanSection() {
     {
       num: '03',
       title: 'Unlock memories, achievements, and creations',
-      body: 'Rediscover forgotten journeys, earn travel achievements, play daily UNESCO challenges, and order personalised merchandise from your real travel history.',
+      body: 'Rediscover forgotten journeys, earn travel achievements, play daily UNESCO challenges, and create shareable travel cards from your real travel history.',
       icon: '✨',
     },
   ]
@@ -313,12 +312,6 @@ const testimonials = [
     detail: 'Daily challenge streak: 47 days',
     flag: '🇦🇺',
   },
-  {
-    quote: "I ordered a t-shirt with all the flags from my South East Asia trip and it's my favourite piece of clothing. It's a conversation starter every time I wear it.",
-    name: 'Priya R.',
-    detail: 'Visited 12 countries',
-    flag: '🇸🇬',
-  },
 ]
 
 function TestimonialsSection() {
@@ -329,7 +322,7 @@ function TestimonialsSection() {
           <span className="section-label">Travellers love it</span>
           <h2 className="section-heading">Real stories from real journeys</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {testimonials.map(({ quote, name, detail, flag }) => (
             <div key={name} className="card flex flex-col gap-4">
               <div className="flex gap-1">
@@ -366,7 +359,7 @@ function CtaSection() {
           Your travel identity is<br />already in your pocket
         </h2>
         <p className="section-subheading">
-          Roavvy is coming soon to iOS, turning years of hidden memories into a living story you can revisit, share, wear, and keep building.
+          Roavvy is coming soon to iOS, turning years of hidden memories into a living story you can revisit, share, and keep building.
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <AppStoreCta
@@ -472,8 +465,8 @@ function SuccessSection() {
     },
     {
       icon: '👕',
-      title: 'Personalised merchandise',
-      body: 'Order t-shirts, prints, and travel products featuring the actual countries from your own journey. Not a souvenir. A statement.',
+      title: 'Personalised merchandise, coming later',
+      body: 'T-shirts and prints featuring the actual countries from your own journey are on the way. For now, everything in Roavvy is free.',
     },
     {
       icon: '📤',
@@ -494,7 +487,7 @@ function SuccessSection() {
           <span className="section-label">The outcome</span>
           <h2 className="section-heading">A living identity built from your real adventures</h2>
           <p className="section-subheading max-w-2xl mx-auto">
-            Roavvy users don't just track countries. They build a living travel identity they can revisit, share, wear, and continue building for the rest of their lives.
+            Roavvy users don't just track countries. They build a living travel identity they can revisit, share, and continue building for the rest of their lives.
           </p>
         </div>
 

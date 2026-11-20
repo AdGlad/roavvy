@@ -16,14 +16,6 @@ export default function Footer() {
             <p className="text-slate-500 text-sm leading-relaxed mb-5">
               Free travel app that turns your photo library into a living world map. Your journey, finally visible.
             </p>
-            {/* Payment methods */}
-            <p className="text-slate-600 text-xs mb-2">Merchandise payments accepted:</p>
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-400 text-xs font-medium">Visa</span>
-              <span className="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-400 text-xs font-medium">Mastercard</span>
-              <span className="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-400 text-xs font-medium">Apple Pay</span>
-              <span className="bg-slate-800 border border-slate-700 rounded px-2 py-0.5 text-slate-400 text-xs font-medium">PayPal</span>
-            </div>
           </div>
 
           {/* App */}

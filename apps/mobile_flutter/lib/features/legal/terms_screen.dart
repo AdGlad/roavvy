@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/commerce/commerce_flag.dart';
 import 'terms_service.dart';
 
 /// Displays the Roavvy Terms & Conditions.
@@ -9,10 +10,21 @@ import 'terms_service.dart';
 ///   Used during onboarding. Returns `true` via `Navigator.pop` when accepted.
 /// - [requireAccept] = false — read-only view with a single Close button.
 ///   Used from the Settings screen.
+///
+/// A build without commerce shows the free-app Terms, with no purchase,
+/// subscription or promo-code clauses (ADR-180, M188). This follows the build
+/// flag, not the remote switch, so the legal text never changes mid-session.
 class TermsScreen extends StatefulWidget {
-  const TermsScreen({super.key, this.requireAccept = false});
+  const TermsScreen({
+    super.key,
+    this.requireAccept = false,
+    this.commerce = kCommerceBuild,
+  });
 
   final bool requireAccept;
+
+  /// Whether to show the commerce Terms. Defaults to the build flag.
+  final bool commerce;
 
   @override
   State<TermsScreen> createState() => _TermsScreenState();
@@ -42,7 +54,7 @@ class _TermsScreenState extends State<TermsScreen> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: _TermsContent(theme: theme),
+              child: _TermsContent(theme: theme, commerce: widget.commerce),
             ),
           ),
           const Divider(height: 1),
@@ -112,12 +124,17 @@ class _AcceptanceRow extends StatelessWidget {
 // ── Terms content ─────────────────────────────────────────────────────────────
 
 class _TermsContent extends StatelessWidget {
-  const _TermsContent({required this.theme});
+  const _TermsContent({required this.theme, required this.commerce});
 
   final ThemeData theme;
+  final bool commerce;
 
   @override
   Widget build(BuildContext context) {
+    // Sections are numbered as they are added, because the free Terms have
+    // fewer of them.
+    var n = 0;
+    Widget h(String title) => _h2('${++n}. $title');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -136,7 +153,7 @@ class _TermsContent extends StatelessWidget {
         ),
 
         // 1. Eligibility
-        _h2('1. Eligibility'),
+        h('Eligibility'),
         _p(
           'You must be at least 13 years old to use Roavvy. If you are under 18 '
           'you must have the consent of a parent or legal guardian. By using the '
@@ -144,7 +161,7 @@ class _TermsContent extends StatelessWidget {
         ),
 
         // 2. Accounts
-        _h2('2. Accounts'),
+        h('Accounts'),
         _p(
           'You may register using email/password, Apple Sign-In, Google Sign-In, '
           'or continue anonymously. You are responsible for maintaining the '
@@ -163,7 +180,7 @@ class _TermsContent extends StatelessWidget {
         ),
 
         // 3. On-device photo scanning
-        _h2('3. On-Device Photo Scanning'),
+        h('On-Device Photo Scanning'),
         _p(
           'Roavvy scans your photo library locally on your device to infer '
           'countries you have visited, using GPS coordinates and timestamps '
@@ -177,7 +194,7 @@ class _TermsContent extends StatelessWidget {
         ),
 
         // 4. User content
-        _h2('4. User Content'),
+        h('User Content'),
         _p(
           'You retain ownership of any content you upload to the Platform '
           '("User Content"). By uploading User Content you grant Roavvy a '
@@ -192,72 +209,101 @@ class _TermsContent extends StatelessWidget {
         ),
 
         // 5. AI-generated content
-        _h2('5. AI-Generated Content'),
-        _p(
-          'Roavvy uses artificial intelligence to generate travel cards, artwork, '
-          'titles, and merchandise designs based on your travel data. AI-generated '
-          'content may occasionally be inaccurate, incomplete, or unexpected.',
-        ),
-        _p(
-          'You are responsible for reviewing all AI-generated content before '
-          'sharing or purchasing it. Roavvy makes no warranties as to the '
-          'accuracy of AI-generated content. The Platform provides tools for '
-          'you to review and modify content before finalising any order.',
-        ),
+        if (commerce) ...[
+          h('AI-Generated Content'),
+          _p(
+            'Roavvy uses artificial intelligence to generate travel cards, artwork, '
+            'titles, and merchandise designs based on your travel data. AI-generated '
+            'content may occasionally be inaccurate, incomplete, or unexpected.',
+          ),
+          _p(
+            'You are responsible for reviewing all AI-generated content before '
+            'sharing or purchasing it. Roavvy makes no warranties as to the '
+            'accuracy of AI-generated content. The Platform provides tools for '
+            'you to review and modify content before finalising any order.',
+          ),
+        ] else ...[
+          h('AI-Generated Content'),
+          _p(
+            'Roavvy uses artificial intelligence to generate travel cards, '
+            'artwork, and titles based on your travel data. AI-generated '
+            'content may occasionally be inaccurate, incomplete, or unexpected.',
+          ),
+          _p(
+            'You are responsible for reviewing AI-generated content before '
+            'sharing it. Roavvy makes no warranties as to the accuracy of '
+            'AI-generated content.',
+          ),
+        ],
 
-        // 6. Merchandise
-        _h2('6. Merchandise & Print-on-Demand'),
-        _p(
-          'Roavvy facilitates the purchase of custom print-on-demand merchandise '
-          'fulfilled by third-party partners including Printful. All products are '
-          'made to order.',
-        ),
-        _p(
-          'Before completing a purchase you will be shown a final preview of '
-          'your artwork, colour, size, and placement. You must confirm this '
-          'preview before payment is processed. By confirming, you acknowledge '
-          'that the product will be manufactured to those exact specifications.',
-        ),
-        _p(
-          'Colours, textures, and placement on the finished product may vary '
-          'slightly from on-screen previews due to manufacturing tolerances and '
-          'screen calibration differences. This is not a defect.',
-        ),
-        _p('Please refer to our Refund & Returns Policy for full details.'),
+        if (commerce) ...[
+          // 6. Merchandise
+          h('Merchandise & Print-on-Demand'),
+          _p(
+            'Roavvy facilitates the purchase of custom print-on-demand merchandise '
+            'fulfilled by third-party partners including Printful. All products are '
+            'made to order.',
+          ),
+          _p(
+            'Before completing a purchase you will be shown a final preview of '
+            'your artwork, colour, size, and placement. You must confirm this '
+            'preview before payment is processed. By confirming, you acknowledge '
+            'that the product will be manufactured to those exact specifications.',
+          ),
+          _p(
+            'Colours, textures, and placement on the finished product may vary '
+            'slightly from on-screen previews due to manufacturing tolerances and '
+            'screen calibration differences. This is not a defect.',
+          ),
+          _p('Please refer to our Refund & Returns Policy for full details.'),
 
-        // 7. Subscriptions
-        _h2('7. Subscriptions & Billing'),
-        _p(
-          'Roavvy offers a free tier and one or more paid subscription tiers. '
-          'Paid subscriptions are billed in advance on a recurring basis. '
-          'Subscriptions purchased via the Apple App Store or Google Play are '
-          'governed by those platforms\' billing terms.',
-        ),
-        _p(
-          'You may cancel your subscription at any time. Cancellation takes '
-          'effect at the end of the current billing period. We do not provide '
-          'pro-rata refunds for unused portions of a subscription period except '
-          'where required by applicable law.',
-        ),
+          // 7. Subscriptions
+          h('Subscriptions & Billing'),
+          _p(
+            'Roavvy offers a free tier and one or more paid subscription tiers. '
+            'Paid subscriptions are billed in advance on a recurring basis. '
+            'Subscriptions purchased via the Apple App Store or Google Play are '
+            'governed by those platforms\' billing terms.',
+          ),
+          _p(
+            'You may cancel your subscription at any time. Cancellation takes '
+            'effect at the end of the current billing period. We do not provide '
+            'pro-rata refunds for unused portions of a subscription period except '
+            'where required by applicable law.',
+          ),
 
-        // 8. Promotions
-        _h2('8. Promotional Codes & Rewards'),
-        _p(
-          'Roavvy may offer promotional codes, discount tokens, free merchandise '
-          'tokens, referral rewards, and achievement-based rewards. Unless '
-          'expressly stated: codes have no cash value; are non-transferable; '
-          'may expire; are limited to one per order; and may be withdrawn at '
-          'any time.',
-        ),
-        _p(
-          'Roavvy reserves the right to revoke codes and cancel orders where '
-          'misuse, fraud, or abuse is suspected. Rewards are for entertainment, '
-          'loyalty, and engagement purposes only and do not constitute financial '
-          'products or securities.',
-        ),
+          // 8. Promotions
+          h('Promotional Codes & Rewards'),
+          _p(
+            'Roavvy may offer promotional codes, discount tokens, free merchandise '
+            'tokens, referral rewards, and achievement-based rewards. Unless '
+            'expressly stated: codes have no cash value; are non-transferable; '
+            'may expire; are limited to one per order; and may be withdrawn at '
+            'any time.',
+          ),
+          _p(
+            'Roavvy reserves the right to revoke codes and cancel orders where '
+            'misuse, fraud, or abuse is suspected. Rewards are for entertainment, '
+            'loyalty, and engagement purposes only and do not constitute financial '
+            'products or securities.',
+          ),
+        ] else ...[
+          // 6. Free service (ADR-180)
+          h('Free Service'),
+          _p(
+            'Roavvy is currently provided free of charge. There are no '
+            'purchases, subscriptions, or in-app payments in this version of '
+            'the Platform.',
+          ),
+          _p(
+            'We may offer paid products or features in future. If we do, we '
+            'will update these Terms and ask you to accept them before you '
+            'can buy anything.',
+          ),
+        ],
 
         // 9. Intellectual property
-        _h2('9. Intellectual Property'),
+        h('Intellectual Property'),
         _p(
           'The Roavvy name, logo, app design, and all Platform content created '
           'by us are the intellectual property of Roavvy and may not be used '
@@ -270,7 +316,7 @@ class _TermsContent extends StatelessWidget {
         ),
 
         // 10. Social features
-        _h2('10. Social Features'),
+        h('Social Features'),
         _p(
           'Roavvy includes social features such as following other users, '
           'liking content, and comments. You agree to use these features '
@@ -282,23 +328,29 @@ class _TermsContent extends StatelessWidget {
         ),
 
         // 11. Privacy
-        _h2('11. Privacy'),
+        h('Privacy'),
         _p(
           'Your use of the Platform is subject to our Privacy Policy, which is '
           'incorporated into these Terms by reference. Please read it carefully.',
         ),
 
         // 12. Third-party services
-        _h2('12. Third-Party Services'),
+        h('Third-Party Services'),
         _p(
-          'The Platform integrates with third-party services including Firebase '
-          '(Google), Printful, and Shopify. Your use of those services is '
-          'governed by their respective terms and privacy policies. We are not '
-          'responsible for third-party service outages or errors.',
+          commerce
+              ? 'The Platform integrates with third-party services including '
+                  'Firebase (Google), Printful, and Shopify. Your use of those '
+                  'services is '
+                  'governed by their respective terms and privacy policies. We '
+                  'are not responsible for third-party service outages or errors.'
+              : 'The Platform integrates with third-party services including '
+                  'Firebase (Google). Your use of those services is '
+                  'governed by their respective terms and privacy policies. We '
+                  'are not responsible for third-party service outages or errors.',
         ),
 
         // 13. Limitation of liability
-        _h2('13. Limitation of Liability'),
+        h('Limitation of Liability'),
         _p(
           'To the maximum extent permitted by law, Roavvy\'s liability to you '
           'for any loss or damage arising from your use of the Platform is '
@@ -306,9 +358,14 @@ class _TermsContent extends StatelessWidget {
           'claim, or AUD\$100, whichever is greater.',
         ),
         _p(
-          'We are not liable for: AI inference errors; travel data inaccuracies; '
-          'Platform downtime; third-party service failures; delays or errors in '
-          'merchandise fulfilment; or loss of User Content.',
+          commerce
+              ? 'We are not liable for: AI inference errors; travel data '
+                  'inaccuracies; Platform downtime; third-party service '
+                  'failures; delays or errors in merchandise fulfilment; or '
+                  'loss of User Content.'
+              : 'We are not liable for: AI inference errors; travel data '
+                  'inaccuracies; Platform downtime; third-party service '
+                  'failures; or loss of User Content.',
         ),
         _p(
           'Nothing in these Terms excludes, restricts, or modifies any right or '
@@ -317,7 +374,7 @@ class _TermsContent extends StatelessWidget {
         ),
 
         // 14. Changes
-        _h2('14. Changes to These Terms'),
+        h('Changes to These Terms'),
         _p(
           'We may update these Terms from time to time. When we do, we will '
           'update the version date below and, where the changes are material, '
@@ -326,7 +383,7 @@ class _TermsContent extends StatelessWidget {
         ),
 
         // 15. Governing law
-        _h2('15. Governing Law'),
+        h('Governing Law'),
         _p(
           'These Terms are governed by the laws of New South Wales, Australia. '
           'Any disputes will be subject to the exclusive jurisdiction of the '
@@ -349,7 +406,8 @@ class _TermsContent extends StatelessWidget {
   Widget _version() => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(
-      'Version $kCurrentTermsVersion — Last updated 15 June 2026',
+      'Version $kCurrentTermsVersion — Last updated '
+      '${commerce ? '15 June 2026' : '20 November 2026'}',
       style: const TextStyle(fontSize: 11, color: Colors.grey),
     ),
   );

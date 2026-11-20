@@ -48,7 +48,7 @@ export default function Download() {
               { icon: '🏛️', title: 'Daily heritage challenge', body: 'A new UNESCO World Heritage Site puzzle every day. Track your streak and share your results.' },
               { icon: '🔒', title: 'Privacy by design', body: 'Your photos never leave your phone. Country detection is 100% on-device, with no uploads required.' },
               { icon: '📤', title: 'Shareable travel cards', body: 'Create and share travel stats, country count cards, and daily challenge scores.' },
-              { icon: '👕', title: 'Personalised merchandise', body: 'Order custom travel products featuring the countries from your actual journey.' },
+              { icon: '🎴', title: 'Shareable travel cards', body: 'Create cards featuring the countries from your actual journey, and share them anywhere.' },
             ].map(({ icon, title, body }) => (
               <div key={title} className="card flex gap-4">
                 <span className="text-3xl shrink-0">{icon}</span>

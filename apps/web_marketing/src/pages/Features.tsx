@@ -222,18 +222,17 @@ function MerchFeature() {
             </div>
           </div>
           <div className="order-1 lg:order-2">
-            <span className="section-label">Personalised merchandise</span>
-            <h2 className="section-heading">Turn your travel history into something you can wear</h2>
+            <span className="section-label">Coming later</span>
+            <h2 className="section-heading">Personalised merchandise is on the way</h2>
             <p className="section-subheading">
-              Order t-shirts, prints, and passport-style collectibles featuring the actual countries from your own journey. Not a generic souvenir, but a tangible piece of your real travel identity.
+              We're working on t-shirts, prints, and passport-style collectibles featuring the actual countries from your own journey. They aren't available yet: for now, everything in Roavvy is free.
             </p>
 
             <ul className="mt-8 space-y-3">
               {[
                 "Flags from the exact countries you've stood in",
                 'Custom layouts generated from your real travel map',
-                'Print-on-demand: no stock, no waste, delivered worldwide',
-                'From custom travel shirts to passport-style collectibles',
+                                'From custom travel shirts to passport-style collectibles',
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3">
                   <CheckIcon />

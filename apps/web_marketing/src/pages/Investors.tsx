@@ -143,7 +143,7 @@ function ProductSection() {
     { icon: '🎬', title: 'Travel replays', body: 'An animated replay of a user\'s travels on the globe, year by year, built from their own photo history.' },
     { icon: '🏆', title: 'Achievements', body: 'Badges for countries, continents, and UNESCO heritage sites. A gamified travel identity built from real adventures.' },
     { icon: '🏛️', title: 'Daily challenges', body: 'UNESCO World Heritage Site puzzles driving daily engagement, streaks, and social sharing.' },
-    { icon: '👕', title: 'Personalised merchandise', body: 'Custom travel shirts, prints, and passport collectibles generated from real visited countries. Print-on-demand fulfilment.' },
+    { icon: '👕', title: 'Personalised merchandise (planned)', body: 'Custom travel shirts, prints, and passport collectibles generated from real visited countries. Print-on-demand fulfilment.' },
   ]
 
   return (
