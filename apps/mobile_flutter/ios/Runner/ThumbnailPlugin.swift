@@ -65,8 +65,26 @@ class ThumbnailPlugin: NSObject {
     let targetSize = isFullRes
       ? PHImageManagerMaximumSize
       : CGSize(width: size, height: size)
+    request(
+      asset: asset,
+      targetSize: targetSize,
+      network: isFullRes,
+      highQuality: isHighQuality,
+      cacheKey: cacheKey,
+      result: result
+    )
+  }
+
+  private func request(
+    asset: PHAsset,
+    targetSize: CGSize,
+    network: Bool,
+    highQuality isHighQuality: Bool,
+    cacheKey: NSString,
+    result: @escaping FlutterResult
+  ) {
     let options = PHImageRequestOptions()
-    options.isNetworkAccessAllowed = isFullRes
+    options.isNetworkAccessAllowed = network
     options.deliveryMode = isHighQuality ? .highQualityFormat : .fastFormat
     options.isSynchronous = false
 
@@ -76,8 +94,22 @@ class ThumbnailPlugin: NSObject {
       contentMode: PHImageContentMode.aspectFill,
       options: options
     ) { [weak self] image, info in
-      // Degrade gracefully: iCloud-only assets return nil here.
       guard let image = image else {
+        // .fastFormat only returns a thumbnail Photos has already generated;
+        // a freshly synced or imported photo may not have one yet (error 3303
+        // "No resource found"). Ask once more in high quality, which decodes
+        // the local original. iCloud-only assets still return nil.
+        if !isHighQuality, info?[PHImageCancelledKey] as? Bool != true {
+          self?.request(
+            asset: asset,
+            targetSize: targetSize,
+            network: network,
+            highQuality: true,
+            cacheKey: cacheKey,
+            result: result
+          )
+          return
+        }
         DispatchQueue.main.async { result(nil) }
         return
       }
