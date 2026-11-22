@@ -1336,31 +1336,39 @@ class _YearHeaderNode extends StatelessWidget {
       '$countryCount ${countryCount == 1 ? 'country' : 'countries'}',
       if (continentCount > 1) '$continentCount continents',
     ];
-    return Positioned(
-      left: 0,
-      right: 0,
-      top: center.dy - 22,
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: cs.secondaryContainer.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: cs.secondary.withValues(alpha: 0.3),
-              width: 1,
-            ),
-          ),
-          child: Text(
-            parts.join('  ·  '),
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: cs.onSecondaryContainer,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
+    // A full-canvas Stack, like the trip and achievement nodes: _PositionedNode
+    // wraps nodes in Opacity/Transform while they animate in, and a bare
+    // Positioned there is a ParentDataWidget error.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 0,
+          right: 0,
+          top: center.dy - 22,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: cs.secondaryContainer.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: cs.secondary.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                parts.join('  ·  '),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: cs.onSecondaryContainer,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
