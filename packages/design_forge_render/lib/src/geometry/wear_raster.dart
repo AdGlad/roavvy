@@ -6,6 +6,7 @@ import 'dart:typed_data';
 ///
 ///  * [acidWash] — marbled bleach veins and washed-out patches, like
 ///    acid-washed denim: colour goes pale and grey in organic swirls.
+///  * [dyed] — tie-dye in the artwork's own colours.
 ///  * [cracks] — a network of fine cracks in the print ink, like a
 ///    well-washed screen print.
 ///
@@ -106,6 +107,294 @@ class WearRaster {
       }
     }
     return out;
+  }
+
+  /// Tie-dye in the artwork's own colours: colour borders bleed into
+  /// feathered spikes across the border, crinkle-fold veins darken (dye
+  /// pooled) and lighten (undyed creases) the colour, whites pick up a tint
+  /// from their neighbours, dark colours lift to bright dyed-cotton tones,
+  /// and the outer edge (or the canvas edge) goes soft and ragged.
+  static Uint8List dyed(Uint8List rgba, int w, int h, double amount, int seed) {
+    final a = amount.clamp(0.0, 1.0);
+    if (a <= 0) return Uint8List.fromList(rgba);
+    final n = w * h;
+    final s = math.min(w, h).toDouble();
+    // Premultiplied float planes.
+    final pr = Float32List(n), pg = Float32List(n), pb = Float32List(n), pa = Float32List(n);
+    for (var i = 0; i < n; i++) {
+      pr[i] = rgba[i * 4] / 255.0;
+      pg[i] = rgba[i * 4 + 1] / 255.0;
+      pb[i] = rgba[i * 4 + 2] / 255.0;
+      pa[i] = rgba[i * 4 + 3] / 255.0;
+    }
+    // Blurred straight colour: the bleed colour and the border field.
+    final rb = math.max(1, (s * 0.012).round());
+    final br = _blur(pr, w, h, rb), bg = _blur(pg, w, h, rb), bb = _blur(pb, w, h, rb);
+    final ba = _blur(pa, w, h, rb);
+    for (var i = 0; i < n; i++) {
+      final al = ba[i];
+      if (al > 1e-4) {
+        br[i] /= al;
+        bg[i] /= al;
+        bb[i] /= al;
+      } else {
+        br[i] = bg[i] = bb[i] = 1;
+      }
+    }
+    // A much wider bleed: the dye that wicks into white areas as streaks.
+    final rw = math.max(2, (s * 0.035).round());
+    final wr = _blur(pr, w, h, rw), wg = _blur(pg, w, h, rw), wb = _blur(pb, w, h, rw);
+    final wa = _blur(pa, w, h, rw);
+    for (var i = 0; i < n; i++) {
+      final al = wa[i];
+      if (al > 1e-4) {
+        wr[i] /= al;
+        wg[i] /= al;
+        wb[i] /= al;
+      } else {
+        wr[i] = wg[i] = wb[i] = 1;
+      }
+    }
+    // Structure tensor of the blurred colour → border normal + strength.
+    final jxx = Float32List(n), jxy = Float32List(n), jyy = Float32List(n);
+    for (var y = 0; y < h; y++) {
+      final ym = y > 0 ? y - 1 : y, yp = y < h - 1 ? y + 1 : y;
+      for (var x = 0; x < w; x++) {
+        final xm = x > 0 ? x - 1 : x, xp = x < w - 1 ? x + 1 : x;
+        double xx = 0, xy = 0, yy = 0;
+        for (final c in [br, bg, bb]) {
+          final gx = (c[y * w + xp] - c[y * w + xm]) * 0.5;
+          final gy = (c[yp * w + x] - c[ym * w + x]) * 0.5;
+          xx += gx * gx;
+          xy += gx * gy;
+          yy += gy * gy;
+        }
+        final i = y * w + x;
+        jxx[i] = xx;
+        jxy[i] = xy;
+        jyy[i] = yy;
+      }
+    }
+    final rt = math.max(1, (s * 0.015).round());
+    final txx = _blur(jxx, w, h, rt), txy = _blur(jxy, w, h, rt), tyy = _blur(jyy, w, h, rt);
+    final eNorm = (2.0 * rb) * (2.0 * rb);
+
+    // Distance to the outside (transparent pixels and the canvas border).
+    final dist = _chamfer(pa, w, h);
+
+    final step = math.max(1, (s / 420).floor());
+    final cn1 = _Noise(seed ^ 0xD7E1), cn2 = _Noise(seed ^ 0xD7E2), wn = _Noise(seed ^ 0xD7E3);
+    // Crinkle folds: domain-warped ridged noise (two independent sets).
+    double ridge(_Noise nz, double x, double y) {
+      final u = x / s * 6.5, v = y / s * 6.5;
+      final ox = wn.fbm(u * 0.5, v * 0.5, 3) * 2.2, oy = wn.fbm(u * 0.5 + 5.2, v * 0.5 - 3.7, 3) * 2.2;
+      return 1 - (2 * nz.fbm(u + ox, v + oy, 4) - 1).abs();
+    }
+
+    // Crinkle folds: warped Worley cells → angular fold lines (dye pooled
+    // dark) with paler facets between them, like scrunched cotton.
+    final cell = s / 11;
+    final wobX = _Field(w, h, step, (x, y) => (ridge(cn1, x, y) - 0.5) * cell * 0.9);
+    final wobY = _Field(w, h, step, (x, y) => (ridge(cn2, x + 91, y - 37) - 0.5) * cell * 0.9);
+    final mottle = _Field(w, h, step, (x, y) => cn2.fbm(x / s * 5, y / s * 5, 3));
+    final warpX = _Field(w, h, step, (x, y) => wn.fbm(x / s * 3 + 11, y / s * 3, 3) - 0.5);
+    final warpY = _Field(w, h, step, (x, y) => wn.fbm(x / s * 3, y / s * 3 + 17, 3) - 0.5);
+    final rag = _Field(w, h, step, (x, y) => cn1.fbm(x / s * 16, y / s * 16, 3) - 0.5);
+    final spikes = _Noise(seed ^ 0xD7E4);
+
+    final spikeLen = s * 0.032 * a;
+    final warpLen = s * 0.035 * a;
+    final fw = s * 0.05 * a;
+    final out = Uint8List(n * 4);
+
+    double bil(Float32List c, double fx, double fy) {
+      fx = fx.clamp(0.0, w - 1.0);
+      fy = fy.clamp(0.0, h - 1.0);
+      final x0 = fx.floor(), y0 = fy.floor();
+      final x1 = math.min(w - 1, x0 + 1), y1 = math.min(h - 1, y0 + 1);
+      final tx = fx - x0, ty = fy - y0;
+      final top = c[y0 * w + x0] * (1 - tx) + c[y0 * w + x1] * tx;
+      final bot = c[y1 * w + x0] * (1 - tx) + c[y1 * w + x1] * tx;
+      return top * (1 - ty) + bot * ty;
+    }
+
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final i = y * w + x;
+        final al = pa[i];
+        if (al <= 0) continue;
+        // Spikes across colour borders.
+        final xx = txx[i], xy = txy[i], yy = tyy[i];
+        final edgeW = _smooth(0.015, 0.25, (xx + yy) * eNorm);
+        final th = 0.5 * math.atan2(2 * xy, xx - yy);
+        final nx = math.cos(th), ny = math.sin(th);
+        var sx = x + warpX.at(x, y) * warpLen * 2, sy = y + warpY.at(x, y) * warpLen * 2;
+        if (edgeW > 0.01) {
+          final u = (x * -ny + y * nx) / s * 90;
+          final v = (x * nx + y * ny) / s * 5;
+          // Fine, uneven feathers: sharp peaks of varying length both ways.
+          final f = spikes.fbm(u, v, 4) - 0.5;
+          final len = 0.35 + 0.65 * spikes.fbm(u * 0.15 + 40, v, 2);
+          final k = (f.sign * math.pow((f.abs() * 3.0).clamp(0.0, 1.0), 1.6)) * len;
+          sx += nx * k * spikeLen * edgeW;
+          sy += ny * k * spikeLen * edgeW;
+        }
+        // Two taps (full and half way) so spike tips feather into the
+        // neighbouring colour instead of ending in a hard saw edge.
+        final hx = (sx + x) / 2, hy = (sy + y) / 2;
+        final sa = bil(pa, sx, sy) + bil(pa, hx, hy);
+        double r, g, b;
+        if (sa > 0.1) {
+          r = (bil(pr, sx, sy) + bil(pr, hx, hy)) / sa;
+          g = (bil(pg, sx, sy) + bil(pg, hx, hy)) / sa;
+          b = (bil(pb, sx, sy) + bil(pb, hx, hy)) / sa;
+        } else {
+          r = pr[i] / al;
+          g = pg[i] / al;
+          b = pb[i] / al;
+        }
+        // Bleed toward the neighbourhood colour.
+        final bl = 0.3 * a;
+        r += (br[i] - r) * bl;
+        g += (bg[i] - g) * bl;
+        b += (bb[i] - b) * bl;
+        // Dye wicking into white: streaks running along the border, so a
+        // white band picks up pink/blue striations from its neighbours.
+        final white = math.min(r, math.min(g, b));
+        if (white > 0.6) {
+          // Warped wisps (direction-free, so no seams where borders meet).
+          final su = x / s * 9 + warpX.at(x, y) * 4, sv = y / s * 9 + warpY.at(x, y) * 4;
+          final st = _smooth(0.52, 0.8, spikes.fbm(su + 70, sv, 4));
+          final wk = 0.6 * a * st * _smooth(0.6, 0.9, white);
+          // The wicked dye: the nearby colour, concentrated (the wide blur
+          // averages it with white).
+          double conc(double c) => (1 - (1 - c) * 3.5).clamp(0.0, 1.0);
+          r += (conc(wr[i]) - r) * wk;
+          g += (conc(wg[i]) - g) * wk;
+          b += (conc(wb[i]) - b) * wk;
+        }
+        // Dyed cotton: dark colours lift to bright dye tones.
+        final lift = 1 + 0.7 * a;
+        r = 1 - math.pow(1 - r.clamp(0.0, 1.0), lift).toDouble();
+        g = 1 - math.pow(1 - g.clamp(0.0, 1.0), lift).toDouble();
+        b = 1 - math.pow(1 - b.clamp(0.0, 1.0), lift).toDouble();
+        // Crinkle folds, strongest where there is dye (not on whites).
+        final dye = 1 - math.min(r, math.min(g, b));
+        final (f1, f2) = _worley(x + wobX.at(x, y), y + wobY.at(x, y), cell, seed);
+        final edge = (f2 - f1) / cell; // 0 on a fold line
+        final dv = 1 - _smooth(0.0, 0.1, edge);
+        final facet = _smooth(0.15, 0.6, edge) * (1 - (f1 / cell).clamp(0.0, 1.0));
+        final m = (mottle.at(x, y) - 0.5) * 2;
+        // Folds deepen the dye in its own hue (c → c^2.4): yellow goes
+        // golden, blue goes navy, white stays white.
+        final deep = (0.75 * a * dv).clamp(0.0, 1.0);
+        r += (math.pow(r.clamp(0.0, 1.0), 2.4) - r) * deep;
+        g += (math.pow(g.clamp(0.0, 1.0), 2.4) - g) * deep;
+        b += (math.pow(b.clamp(0.0, 1.0), 2.4) - b) * deep;
+        final darken = 1 - 0.18 * a * m * dye;
+        r *= darken;
+        g *= darken;
+        b *= darken;
+        final lighten = 0.55 * a * facet * dye;
+        r += (1 - r) * lighten;
+        g += (1 - g) * lighten;
+        b += (1 - b) * lighten;
+        // Soft ragged edge.
+        final f = fw <= 0 ? 1.0 : _smooth(0, fw, dist[i] + rag.at(x, y) * fw * 1.6 - fw * 0.2);
+        final oa = al * f;
+        out[i * 4] = (r.clamp(0.0, 1.0) * oa * 255).round();
+        out[i * 4 + 1] = (g.clamp(0.0, 1.0) * oa * 255).round();
+        out[i * 4 + 2] = (b.clamp(0.0, 1.0) * oa * 255).round();
+        out[i * 4 + 3] = (oa * 255).round();
+      }
+    }
+    return out;
+  }
+
+  /// Nearest and second-nearest jittered cell centre distances.
+  static (double, double) _worley(double x, double y, double cell, int seed) {
+    final gx = (x / cell).floor(), gy = (y / cell).floor();
+    var f1 = 1e9, f2 = 1e9;
+    for (var dy = -1; dy <= 1; dy++) {
+      for (var dx = -1; dx <= 1; dx++) {
+        final cx = gx + dx, cy = gy + dy;
+        final px = (cx + 0.1 + 0.8 * _hash01(cx, cy, seed ^ 0xF01D)) * cell;
+        final py = (cy + 0.1 + 0.8 * _hash01(cx, cy, seed ^ 0xF02D)) * cell;
+        final d = math.sqrt((x - px) * (x - px) + (y - py) * (y - py));
+        if (d < f1) {
+          f2 = f1;
+          f1 = d;
+        } else if (d < f2) {
+          f2 = d;
+        }
+      }
+    }
+    return (f1, f2);
+  }
+
+  /// Two-pass separable box blur (≈ gaussian) with clamped edges.
+  static Float32List _blur(Float32List src, int w, int h, int r) {
+    var a = Float32List.fromList(src);
+    final tmp = Float32List(w * h);
+    for (var pass = 0; pass < 2; pass++) {
+      for (var y = 0; y < h; y++) {
+        var sum = 0.0;
+        for (var k = -r; k <= r; k++) {
+          sum += a[y * w + k.clamp(0, w - 1)];
+        }
+        for (var x = 0; x < w; x++) {
+          tmp[y * w + x] = sum / (2 * r + 1);
+          sum += a[y * w + math.min(w - 1, x + r + 1)] - a[y * w + math.max(0, x - r)];
+        }
+      }
+      for (var x = 0; x < w; x++) {
+        var sum = 0.0;
+        for (var k = -r; k <= r; k++) {
+          sum += tmp[k.clamp(0, h - 1) * w + x];
+        }
+        for (var y = 0; y < h; y++) {
+          a[y * w + x] = sum / (2 * r + 1);
+          sum += tmp[math.min(h - 1, y + r + 1) * w + x] - tmp[math.max(0, y - r) * w + x];
+        }
+      }
+    }
+    return a;
+  }
+
+  /// Chamfer distance from each pixel to the nearest mostly-transparent
+  /// pixel; outside the canvas counts as transparent.
+  static Float32List _chamfer(Float32List alpha, int w, int h) {
+    const inf = 1e9, d1 = 1.0, d2 = 1.41421356;
+    final d = Float32List(w * h);
+    for (var i = 0; i < w * h; i++) {
+      d[i] = alpha[i] < 0.5 ? 0 : inf;
+    }
+    double at(int x, int y) => (x < 0 || y < 0 || x >= w || y >= h) ? 0 : d[y * w + x];
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final i = y * w + x;
+        if (d[i] == 0) continue;
+        var v = d[i];
+        v = math.min(v, at(x - 1, y) + d1);
+        v = math.min(v, at(x, y - 1) + d1);
+        v = math.min(v, at(x - 1, y - 1) + d2);
+        v = math.min(v, at(x + 1, y - 1) + d2);
+        d[i] = v;
+      }
+    }
+    for (var y = h - 1; y >= 0; y--) {
+      for (var x = w - 1; x >= 0; x--) {
+        final i = y * w + x;
+        if (d[i] == 0) continue;
+        var v = d[i];
+        v = math.min(v, at(x + 1, y) + d1);
+        v = math.min(v, at(x, y + 1) + d1);
+        v = math.min(v, at(x + 1, y + 1) + d2);
+        v = math.min(v, at(x - 1, y + 1) + d2);
+        d[i] = v;
+      }
+    }
+    return d;
   }
 
   static double _smooth(double e0, double e1, double x) {

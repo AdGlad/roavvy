@@ -30,7 +30,11 @@ void main() {
         source.codes();
     final variations = int.tryParse(env['VARIATIONS'] ?? '') ?? 0;
     final label = env['LABEL'] ?? 'review-${SignatureIO.timestamp()}';
-    final sweep = SignatureSweep(RenderService(source.resolver()));
+    // LONG_SIDE = preview size in px (default 375) for a closer look.
+    final longSide =
+        int.tryParse(env['LONG_SIDE'] ?? '') ?? SignatureSweep.defaultLongSide;
+    final sweep =
+        SignatureSweep(RenderService(source.resolver()), longSide: longSide);
 
     await tester.runAsync(() async {
       const arial = '/System/Library/Fonts/Supplemental/Arial.ttf';
@@ -49,7 +53,7 @@ void main() {
       final heroes = [
         for (final cc in countries) await sweep.cell(pack, cc, 0),
       ];
-      final report = SignatureSweep.report(pack, cells, label: label);
+      final report = SignatureSweep.report(pack, cells, label: label, longSide: longSide);
       final sheet = await SignatureSweep.contactSheet(heroes,
           labelFontFamily: 'LabLabel', names: source.countryNames());
       final (png, json) =

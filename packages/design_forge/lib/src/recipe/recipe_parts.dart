@@ -541,6 +541,7 @@ class Effects {
     this.rippleFreq = 8.0,
     this.acidWash = 0.0,
     this.tieDye = 0.0,
+    this.dyed = 0.0,
     this.shatter = 0.0,
     this.shatterSpikes = 0.0,
     this.riso = 0.0,
@@ -564,6 +565,12 @@ class Effects {
   /// Psychedelic tie-dye colour wash (0 = off, 1 = full-strength concentric
   /// rainbow bleed blended over the artwork).
   final double tieDye;
+
+  /// Tie-dye in the artwork's OWN colours (0 = off, 1 = heavy): colour
+  /// borders bleed into feathered spikes, crinkle-fold veins darken and
+  /// lighten the dye, whites take a tint, and the edge goes soft and ragged.
+  /// Unlike [tieDye] it adds no new colours. Omitted from JSON at 0.
+  final double dyed;
 
   /// Radial "shatter/explosion" warp (0 = off, 1 = full): the artwork is blown
   /// into sharp zigzag shards radiating from a centre, with a spiky torn
@@ -595,6 +602,7 @@ class Effects {
       rippleAmp == 0 &&
       acidWash == 0 &&
       tieDye == 0 &&
+      dyed == 0 &&
       shatter == 0 &&
       riso == 0 &&
       newsprint == 0 &&
@@ -615,6 +623,7 @@ class Effects {
         if (rippleAmp != 0.0 && rippleFreq != 8.0) 'rippleFreq': rippleFreq,
         if (acidWash != 0.0) 'acidWash': acidWash,
         if (tieDye != 0.0) 'tieDye': tieDye,
+        if (dyed != 0.0) 'dyed': dyed,
         if (shatter != 0.0) 'shatter': shatter,
         if (shatter != 0.0 && shatterSpikes != 0.0) 'shatterSpikes': shatterSpikes,
         if (riso != 0.0) 'riso': riso,
@@ -636,6 +645,7 @@ class Effects {
         rippleFreq: (j['rippleFreq'] as num?)?.toDouble() ?? 8.0,
         acidWash: (j['acidWash'] as num?)?.toDouble() ?? 0.0,
         tieDye: (j['tieDye'] as num?)?.toDouble() ?? 0.0,
+        dyed: (j['dyed'] as num?)?.toDouble() ?? 0.0,
         shatter: (j['shatter'] as num?)?.toDouble() ?? 0.0,
         shatterSpikes: (j['shatterSpikes'] as num?)?.toDouble() ?? 0.0,
         riso: (j['riso'] as num?)?.toDouble() ?? 0.0,
@@ -657,6 +667,7 @@ class Effects {
     double? rippleFreq,
     double? acidWash,
     double? tieDye,
+    double? dyed,
     double? shatter,
     double? shatterSpikes,
     double? riso,
@@ -677,6 +688,7 @@ class Effects {
         rippleFreq: rippleFreq ?? this.rippleFreq,
         acidWash: acidWash ?? this.acidWash,
         tieDye: tieDye ?? this.tieDye,
+        dyed: dyed ?? this.dyed,
         shatter: shatter ?? this.shatter,
         shatterSpikes: shatterSpikes ?? this.shatterSpikes,
         riso: riso ?? this.riso,
