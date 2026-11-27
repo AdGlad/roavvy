@@ -87,4 +87,34 @@ void main() {
     expect(edgeAlpha / _n, lessThan(60));
     expect(out[((_n ~/ 2) * _n + _n ~/ 2) * 4 + 3], 255);
   });
+  test('spiralDye throws arms of a centred disc out into its surround', () {
+    // White square with a red disc in the middle (Japan-like), opaque.
+    final px = Uint8List(_n * _n * 4);
+    for (var y = 0; y < _n; y++) {
+      for (var x = 0; x < _n; x++) {
+        final i = (y * _n + x) * 4;
+        final dx = x - _n / 2, dy = y - _n / 2;
+        final red = dx * dx + dy * dy < 40 * 40;
+        px[i] = red ? 210 : 255;
+        px[i + 1] = red ? 20 : 255;
+        px[i + 2] = red ? 40 : 255;
+        px[i + 3] = 255;
+      }
+    }
+    final out = WearRaster.spiralDye(px, _n, _n, 0.8, 4);
+    expect(out, WearRaster.spiralDye(px, _n, _n, 0.8, 4), reason: 'deterministic');
+    expect(WearRaster.spiralDye(px, _n, _n, 0, 4), px);
+    // Red now reaches outside the original disc (r 45..80).
+    var redOutside = 0;
+    for (var y = 0; y < _n; y++) {
+      for (var x = 0; x < _n; x++) {
+        final dx = x - _n / 2, dy = y - _n / 2;
+        final d2 = dx * dx + dy * dy;
+        if (d2 < 45 * 45 || d2 > 80 * 80) continue;
+        final i = (y * _n + x) * 4;
+        if (out[i + 3] > 200 && out[i + 1] < out[i] * 0.6) redOutside++;
+      }
+    }
+    expect(redOutside, greaterThan(300));
+  });
 }

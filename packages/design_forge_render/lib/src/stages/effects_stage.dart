@@ -53,6 +53,9 @@ class EffectsStage extends RenderStage {
     if (fx.photocopy > 0) {
       await _photocopy(ctx, seed, fx.photocopy);
     }
+    if (fx.spiralDye > 0) {
+      await _raster(ctx, (px, w, h) => WearRaster.spiralDye(px, w, h, fx.spiralDye, seed));
+    }
     if (fx.dyed > 0) {
       await _raster(ctx, (px, w, h) => WearRaster.dyed(px, w, h, fx.dyed, seed));
     }

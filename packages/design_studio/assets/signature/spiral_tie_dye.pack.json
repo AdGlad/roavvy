@@ -1,0 +1,55 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "clip": {
+      "scale": 0.9,
+      "shapeId": "circle"
+    },
+    "composition": {
+      "family": "singleHero",
+      "orientation": "square",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "effects": {
+      "spiralDye": 0.7
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "envelope": {
+    "effects.spiralDye": {
+      "max": 0.85,
+      "min": 0.55
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "spiral_tie_dye",
+  "locks": {
+    "us": "646fb1ca169f022c"
+  },
+  "notes": "The country's flag twisted into a classic spiral tie-dye in its own colours: swirled arms, colours feathering into each other, white undyed creases along the folds, rubber-band rings, bright dyed-cotton colour, soft ragged round edge. Researched from spiral/bullseye tie-dye technique (generic; nothing reproduced). Replaces the look of tie_dye_flag, which read as cracked glass (kept).",
+  "overrides": {},
+  "status": "draft",
+  "title": "Spiral Tie-Dye",
+  "version": 1
+}

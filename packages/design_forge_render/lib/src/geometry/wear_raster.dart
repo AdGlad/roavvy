@@ -7,6 +7,7 @@ import 'dart:typed_data';
 ///  * [acidWash] — marbled bleach veins and washed-out patches, like
 ///    acid-washed denim: colour goes pale and grey in organic swirls.
 ///  * [dyed] — tie-dye in the artwork's own colours.
+///  * [spiralDye] — spiral tie-dye of the artwork's own colours.
 ///  * [cracks] — a network of fine cracks in the print ink, like a
 ///    well-washed screen print.
 ///
@@ -305,6 +306,152 @@ class WearRaster {
         out[i * 4] = (r.clamp(0.0, 1.0) * oa * 255).round();
         out[i * 4 + 1] = (g.clamp(0.0, 1.0) * oa * 255).round();
         out[i * 4 + 2] = (b.clamp(0.0, 1.0) * oa * 255).round();
+        out[i * 4 + 3] = (oa * 255).round();
+      }
+    }
+    return out;
+  }
+
+  /// Spiral tie-dye: the artwork twisted into a swirl around the centre (as
+  /// the cloth is pinched and twisted), colours feathering into each other
+  /// along the arms, white undyed creases following the spiral folds,
+  /// wobbly rubber-band rings, bright dyed-cotton colour and a soft ragged
+  /// edge. [amount] sets how far it twists and how strong the dye marks are.
+  static Uint8List spiralDye(Uint8List rgba, int w, int h, double amount, int seed) {
+    final a = amount.clamp(0.0, 1.0);
+    if (a <= 0) return Uint8List.fromList(rgba);
+    final n = w * h;
+    final s = math.min(w, h).toDouble();
+    final pr = Float32List(n), pg = Float32List(n), pb = Float32List(n), pa = Float32List(n);
+    var minX = w, minY = h, maxX = 0, maxY = 0;
+    for (var i = 0; i < n; i++) {
+      pr[i] = rgba[i * 4] / 255.0;
+      pg[i] = rgba[i * 4 + 1] / 255.0;
+      pb[i] = rgba[i * 4 + 2] / 255.0;
+      pa[i] = rgba[i * 4 + 3] / 255.0;
+      if (pa[i] > 0.5) {
+        final x = i % w, y = i ~/ w;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+    if (maxX < minX) return Uint8List.fromList(rgba);
+    // Twist about the centre of the artwork.
+    final cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    final fw = s * 0.045;
+    // A round of cloth over the artwork, kept clear of the print-area edge.
+    final rad = math.min(math.max(maxX - minX, maxY - minY) / 2,
+        math.min(math.min(cx, w - 1 - cx), math.min(cy, h - 1 - cy)) - fw * 1.2);
+    final nz = _Noise(seed ^ 0x5B1A), nz2 = _Noise(seed ^ 0x5B1B);
+    final turns = 0.6 + 1.1 * a; // full turns from centre to rim
+    final folds = 7 + (seed % 4); // spiral fold creases
+    final arms = 3 + (seed % 2); // dye sections between the twisted arms
+    final out = Uint8List(n * 4);
+
+    double bil(Float32List c, double fx, double fy) {
+      fx = fx.clamp(0.0, w - 1.0);
+      fy = fy.clamp(0.0, h - 1.0);
+      final x0 = fx.floor(), y0 = fy.floor();
+      final x1 = math.min(w - 1, x0 + 1), y1 = math.min(h - 1, y0 + 1);
+      final tx = fx - x0, ty = fy - y0;
+      final top = c[y0 * w + x0] * (1 - tx) + c[y0 * w + x1] * tx;
+      final bot = c[y1 * w + x0] * (1 - tx) + c[y1 * w + x1] * tx;
+      return top * (1 - ty) + bot * ty;
+    }
+
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final i = y * w + x;
+        final dx = x - cx, dy = y - cy;
+        final r = math.sqrt(dx * dx + dy * dy);
+        // The whole round of cloth is dyed, whatever the artwork's shape
+        // (Nepal's pennant): undyed cloth stays white cotton.
+        if (r > rad + fw) continue;
+        final rn = (r / rad).clamp(0.0, 1.2);
+        final th = math.atan2(dy, dx);
+        // Fold wobble so arms are hand-made, not mathematical.
+        final wob = (nz.fbm(x / s * 3, y / s * 3, 3) - 0.5) * 0.9;
+        // Twist: inner cloth turns more (it was pinched at the centre).
+        final twist = 2 * math.pi * turns * math.pow(1 - rn.clamp(0.0, 1.0), 0.8) + wob;
+        // The arms also carry colour in and out along the radius, so even a
+        // centred disc (Japan) throws spiral arms through its surround.
+        final armPhase = (th + twist) * arms;
+        final pull = 1 + 0.38 * a * math.sin(armPhase + wob * 2) * _smooth(0.05, 0.35, rn);
+        // Feathered bleed: average taps spread along the arm direction.
+        double sr = 0, sg = 0, sb = 0, sa = 0;
+        const taps = 5;
+        for (var t = 0; t < taps; t++) {
+          final jit = (t - (taps - 1) / 2) / taps;
+          final spread = 0.16 * a * (0.4 + nz2.fbm(th * 3 + t, rn * 6, 2));
+          final ang = th + twist + jit * spread;
+          // Fine spikes across the arms: dye wicking along the fold ridges
+          // gives tie-dye its fuzzy, feathered colour edges.
+          final sp = ((nz2.fbm(x / s * 70 + t * 0.4, y / s * 70, 2) - 0.5) * 3.2).clamp(-1.0, 1.0);
+          final spike = sp.sign * math.pow(sp.abs(), 1.6) * 0.07 * a * _smooth(0.05, 0.3, rn);
+          final rr = math.min(r * pull * (1 + jit * 0.08 * a + spike), rad * 0.96);
+          final sx = cx + math.cos(ang) * rr, sy = cy + math.sin(ang) * rr;
+          final aa = bil(pa, sx, sy);
+          sr += bil(pr, sx, sy);
+          sg += bil(pg, sx, sy);
+          sb += bil(pb, sx, sy);
+          sa += aa;
+        }
+        // Premultiplied taps over white cotton.
+        var cr = (sr + (taps - sa)) / taps;
+        var cg = (sg + (taps - sa)) / taps;
+        var cb = (sb + (taps - sa)) / taps;
+        // Spiral coordinate: constant along an arm.
+        final phi = th + twist;
+        // White creases along the folds: thin, broken, feathered.
+        final fp = (phi / (2 * math.pi) * folds + wob * 2) % 1.0;
+        final fd = (fp < 0.5 ? fp : 1 - fp) * 2; // 0 on a crease
+        final cw = 0.18 + 0.3 * nz2.fbm(phi * 2, rn * 9, 3);
+        final crease = (1 - _smooth(0, cw, fd)) *
+            _smooth(0.35, 0.6, nz.fbm(phi * 4 + 9, rn * 14, 3)) *
+            _smooth(0.03, 0.12, rn);
+        // Section boundaries between dye arms: a pale gap where the bands
+        // held the cloth.
+        final ap = (phi / (2 * math.pi) * arms + 0.5 * wob) % 1.0;
+        final ad = (ap < 0.5 ? ap : 1 - ap) * 2;
+        final gap = (1 - _smooth(0, 0.05, ad)) * 0.6;
+        // Rubber-band rings.
+        final ringP = (rn * 3.2 + wob * 0.6) % 1.0;
+        final rd = (ringP < 0.5 ? ringP : 1 - ringP) * 2;
+        final ring = (1 - _smooth(0, 0.07, rd)) *
+            _smooth(0.3, 0.6, nz2.fbm(th * 5, rn * 3 + 4, 2)) * 0.7;
+        // Dyed cotton: bright and saturated, darks lifted.
+        final l = 0.3 * cr + 0.59 * cg + 0.11 * cb;
+        final sat = 1 + 0.35 * a;
+        cr = l + (cr - l) * sat;
+        cg = l + (cg - l) * sat;
+        cb = l + (cb - l) * sat;
+        final lift = 1 + 0.6 * a;
+        cr = 1 - math.pow(1 - cr.clamp(0.0, 1.0), lift).toDouble();
+        cg = 1 - math.pow(1 - cg.clamp(0.0, 1.0), lift).toDouble();
+        cb = 1 - math.pow(1 - cb.clamp(0.0, 1.0), lift).toDouble();
+        // Uneven dye take-up.
+        final m = (nz.fbm(x / s * 9 + 3, y / s * 9, 3) - 0.5) * 2;
+        final mot = 1 - 0.22 * a * m;
+        cr *= mot;
+        cg *= mot;
+        cb *= mot;
+        // Cotton grain: fine speckle where the dye took unevenly.
+        final grain = (nz2.fbm(x / s * 260, y / s * 260, 2) - 0.5) * 0.2 * a;
+        cr += grain;
+        cg += grain;
+        cb += grain;
+        final white = (math.max(crease * 0.7, math.max(gap, ring)) * a).clamp(0.0, 0.92);
+        cr += (1 - cr) * white;
+        cg += (1 - cg) * white;
+        cb += (1 - cb) * white;
+        final rag = (nz2.fbm(x / s * 16, y / s * 16, 3) - 0.5) * fw * 1.6;
+        final f = _smooth(0, fw, rad - r + rag - fw * 0.2);
+        final oa = f;
+        out[i * 4] = (cr.clamp(0.0, 1.0) * oa * 255).round();
+        out[i * 4 + 1] = (cg.clamp(0.0, 1.0) * oa * 255).round();
+        out[i * 4 + 2] = (cb.clamp(0.0, 1.0) * oa * 255).round();
         out[i * 4 + 3] = (oa * 255).round();
       }
     }

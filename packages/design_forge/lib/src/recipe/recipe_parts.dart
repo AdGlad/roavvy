@@ -542,6 +542,7 @@ class Effects {
     this.acidWash = 0.0,
     this.tieDye = 0.0,
     this.dyed = 0.0,
+    this.spiralDye = 0.0,
     this.shatter = 0.0,
     this.shatterSpikes = 0.0,
     this.riso = 0.0,
@@ -571,6 +572,11 @@ class Effects {
   /// lighten the dye, whites take a tint, and the edge goes soft and ragged.
   /// Unlike [tieDye] it adds no new colours. Omitted from JSON at 0.
   final double dyed;
+
+  /// Spiral tie-dye in the artwork's own colours (0 = off, 1 = heavy
+  /// twist): swirled arms, white fold creases, band rings, soft ragged
+  /// edge. Omitted from JSON at 0.
+  final double spiralDye;
 
   /// Radial "shatter/explosion" warp (0 = off, 1 = full): the artwork is blown
   /// into sharp zigzag shards radiating from a centre, with a spiky torn
@@ -603,6 +609,7 @@ class Effects {
       acidWash == 0 &&
       tieDye == 0 &&
       dyed == 0 &&
+      spiralDye == 0 &&
       shatter == 0 &&
       riso == 0 &&
       newsprint == 0 &&
@@ -624,6 +631,7 @@ class Effects {
         if (acidWash != 0.0) 'acidWash': acidWash,
         if (tieDye != 0.0) 'tieDye': tieDye,
         if (dyed != 0.0) 'dyed': dyed,
+        if (spiralDye != 0.0) 'spiralDye': spiralDye,
         if (shatter != 0.0) 'shatter': shatter,
         if (shatter != 0.0 && shatterSpikes != 0.0) 'shatterSpikes': shatterSpikes,
         if (riso != 0.0) 'riso': riso,
@@ -646,6 +654,7 @@ class Effects {
         acidWash: (j['acidWash'] as num?)?.toDouble() ?? 0.0,
         tieDye: (j['tieDye'] as num?)?.toDouble() ?? 0.0,
         dyed: (j['dyed'] as num?)?.toDouble() ?? 0.0,
+        spiralDye: (j['spiralDye'] as num?)?.toDouble() ?? 0.0,
         shatter: (j['shatter'] as num?)?.toDouble() ?? 0.0,
         shatterSpikes: (j['shatterSpikes'] as num?)?.toDouble() ?? 0.0,
         riso: (j['riso'] as num?)?.toDouble() ?? 0.0,
@@ -668,6 +677,7 @@ class Effects {
     double? acidWash,
     double? tieDye,
     double? dyed,
+    double? spiralDye,
     double? shatter,
     double? shatterSpikes,
     double? riso,
@@ -689,6 +699,7 @@ class Effects {
         acidWash: acidWash ?? this.acidWash,
         tieDye: tieDye ?? this.tieDye,
         dyed: dyed ?? this.dyed,
+        spiralDye: spiralDye ?? this.spiralDye,
         shatter: shatter ?? this.shatter,
         shatterSpikes: shatterSpikes ?? this.shatterSpikes,
         riso: riso ?? this.riso,
