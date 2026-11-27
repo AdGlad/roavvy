@@ -9,6 +9,7 @@ import 'render_target.dart';
 import 'stages/render_stage.dart';
 import 'stages/composition_stage.dart';
 import 'stages/clip_stage.dart';
+import 'stages/globe_stage.dart';
 import 'stages/edge_treatment_stage.dart';
 import 'stages/effects_stage.dart';
 import 'stages/colour_stage.dart';
@@ -41,6 +42,7 @@ class CanvasRenderer implements Renderer {
   /// grade never washes out the title text.
   static List<RenderStage> defaultStages() => const [
         CompositionStage(),
+        GlobeStage(),
         ClipStage(),
         WatercolourStage(),
         EdgeTreatmentStage(),

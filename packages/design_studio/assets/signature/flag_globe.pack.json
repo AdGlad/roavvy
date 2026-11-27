@@ -1,0 +1,80 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "clip": {
+      "flagScale": 0.8,
+      "scale": 0.92,
+      "shapeId": "circle"
+    },
+    "composition": {
+      "family": "singleHero",
+      "orientation": "square",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "globe": {
+      "bulge": 0.85,
+      "lightX": -0.45,
+      "lightY": -0.5,
+      "rim": 0.035,
+      "rimColour": "#FFFFFF",
+      "shading": 0.6,
+      "sparkles": 0.5,
+      "specular": 0.35,
+      "zoom": 0.95
+    },
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "envelope": {
+    "globe.bulge": {
+      "max": 0.95,
+      "min": 0.75
+    },
+    "globe.lightX": {
+      "max": -0.2,
+      "min": -0.7
+    },
+    "globe.lightY": {
+      "max": -0.3,
+      "min": -0.7
+    },
+    "globe.sparkles": {
+      "max": 0.7,
+      "min": 0.3
+    },
+    "globe.specular": {
+      "max": 0.5,
+      "min": 0.25
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "flag_globe",
+  "locks": {
+    "us": "59be1a611a68b107"
+  },
+  "notes": "The country's flag wrapped onto a glossy ball: stripes curve with the sphere, soft light from the upper left with a highlight and darker edges, faint sparkle stars, white sticker rim. Style reference: a US flag ball (generic style; nothing reproduced). The flag is drawn at 0.8 behind the ball (mirrored fill) so nearly the whole flag wraps round it.",
+  "overrides": {},
+  "status": "draft",
+  "title": "Flag Globe",
+  "version": 1
+}

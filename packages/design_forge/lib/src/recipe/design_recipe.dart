@@ -1,5 +1,6 @@
 import 'canonical_json.dart';
 import 'design_axis.dart';
+import 'globe.dart';
 import 'recipe_parts.dart';
 import 'torn_strips.dart';
 import 'watercolour.dart';
@@ -408,6 +409,7 @@ class DesignRecipe {
     this.typography,
     this.tornStrips,
     this.watercolour,
+    this.globe,
     this.motifs = const [],
     this.axisSeeds = const {},
     this.schemaVersion = kSchemaVersion,
@@ -443,6 +445,9 @@ class DesignRecipe {
 
   /// Watercolour painting of the clipped artwork; null = none.
   final Watercolour? watercolour;
+
+  /// The flag wrapped onto a ball; null = none.
+  final Globe? globe;
   final List<Motif> motifs;
 
   /// Per-axis re-roll seeds, keyed by [DesignAxis.key]. Empty by default: an
@@ -474,6 +479,7 @@ class DesignRecipe {
         if (typography != null) 'typography': typography!.toJson(),
         if (tornStrips != null) 'tornStrips': tornStrips!.toJson(),
         if (watercolour != null) 'watercolour': watercolour!.toJson(),
+        if (globe != null) 'globe': globe!.toJson(),
         if (motifs.isNotEmpty)
           'motifs': [for (final m in motifs) m.toJson()],
         // Omitted when empty so pre-M2 recipes keep their exact recipeId; keys
@@ -536,6 +542,7 @@ class DesignRecipe {
         typography: _obj(json['typography'], Typography.fromJson),
         tornStrips: _obj(json['tornStrips'], TornStrips.fromJson),
         watercolour: _obj(json['watercolour'], Watercolour.fromJson),
+        globe: _obj(json['globe'], Globe.fromJson),
         motifs: [
           for (final m in (json['motifs'] as List? ?? const []))
             Motif.fromJson((m as Map).cast<String, Object?>()),
@@ -559,6 +566,7 @@ class DesignRecipe {
     Typography? typography,
     TornStrips? tornStrips,
     Watercolour? watercolour,
+    Globe? globe,
     List<Motif>? motifs,
     Map<String, int>? axisSeeds,
     RecipeProvenance? provenance,
@@ -575,6 +583,7 @@ class DesignRecipe {
         typography: typography ?? this.typography,
         tornStrips: tornStrips ?? this.tornStrips,
         watercolour: watercolour ?? this.watercolour,
+        globe: globe ?? this.globe,
         motifs: motifs ?? this.motifs,
         axisSeeds: axisSeeds ?? this.axisSeeds,
         schemaVersion: schemaVersion,
