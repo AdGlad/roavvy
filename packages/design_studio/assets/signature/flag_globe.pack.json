@@ -33,7 +33,7 @@
       "bulge": 0.85,
       "lightX": -0.45,
       "lightY": -0.5,
-      "rim": 0.035,
+      "rim": 0.0,
       "rimColour": "#FFFFFF",
       "shading": 0.6,
       "sparkles": 0.25,
@@ -76,9 +76,9 @@
   "heroes": {},
   "id": "flag_globe",
   "locks": {
-    "us": "644289ccab74caa8"
+    "us": "05de8cd3e0e60d9a"
   },
-  "notes": "The country's flag wrapped onto a glossy ball: stripes curve with the sphere, soft light from the upper left with a highlight and darker edges, faint sparkle stars, white sticker rim. Style reference: a US flag ball (generic style; nothing reproduced). The flag is drawn at 0.8 behind the ball (mirrored fill) so nearly the whole flag wraps round it. Distressed + acid-washed (2026-11-27): marbled bleach swirls, sparse ink cracks, light worn speckle and fade; gloss toned down.",
+  "notes": "The country's flag wrapped onto a glossy ball: stripes curve with the sphere, soft light from the upper left with a highlight and darker edges, faint sparkle stars, no rim (removed 2026-11-27). Style reference: a US flag ball (generic style; nothing reproduced). The flag is drawn at 0.8 behind the ball (mirrored fill) so nearly the whole flag wraps round it. Distressed + acid-washed (2026-11-27): marbled bleach swirls, sparse ink cracks, light worn speckle and fade; gloss toned down.",
   "overrides": {},
   "status": "draft",
   "title": "Flag Globe",
