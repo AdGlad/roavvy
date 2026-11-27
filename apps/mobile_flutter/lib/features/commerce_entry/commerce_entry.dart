@@ -14,6 +14,9 @@ import '../merch/merch_orders_screen.dart';
 import '../merch/merch_shop_screen.dart';
 import '../merch/pulse_merch_option_screen.dart';
 import '../studio_v2_commerce/studio_v2_entry.dart';
+import '../studio_v2_commerce/torn_flag/my_tees_screen.dart';
+import '../studio_v2_commerce/torn_flag/torn_flag_tee_screen.dart';
+import '../studio_v2_commerce/torn_flag/torn_flag_tee_widgets.dart';
 
 export '../merch/merch_cart_screen.dart' show merchCartCountProvider;
 
@@ -102,6 +105,45 @@ abstract final class CommerceEntry {
   /// The user's merch orders.
   static Future<void> openOrders(BuildContext context) =>
       _push(context, (_) => const MerchOrdersScreen());
+
+  /// The torn-flag tee product page for [countryCode] (M200).
+  static Future<void> openTornFlagTee(
+    BuildContext context,
+    String countryCode,
+  ) => _push(
+    context,
+    (_) => TornFlagTeeScreen(countryCode: countryCode.toUpperCase()),
+  );
+
+  /// "My tees": one torn-flag tee per visited country (M200).
+  static Future<void> openMyTees(BuildContext context) =>
+      _push(context, (_) => const MyTeesScreen(onOpenTee: openTornFlagTee));
+
+  /// The "Your torn flag tee" card for a visited country (country page, trip
+  /// sheet). Hidden when commerce is off or there is no tee for the country.
+  /// [onOpen] replaces the default tap (e.g. to close a sheet first); it
+  /// should still open the tee through [openTornFlagTee].
+  static Widget tornFlagTeeCard(
+    String countryCode, {
+    void Function(BuildContext context)? onOpen,
+  }) => CommerceGate(
+    child: TornFlagTeeCard(
+      countryCode: countryCode,
+      onOpen: onOpen ?? (c) => openTornFlagTee(c, countryCode),
+    ),
+  );
+
+  /// The tee strip with "Get this tee" on a new-country celebration.
+  static Widget celebrationTee(String countryCode) => CommerceGate(
+    child: CelebrationTee(
+      countryCode: countryCode,
+      onOpen: (c) => openTornFlagTee(c, countryCode),
+    ),
+  );
+
+  /// The Stats card that opens "My tees".
+  static Widget myTeesCard() =>
+      const CommerceGate(child: MyTeesCard(onOpen: openMyTees));
 
   /// The T-Shirt Studio V2 app, for the dev `STUDIO_V2` boot path.
   static Widget studio() => const StudioV2Entry();

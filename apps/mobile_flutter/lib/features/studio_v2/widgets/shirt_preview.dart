@@ -35,7 +35,15 @@ class ShirtPreview extends StatefulWidget {
     this.placeholder,
     this.interactive = false,
     this.transformController,
+    this.garmentColour,
   });
+
+  /// The shirt colour (`#RRGGBB`) to show, when it is not the recipe's own.
+  ///
+  /// For a design whose recipe must not change with the shirt — a Signature
+  /// hero whose `recipeId` is locked (M200). Null uses
+  /// `recipe.palette.garmentColour`, as the Studio does.
+  final String? garmentColour;
 
   final RenderService service;
   final DesignRecipe recipe;
@@ -77,7 +85,7 @@ class _ShirtPreviewState extends State<ShirtPreview> {
   bool get _blank => widget.printArea == Rect.zero;
 
   GarmentMockupSpec get _spec => StudioGarments.specFor(
-    garmentColour: widget.recipe.palette?.garmentColour,
+    garmentColour: widget.garmentColour ?? widget.recipe.palette?.garmentColour,
     front: widget.front,
     printArea: _blank ? null : widget.printArea,
   );
@@ -96,11 +104,22 @@ class _ShirtPreviewState extends State<ShirtPreview> {
     // The artwork only re-renders when the design identity changes — a stage
     // change or a garment swap must not trigger an expensive re-render.
     if (old.recipe.recipeId != widget.recipe.recipeId ||
-        old.longSide != widget.longSide) {
+        old.longSide != widget.longSide ||
+        _artworkBackground(old) != _artworkBackground(widget)) {
       _loadArtwork();
     }
     if (_spec.garmentKey != _garmentKey) _loadGarment();
     if (_spec.shadingAssetPath != _shadingKey) _loadShading();
+  }
+
+  /// The tone the artwork is drawn against, when [ShirtPreview.garmentColour]
+  /// overrides the recipe's and the design carries an outline that picks its
+  /// colour from the shirt. Otherwise null (the recipe decides), so a colour
+  /// change costs no re-render.
+  static ui.Color? _artworkBackground(ShirtPreview w) {
+    final hex = w.garmentColour;
+    if (hex == null || w.recipe.composition.outlineWidth <= 0) return null;
+    return StudioGarments.parseHex(hex);
   }
 
   Future<void> _loadArtwork() async {
@@ -111,6 +130,7 @@ class _ShirtPreviewState extends State<ShirtPreview> {
         widget.recipe,
         widget.longSide,
         transparent: true,
+        background: _artworkBackground(widget),
       );
       if (mounted) setState(() => _artwork = img);
     } catch (_) {

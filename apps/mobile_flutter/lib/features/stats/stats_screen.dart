@@ -312,6 +312,10 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
                 ),
               ),
             ),
+
+            // ── My tees ───────────────────────────────────────────────────
+            // A torn-flag tee per visited country (M200). Commerce only.
+            SliverToBoxAdapter(child: CommerceEntry.myTeesCard()),
           ],
         );
       },

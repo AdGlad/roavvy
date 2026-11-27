@@ -75,7 +75,15 @@ class StudioV2CartAdapter {
   /// print canvas and re-place it from a string. The bytes that reach the
   /// store are the exact bytes M26's production renderer produced, each
   /// carried with its own [PrintPlacement].
-  Future<void> addToCart(BuildContext context, GarmentCartRequest r) async {
+  ///
+  /// [options] is for a host that has already asked for size and quantity on
+  /// its own page (the torn-flag tee product page, M200); when it is valid the
+  /// size sheet is not shown a second time. Null asks, as the Studio does.
+  Future<void> addToCart(
+    BuildContext context,
+    GarmentCartRequest r, {
+    StudioV2PurchaseOptions? options,
+  }) async {
     if (_busy) return;
 
     // Refuse a colour the store cannot actually make, by name. Falling through
@@ -103,13 +111,16 @@ class StudioV2CartAdapter {
 
     // Size and quantity are commerce's questions, asked once, here — never
     // added to the Studio's creative controls.
-    final options = await StudioV2SizeSheet.show(
-      context,
-      priceLabel: container
-          .read(shopifyPricingProvider)
-          .whenOrNull(data: (p) => p.tshirtFromPrice),
-    );
-    if (options == null || !context.mounted) return;
+    final chosen =
+        (options != null && options.isValid)
+            ? options
+            : await StudioV2SizeSheet.show(
+              context,
+              priceLabel: container
+                  .read(shopifyPricingProvider)
+                  .whenOrNull(data: (p) => p.tshirtFromPrice),
+            );
+    if (chosen == null || !context.mounted) return;
 
     _busy = true;
     final messenger = ScaffoldMessenger.of(context)
@@ -134,7 +145,7 @@ class StudioV2CartAdapter {
     try {
       outcome = await service.addToCart(
         request: r,
-        options: options,
+        options: chosen,
         uid: uid,
         buyerCountry: buyerCountryCode(),
         // Fail-CLOSED until M26.1's placement is measured on a real garment.
@@ -181,7 +192,7 @@ class StudioV2CartAdapter {
             content: Text(message),
             action: SnackBarAction(
               label: 'Retry',
-              onPressed: () => addToCart(context, r),
+              onPressed: () => addToCart(context, r, options: chosen),
             ),
           ),
         );

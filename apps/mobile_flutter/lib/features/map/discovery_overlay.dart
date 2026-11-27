@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/country_names.dart';
 import '../../core/flag_colours.dart';
+import '../commerce_entry/commerce_entry.dart';
 import 'celebration_globe_widget.dart';
 
 /// Gap inserted between sequential country celebrations (ADR-108).
@@ -257,7 +258,11 @@ class _DiscoveryOverlayState extends ConsumerState<DiscoveryOverlay> {
                       textAlign: TextAlign.center,
                     ),
                   ],
-                  const Spacer(),
+                  // The new country's tee — commerce only (ADR-180). Takes the
+                  // space left over, and gives it up on a short screen.
+                  Expanded(
+                    child: CommerceEntry.celebrationTee(widget.isoCode),
+                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                     child: FilledButton(
