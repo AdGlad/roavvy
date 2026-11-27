@@ -13,6 +13,7 @@ import 'stages/edge_treatment_stage.dart';
 import 'stages/effects_stage.dart';
 import 'stages/colour_stage.dart';
 import 'stages/typography_stage.dart';
+import 'stages/watercolour_stage.dart';
 
 /// Turns a [DesignRecipe] into pixels. The default [CanvasRenderer] is a
 /// **headless** pipeline: it draws directly to a `ui.Canvas` via a
@@ -41,6 +42,7 @@ class CanvasRenderer implements Renderer {
   static List<RenderStage> defaultStages() => const [
         CompositionStage(),
         ClipStage(),
+        WatercolourStage(),
         EdgeTreatmentStage(),
         EffectsStage(),
         ColourStage(),

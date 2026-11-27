@@ -1,0 +1,85 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "clip": {
+      "shapeId": "heart"
+    },
+    "composition": {
+      "family": "singleHero",
+      "orientation": "square",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "medium"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1,
+    "watercolour": {
+      "bleed": 0.45,
+      "blooms": 0.55,
+      "granulation": 0.35,
+      "paper": "#FBF6EC",
+      "pigment": 0.75,
+      "raggedEdge": 0.5,
+      "saturation": 1.0,
+      "splatter": 0.3,
+      "streaks": 0.45,
+      "tideLine": 0.5,
+      "wobble": 0.7,
+      "wobbleScale": 0.5
+    }
+  },
+  "envelope": {
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    },
+    "watercolour.bleed": {
+      "max": 0.55,
+      "min": 0.35
+    },
+    "watercolour.blooms": {
+      "max": 0.7,
+      "min": 0.4
+    },
+    "watercolour.pigment": {
+      "max": 0.9,
+      "min": 0.55
+    },
+    "watercolour.splatter": {
+      "max": 0.45,
+      "min": 0.15
+    },
+    "watercolour.streaks": {
+      "max": 0.6,
+      "min": 0.3
+    },
+    "watercolour.wobble": {
+      "max": 0.85,
+      "min": 0.55
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "watercolour_heart",
+  "locks": {
+    "us": "614db7b919afa59e"
+  },
+  "notes": "The country's flag painted in watercolour inside a heart: hand-painted wobbly edges, colours bleeding softly, uneven pigment with pale blooms and dry-brush streaks, darker dried rims, paper whites and a few splatter dots. Style reference: a watercolour US flag heart (stock art; used for style only, not reproduced). Square canvas so the flag shows ~75% of its width inside the heart.",
+  "overrides": {},
+  "status": "draft",
+  "title": "Watercolour Heart",
+  "version": 1
+}

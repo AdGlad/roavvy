@@ -16,6 +16,7 @@ export 'src/recipe/recipe_parts.dart';
 export 'src/recipe/shape_catalog.dart';
 export 'src/recipe/torn_strips.dart';
 export 'src/recipe/versions.dart';
+export 'src/recipe/watercolour.dart';
 export 'src/library/design_library.dart';
 
 // Signature Recipes (ADR-181).

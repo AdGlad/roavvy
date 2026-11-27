@@ -2,6 +2,7 @@ import 'canonical_json.dart';
 import 'design_axis.dart';
 import 'recipe_parts.dart';
 import 'torn_strips.dart';
+import 'watercolour.dart';
 import 'versions.dart';
 
 /// The design "family" — the top-level look. Extensible: unknown names decode to
@@ -406,6 +407,7 @@ class DesignRecipe {
     this.effects,
     this.typography,
     this.tornStrips,
+    this.watercolour,
     this.motifs = const [],
     this.axisSeeds = const {},
     this.schemaVersion = kSchemaVersion,
@@ -438,6 +440,9 @@ class DesignRecipe {
   /// Parameters of the `portrait_torn_flag` recipe; read only when the family
   /// is [DesignFamily.portraitTornFlag].
   final TornStrips? tornStrips;
+
+  /// Watercolour painting of the clipped artwork; null = none.
+  final Watercolour? watercolour;
   final List<Motif> motifs;
 
   /// Per-axis re-roll seeds, keyed by [DesignAxis.key]. Empty by default: an
@@ -468,6 +473,7 @@ class DesignRecipe {
         if (effects != null) 'effects': effects!.toJson(),
         if (typography != null) 'typography': typography!.toJson(),
         if (tornStrips != null) 'tornStrips': tornStrips!.toJson(),
+        if (watercolour != null) 'watercolour': watercolour!.toJson(),
         if (motifs.isNotEmpty)
           'motifs': [for (final m in motifs) m.toJson()],
         // Omitted when empty so pre-M2 recipes keep their exact recipeId; keys
@@ -529,6 +535,7 @@ class DesignRecipe {
         effects: _obj(json['effects'], Effects.fromJson),
         typography: _obj(json['typography'], Typography.fromJson),
         tornStrips: _obj(json['tornStrips'], TornStrips.fromJson),
+        watercolour: _obj(json['watercolour'], Watercolour.fromJson),
         motifs: [
           for (final m in (json['motifs'] as List? ?? const []))
             Motif.fromJson((m as Map).cast<String, Object?>()),
@@ -551,6 +558,7 @@ class DesignRecipe {
     Effects? effects,
     Typography? typography,
     TornStrips? tornStrips,
+    Watercolour? watercolour,
     List<Motif>? motifs,
     Map<String, int>? axisSeeds,
     RecipeProvenance? provenance,
@@ -566,6 +574,7 @@ class DesignRecipe {
         effects: effects ?? this.effects,
         typography: typography ?? this.typography,
         tornStrips: tornStrips ?? this.tornStrips,
+        watercolour: watercolour ?? this.watercolour,
         motifs: motifs ?? this.motifs,
         axisSeeds: axisSeeds ?? this.axisSeeds,
         schemaVersion: schemaVersion,
