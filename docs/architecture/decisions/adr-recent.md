@@ -1825,3 +1825,30 @@ v1.0 ships to the App Store with no T-shirt generation or purchasing; the Studio
 - Turning commerce on for users needs a new reviewed build with `ROAVVY_COMMERCE=true` **and** the server param on.
 - T-shirt development continues behind the define; the code stays in the binary as dead branches (acceptable).
 - CI runs the test suite in both modes.
+
+## ADR-181 — Signature Recipes: six approved, versioned recipe packs drive the v2 T-shirt feed
+
+**Status:** Proposed (M190)
+
+**Context:**
+v2 brings T-shirt purchasing back. The owner wants six designs that look like custom graphic design for **every** country, each developed and approved outside the app (macOS Design Lab), then shown automatically in the app: the six best first, then generated variations as the user scrolls. Today the engine can make good designs, but nothing says which ones are approved, where the safe parameter ranges are, or how a design approved for one flag behaves on the other ~200. ADR-179 (torn flag) proved the single-recipe pattern: presets hold the full recipe plus a locked `recipeId`, goldens guard them, and Lab and app share one renderer.
+
+**Decision:**
+1. **A Signature Recipe is data, not code.** `SignatureRecipe` (pure Dart, `packages/design_forge/lib/src/signature/`) holds:
+   - `id`, `version`, `status` (`draft` | `approved`), `approvedAt`, `title`;
+   - `base`: a `DesignRecipe` template whose country slot is filled at resolve time;
+   - `envelope`: the approved variation ranges (`VariationEnvelope`: per-parameter `[min,max]` or allowed-value sets, plus which axes vary: seed, palette, texture, layout knobs). Everything outside the envelope is fixed;
+   - `overrides`: a sparse per-country map of parameter deltas, each with a written `reason`. Overrides may only touch parameters, never add a flag's anatomy to the shared recipe (the ADR-179 Seychelles lesson);
+   - `heroes`: per-country curated seed (optional; default seed otherwise);
+   - `locks`: `{country → recipeId}` for a fixed sample of countries. A mismatch on load means the engine changed an approved design.
+2. **One file per recipe, bundled.** `roavvy.signature_pack` v1 JSON at `packages/design_studio/assets/signature/<id>.pack.json`, declared as package assets. The Lab writes these files in place (it runs in the repo), so the commit of a pack **is** the approval. Remote delivery is deferred; the format carries `formatVersion` so it can be served later without changing the model.
+3. **Resolution is pure and deterministic.** `SignatureResolver.hero(pack, country)` and `SignatureResolver.variation(pack, country, index)` return a `DesignRecipe`. Variation `i` samples the envelope with `DeterministicRng(hash(packId, version, country, i))`, so the same scroll position always shows the same design on every device, and a liked design is reproducible from its recipe alone (`DesignLibrary`).
+4. **Quality is measured, not eyeballed alone.** `SignatureQa` (`packages/design_forge_render`) renders a recipe at preview resolution and scores hard failures (empty/near-empty artwork, artwork clipped at the print-area edge, missing asset fallback) and soft checks (ink contrast against the six stocked garment colours, minimum feature size at 300 dpi, text cap height ≥ 0.25"). A pack can only be approved when every country passes the hard checks for its hero and for a sample of variations; soft failures are listed for the owner.
+5. **The app shows only approved packs.** `SignatureCatalog` (design_studio) loads bundled packs and drops `draft` ones in release builds. `SignatureFeed` (design_studio) produces the scroll order: six heroes for the chosen country, then variations interleaved round-robin across packs, deduplicated by a quantised-parameter signature and ranked by the existing `PreferenceScorer`/`DiversitySelector`. Thumbnails render on a background isolate through `RenderService`; the print file goes through the existing `production_render` path (no second renderer).
+6. **Guarded by goldens and parity.** Each approved pack commits goldens for 6 sample countries (`design_forge_render/test/goldens/signature/<id>/`), and the mobile parity test renders the same recipes through the app's bundle resolver and must match.
+
+**Consequences:**
+- Adding a seventh recipe later is: draft pack in the Lab → QA → approve → commit. No app code.
+- Engine changes that move an approved design fail the lock check and the goldens; the fix is to review in the Lab and re-approve (bump `version`), never to edit goldens blind.
+- `portrait_torn_flag` presets (ADR-179) become the first pack's base; the preset format stays for Lab-only experiments.
+- Asset coverage limits the choice of recipes: flags 272, country outlines 239, passport stamps ~196 countries, national animals 159, landmarks 1. A recipe must work from assets every country has, or declare a fallback in its pack.
