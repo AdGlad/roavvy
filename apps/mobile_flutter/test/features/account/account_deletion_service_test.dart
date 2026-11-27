@@ -3,8 +3,11 @@ import 'package:drift/native.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_flutter/data/achievement_repository.dart';
 import 'package:mobile_flutter/data/db/roavvy_database.dart';
 import 'package:mobile_flutter/data/visit_repository.dart';
+import 'package:mobile_flutter/data/xp_repository.dart';
+import 'package:mobile_flutter/features/xp/xp_event.dart';
 import 'package:mobile_flutter/features/account/account_deletion_service.dart';
 import 'package:mobile_flutter/features/sharing/share_token_service.dart';
 import 'package:shared_models/shared_models.dart';
@@ -148,6 +151,45 @@ void main() {
       expect(await repo.loadInferred(), isEmpty);
     });
 
+    test(
+      'wipes every local table, not just the travel record',
+      () async {
+        // Regression: deleting an account left achievements, XP and other
+        // tables on the device, and cached providers kept showing old trips.
+        final db = RoavvyDatabase(NativeDatabase.memory());
+        final repo = VisitRepository(db);
+        await repo.saveInferred(
+          InferredCountryVisit(
+            countryCode: 'GB',
+            inferredAt: DateTime.utc(2024),
+            photoCount: 1,
+          ),
+        );
+        await AchievementRepository(
+          db,
+        ).upsertAll({'first_country'}, DateTime.utc(2024));
+        await XpRepository(db).award(
+          XpEvent(
+            id: 'xp-1',
+            reason: XpReason.share,
+            amount: 30,
+            awardedAt: DateTime.utc(2024),
+          ),
+        );
+
+        await _makeService(
+          auth: _SuccessAuth(),
+          firestore: FakeFirebaseFirestore(),
+          repo: repo,
+        ).deleteAccount(uid);
+
+        for (final table in db.allTables) {
+          final rows = await db.select(table).get();
+          expect(rows, isEmpty, reason: '${table.actualTableName} not wiped');
+        }
+      },
+    );
+
     test('calls revokeFirestoreOnly when shareToken is provided', () async {
       final firestore = FakeFirebaseFirestore();
       const token = 'test-token';
@@ -202,6 +244,44 @@ void main() {
         expect(doc.exists, isTrue);
       },
     );
+  });
+
+  // ── ensureOwnedBy — device shared between accounts ─────────────────────────
+
+  group('ensureOwnedBy', () {
+    Future<VisitRepository> seeded() async {
+      final repo = _makeRepo();
+      await repo.saveInferred(
+        InferredCountryVisit(
+          countryCode: 'GB',
+          inferredAt: DateTime.utc(2024),
+          photoCount: 1,
+        ),
+      );
+      return repo;
+    }
+
+    test('adopts an unowned database without wiping it', () async {
+      final repo = await seeded();
+      expect(await repo.ensureOwnedBy('a'), isFalse);
+      expect(await repo.loadInferred(), hasLength(1));
+    });
+
+    test('keeps data for the same account', () async {
+      final repo = await seeded();
+      await repo.ensureOwnedBy('a');
+      expect(await repo.ensureOwnedBy('a'), isFalse);
+      expect(await repo.loadInferred(), hasLength(1));
+    });
+
+    test('wipes data left by a different account', () async {
+      // Regression: a new account created on the same phone after the old
+      // one was deleted still showed the old account's trips.
+      final repo = await seeded();
+      await repo.ensureOwnedBy('old-account');
+      expect(await repo.ensureOwnedBy('new-account'), isTrue);
+      expect(await repo.loadInferred(), isEmpty);
+    });
   });
 
   // ── deleteAccount — error paths ────────────────────────────────────────────

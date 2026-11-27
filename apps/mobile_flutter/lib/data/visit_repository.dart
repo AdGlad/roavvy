@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:shared_models/shared_models.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'db/roavvy_database.dart';
 
 /// Mediates all reads and writes to the three Drift tables that back the
@@ -344,6 +346,49 @@ class VisitRepository {
       // rescan triggers re-analysis with current scoring logic.
       await _db.delete(_db.heroImages).go();
     });
+  }
+
+  /// Deletes every row in every local table, for account deletion and sign-out.
+  ///
+  /// Unlike [clearAll] (which only resets the travel record so a rescan can
+  /// rebuild it), this also removes achievements, XP, visited heritage sites,
+  /// challenge progress, the photo GPS cache, share tokens and onboarding
+  /// state, so nothing from one account is visible to — or synced up by — the
+  /// next account signed in on the same device. Iterating [allTables] means
+  /// tables added in future schema versions are covered automatically.
+  Future<void> wipeAllLocalData() async {
+    await _db.transaction(() async {
+      for (final table in _db.allTables) {
+        await _db.delete(table).go();
+      }
+    });
+    // ignore: avoid_print
+    print('[roavvy-account] local data wiped');
+  }
+
+  static const _ownerUidKey = 'local_data_owner_uid';
+
+  /// Makes sure the local database belongs to [uid].
+  ///
+  /// The device database is not per-account, so a different account signing
+  /// in on the same device would otherwise see (and sync up) the previous
+  /// account's travel data. If the stored owner is a different uid, every
+  /// local table is wiped first. A missing owner (installs that predate this
+  /// guard) is adopted without wiping, so existing users keep their data.
+  ///
+  /// Returns true when data was wiped.
+  Future<bool> ensureOwnedBy(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    final owner = prefs.getString(_ownerUidKey);
+    var wiped = false;
+    if (owner != null && owner != uid) {
+      // ignore: avoid_print
+      print('[roavvy-account] local data belongs to another account — wiping');
+      await wipeAllLocalData();
+      wiped = true;
+    }
+    if (owner != uid) await prefs.setString(_ownerUidKey, uid);
+    return wiped;
   }
 
   // ── Scan metadata ────────────────────────────────────────────────────────

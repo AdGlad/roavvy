@@ -6,7 +6,7 @@ import 'package:mobile_flutter/features/map/photo_gps_fetch_service.dart';
 class _CountingFetch implements PhotoGpsFetchService {
   int calls = 0;
   @override
-  Future<void> fetchAndCache() async => calls++;
+  Future<void> fetchAndCache({bool Function()? isCancelled}) async => calls++;
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
