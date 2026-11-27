@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
@@ -71,7 +72,13 @@ class CompositionStage extends RenderStage {
 
     if (isSingle) {
       ctx.artwork = await ctx.rasterise((canvas) {
-        if (bleed) {
+        final clip = recipe.clip;
+        if (bleed &&
+            clip != null &&
+            (clip.flagScale != 1.0 || clip.flagOffsetY != 0.0)) {
+          _drawImageCoverMirrored(canvas, images[flags.first.code]!, frame,
+              paint, clip.flagScale, clip.flagOffsetY);
+        } else if (bleed) {
           _drawImageCover(canvas, images[flags.first.code]!, frame, paint);
         } else {
           _drawImageFitted(
@@ -161,6 +168,36 @@ class CompositionStage extends RenderStage {
       dh,
     );
     canvas.drawImageRect(img, _src(img), dst, paint);
+  }
+
+  /// Like [_drawImageCover] but the flag is drawn at [scale] × the cover size
+  /// and moved by [offsetY] × the frame height; the rest of [rect] is filled
+  /// by mirroring the flag's edges, so a smaller flag never leaves gaps.
+  void _drawImageCoverMirrored(ui.Canvas canvas, ui.Image img, ui.Rect rect,
+      ui.Paint paint, double scale, double offsetY) {
+    final iw = img.width.toDouble();
+    final ih = img.height.toDouble();
+    final cover = (rect.width / iw) > (rect.height / ih)
+        ? rect.width / iw
+        : rect.height / ih;
+    final s = cover * scale.clamp(0.2, 4.0);
+    final left = rect.left + (rect.width - iw * s) / 2;
+    final top = rect.top + (rect.height - ih * s) / 2 + offsetY * rect.height;
+    final m = Float64List(16)
+      ..[0] = s
+      ..[5] = s
+      ..[10] = 1
+      ..[12] = left
+      ..[13] = top
+      ..[15] = 1;
+    canvas.drawRect(
+        rect,
+        ui.Paint()
+          ..filterQuality = paint.filterQuality
+          ..isAntiAlias = true
+          ..shader = ui.ImageShader(
+              img, ui.TileMode.mirror, ui.TileMode.mirror, m,
+              filterQuality: paint.filterQuality));
   }
 
   /// Aspect-fill (cover) an image across [rect], centred, cropping overflow.

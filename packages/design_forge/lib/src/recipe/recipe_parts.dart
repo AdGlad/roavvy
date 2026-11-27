@@ -186,6 +186,8 @@ class Clip {
     this.scatter = 0.5,
     this.ink,
     this.stampMode,
+    this.flagScale = 1.0,
+    this.flagOffsetY = 0.0,
   });
 
   /// Convenience for the built-in [ClipShape] enum shapes.
@@ -202,6 +204,8 @@ class Clip {
     this.scatter = 0.5,
     this.ink,
     this.stampMode,
+    this.flagScale = 1.0,
+    this.flagOffsetY = 0.0,
   }) : shapeId = shape.id;
 
   /// Catalog id, e.g. 'circle', 'hexagon', 'luggageTag', 'text', 'countryOutline'.
@@ -244,6 +248,17 @@ class Clip {
   /// 'exitOnly' = just one (was the mobile `stampMode`).
   final String? stampMode;
 
+  /// Size of the flag BEHIND the shape, relative to covering the frame (1 =
+  /// cover, as before). Below 1 the flag is drawn smaller so more of it shows
+  /// inside the shape; the space it leaves is filled by mirroring the flag's
+  /// own edges, so there are never gaps. Omitted from JSON at 1.
+  final double flagScale;
+
+  /// Moves the flag behind the shape up (negative) or down, as a fraction of
+  /// the frame height — e.g. to centre a heart's flag in its wide upper part.
+  /// Omitted from JSON at 0.
+  final double flagOffsetY;
+
   /// The [ClipShape] enum for asset-backed shapes, or null for procedural/text.
   ClipShape get resolverShape => ClipShape.fromId(shapeId);
 
@@ -263,6 +278,8 @@ class Clip {
         if (scatter != 0.5) 'scatter': scatter,
         if (ink != null) 'ink': ink,
         if (stampMode != null) 'stampMode': stampMode,
+        if (flagScale != 1.0) 'flagScale': flagScale,
+        if (flagOffsetY != 0.0) 'flagOffsetY': flagOffsetY,
       };
 
   factory Clip.fromJson(Map<String, Object?> j) => Clip(
@@ -281,6 +298,8 @@ class Clip {
         scatter: (j['scatter'] as num?)?.toDouble() ?? 0.5,
         ink: j['ink'] as String?,
         stampMode: j['stampMode'] as String?,
+        flagScale: (j['flagScale'] as num?)?.toDouble() ?? 1.0,
+        flagOffsetY: (j['flagOffsetY'] as num?)?.toDouble() ?? 0.0,
       );
 
   Clip copyWith({
@@ -296,6 +315,8 @@ class Clip {
     double? scatter,
     String? ink,
     String? stampMode,
+    double? flagScale,
+    double? flagOffsetY,
   }) =>
       Clip(
         shapeId: shapeId ?? this.shapeId,
@@ -310,6 +331,8 @@ class Clip {
         scatter: scatter ?? this.scatter,
         ink: ink ?? this.ink,
         stampMode: stampMode ?? this.stampMode,
+        flagScale: flagScale ?? this.flagScale,
+        flagOffsetY: flagOffsetY ?? this.flagOffsetY,
       );
 }
 

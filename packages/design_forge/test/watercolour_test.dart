@@ -21,4 +21,14 @@ void main() {
   test('paper must be #RRGGBB', () {
     expect(() => Watercolour.fromJson({'paper': 'cream'}), throwsFormatException);
   });
+
+  test('clip flagScale / flagOffsetY: omitted at defaults, round-trip', () {
+    const c = Clip(shapeId: 'heart');
+    expect(c.toJson().containsKey('flagScale'), isFalse);
+    expect(c.toJson().containsKey('flagOffsetY'), isFalse);
+    final d = c.copyWith(flagScale: 0.8, flagOffsetY: -0.03);
+    final back = Clip.fromJson(d.toJson());
+    expect(back.flagScale, 0.8);
+    expect(back.flagOffsetY, -0.03);
+  });
 }
