@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/country_names.dart';
 import '../../core/flag_colours.dart';
+import '../commerce_entry/commerce_entry.dart';
 import 'celebration_globe_widget.dart';
 
 final _firstVisitedFmt = DateFormat('MMMM y');
@@ -314,7 +315,9 @@ class _CelebrationPageState extends State<_CelebrationPage> {
                 textAlign: TextAlign.center,
               ),
             ],
-            const Spacer(),
+            // The new country's tee — commerce only (ADR-180). Takes the
+            // space left over, and gives it up on a short screen.
+            Expanded(child: CommerceEntry.celebrationTee(widget.isoCode)),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
               child: FilledButton(

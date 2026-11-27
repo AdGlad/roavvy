@@ -165,7 +165,19 @@ class _TripDetailContent extends ConsumerWidget {
             ),
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
+
+          // The tee for this trip's country — commerce only (ADR-180).
+          CommerceEntry.tornFlagTeeCard(
+            cc,
+            onOpen: (context) {
+              final nav = Navigator.of(context);
+              nav.pop();
+              CommerceEntry.openTornFlagTee(nav.context, cc);
+            },
+          ),
+
+          const SizedBox(height: 16),
         ],
       ),
     );
