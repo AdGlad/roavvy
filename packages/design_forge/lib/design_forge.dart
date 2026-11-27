@@ -7,15 +7,20 @@ library design_forge;
 
 export 'src/determinism/deterministic_rng.dart';
 export 'src/generation/recipe_generator.dart';
+export 'src/geo/country_names.dart';
+export 'src/geo/iso3.dart';
 export 'src/recipe/canonical_json.dart';
+export 'src/recipe/captions.dart';
 export 'src/recipe/design_axis.dart';
 export 'src/recipe/design_recipe.dart';
 export 'src/recipe/garment_design.dart';
+export 'src/recipe/globe.dart';
 export 'src/recipe/procedural_recipe_codec.dart';
 export 'src/recipe/recipe_parts.dart';
 export 'src/recipe/shape_catalog.dart';
 export 'src/recipe/torn_strips.dart';
 export 'src/recipe/versions.dart';
+export 'src/recipe/watercolour.dart';
 export 'src/library/design_library.dart';
 
 // Signature Recipes (ADR-181).

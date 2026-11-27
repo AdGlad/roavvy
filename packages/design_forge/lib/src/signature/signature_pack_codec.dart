@@ -31,6 +31,7 @@ class SignaturePackCodec {
     'overrides',
     'heroes',
     'locks',
+    'tokens',
   };
 
   static String encode(SignatureRecipe s) {
@@ -50,6 +51,7 @@ class SignaturePackCodec {
       },
       'heroes': s.heroes,
       'locks': s.locks,
+      if (s.tokens.isNotEmpty) 'tokens': s.tokens,
     };
     return '${const JsonEncoder.withIndent('  ').convert(_sorted(json))}\n';
   }
@@ -92,6 +94,10 @@ class SignaturePackCodec {
         for (final e in _map(json['locks'] ?? {}, 'locks').entries)
           e.key: e.value as String,
       },
+      tokens: {
+        for (final e in _map(json['tokens'] ?? {}, 'tokens').entries)
+          e.key: e.value as String,
+      },
     );
   }
 
@@ -111,6 +117,12 @@ class SignaturePackCodec {
     final flags = RecipePath('content.flags.0.code');
     final country = (flags.read(json) as String).toLowerCase();
     flags.write(json, SignatureRecipe.countryToken);
+    // Listed explicitly (even at 0) so the Lab shows it as an editable
+    // parameter; DesignRecipe omits 0 when hashing, so recipeIds don't move.
+    (json['composition'] as Map<String, Object?>)
+      ..putIfAbsent('rotation', () => 0)
+      ..putIfAbsent('outlineWidth', () => 0.0)
+      ..putIfAbsent('outlineColour', () => Composition.autoOutline);
     final draft = SignatureRecipe(
       id: id,
       title: title,

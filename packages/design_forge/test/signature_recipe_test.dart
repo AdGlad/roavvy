@@ -239,4 +239,53 @@ void main() {
       expect(SignatureResolver.driftedLocks(fresh), isEmpty);
     });
   });
+
+  group('tokens', () {
+    SignatureRecipe stamp({Map<String, String> tokens = const {}}) {
+      final json = DesignRecipe(
+        seed: 1,
+        content: const RecipeContent(flags: [FlagRef('us')]),
+        composition: const Composition(family: DesignFamily.passportStamp),
+        clip: const Clip(shapeId: 'passportPage', code: 'us|12 MAR 24|26 MAR 24'),
+      ).toJson()
+        ..remove('recipeId');
+      (json['content'] as Map)['flags'] = [
+        {'code': '{{country}}', 'weight': 1.0},
+      ];
+      (json['clip'] as Map)['code'] = '{{country}}|{{entry}}|{{exit}}';
+      return SignatureRecipe(
+          id: 'passport_stamp',
+          title: 'Passport Stamp',
+          version: 1,
+          status: SignatureStatus.draft,
+          base: json,
+          tokens: tokens);
+    }
+
+    test('every token needs a default', () {
+      expect(() => stamp(), throwsA(isA<FormatException>()
+          .having((e) => e.message, 'message', contains('{{entry}}'))));
+    });
+
+    test('defaults fill the Lab render; real values override them', () {
+      final s = stamp(tokens: {'entry': '12 MAR 24', 'exit': '26 MAR 24'});
+      expect(SignatureResolver.hero(s, 'JP').clip!.code, 'jp|12 MAR 24|26 MAR 24');
+      expect(
+          SignatureResolver.hero(s, 'jp',
+              tokens: {'entry': '01 JAN 25', 'exit': '09 JAN 25'}).clip!.code,
+          'jp|01 JAN 25|09 JAN 25');
+      expect(
+          SignatureResolver.hero(s, 'jp', tokens: {'country': 'fr'}).clip!.code,
+          startsWith('jp|'),
+          reason: 'the country is never overridden by a token');
+    });
+
+    test('tokens round-trip; packs without tokens keep their bytes', () {
+      final s = stamp(tokens: {'entry': '12 MAR 24', 'exit': '26 MAR 24'});
+      final text = SignaturePackCodec.encode(s);
+      expect(SignaturePackCodec.decode(text).tokens, s.tokens);
+      expect(SignaturePackCodec.encode(_draft()), isNot(contains('"tokens"')));
+    });
+  });
 }
+

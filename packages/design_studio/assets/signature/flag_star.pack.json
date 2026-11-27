@@ -1,0 +1,49 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "clip": {
+      "flagFit": "stretch",
+      "rotationDeg": 0.0,
+      "scale": 0.94,
+      "shapeId": "star"
+    },
+    "composition": {
+      "family": "singleHero",
+      "orientation": "square",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "envelope": {
+    "clip.rotationDeg": {
+      "max": 12,
+      "min": -12
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "flag_star",
+  "locks": {
+    "us": "51f2bc94545694ae"
+  },
+  "notes": "The country's flag cut into a bold five-pointed star, the flag stretched to fill the star (US: canton in the top/left arms, stripes across the rest). Flat, clean print. Style reference: a US flag star (stock art; generic shape, nothing reproduced).",
+  "overrides": {},
+  "status": "draft",
+  "title": "Flag Star",
+  "version": 1
+}

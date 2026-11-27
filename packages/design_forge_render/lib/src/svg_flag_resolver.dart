@@ -242,7 +242,9 @@ class SvgFlagResolver implements AssetResolver {
       final marginX = width * margin, marginY = height * margin;
       final usableW = width - marginX * 2, usableH = height - marginY * 2;
       final aspect = usableW / math.max(1.0, usableH);
-      final rows = math.max(1, math.sqrt(n / aspect).ceil());
+      // Never more rows than stamps: a single stamp gets the whole page
+      // instead of half of it.
+      final rows = math.max(1, math.min(n, math.sqrt(n / aspect).ceil()));
       final cols = math.max(1, (n / rows).ceil());
       final cellW = usableW / cols, cellH = usableH / rows;
       final base = math.min(cellW, cellH);

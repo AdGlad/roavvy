@@ -186,6 +186,10 @@ class Clip {
     this.scatter = 0.5,
     this.ink,
     this.stampMode,
+    this.flagScale = 1.0,
+    this.flagOffsetY = 0.0,
+    this.font,
+    this.flagFit,
   });
 
   /// Convenience for the built-in [ClipShape] enum shapes.
@@ -202,6 +206,10 @@ class Clip {
     this.scatter = 0.5,
     this.ink,
     this.stampMode,
+    this.flagScale = 1.0,
+    this.flagOffsetY = 0.0,
+    this.font,
+    this.flagFit,
   }) : shapeId = shape.id;
 
   /// Catalog id, e.g. 'circle', 'hexagon', 'luggageTag', 'text', 'countryOutline'.
@@ -244,6 +252,31 @@ class Clip {
   /// 'exitOnly' = just one (was the mobile `stampMode`).
   final String? stampMode;
 
+  /// Size of the flag BEHIND the shape, relative to covering the frame (1 =
+  /// cover, as before). Below 1 the flag is drawn smaller so more of it shows
+  /// inside the shape; the space it leaves is filled by mirroring the flag's
+  /// own edges, so there are never gaps. Omitted from JSON at 1.
+  final double flagScale;
+
+  /// Moves the flag behind the shape up (negative) or down, as a fraction of
+  /// the frame height — e.g. to centre a heart's flag in its wide upper part.
+  /// Omitted from JSON at 0.
+  final double flagOffsetY;
+
+  /// Typeface for `text` clips: null = the platform's bold sans; 'varsity' =
+  /// the embedded collegiate block face (Graduate, OFL) — identical on every
+  /// host. Omitted from JSON when null.
+  final String? font;
+
+  /// How the flag fills the shape: null = cover the whole frame (default);
+  /// 'stretch' = the flag is stretched to exactly fill the shape's own
+  /// bounding box, so every band shows inside a wide word or a thin shape.
+  /// Omitted from JSON when null.
+  final String? flagFit;
+
+  /// [flagFit] value that stretches the flag to the shape's bounds.
+  static const String fitStretch = 'stretch';
+
   /// The [ClipShape] enum for asset-backed shapes, or null for procedural/text.
   ClipShape get resolverShape => ClipShape.fromId(shapeId);
 
@@ -263,6 +296,10 @@ class Clip {
         if (scatter != 0.5) 'scatter': scatter,
         if (ink != null) 'ink': ink,
         if (stampMode != null) 'stampMode': stampMode,
+        if (flagScale != 1.0) 'flagScale': flagScale,
+        if (flagOffsetY != 0.0) 'flagOffsetY': flagOffsetY,
+        if (font != null) 'font': font,
+        if (flagFit != null) 'flagFit': flagFit,
       };
 
   factory Clip.fromJson(Map<String, Object?> j) => Clip(
@@ -281,6 +318,10 @@ class Clip {
         scatter: (j['scatter'] as num?)?.toDouble() ?? 0.5,
         ink: j['ink'] as String?,
         stampMode: j['stampMode'] as String?,
+        flagScale: (j['flagScale'] as num?)?.toDouble() ?? 1.0,
+        flagOffsetY: (j['flagOffsetY'] as num?)?.toDouble() ?? 0.0,
+        font: j['font'] as String?,
+        flagFit: j['flagFit'] as String?,
       );
 
   Clip copyWith({
@@ -296,6 +337,10 @@ class Clip {
     double? scatter,
     String? ink,
     String? stampMode,
+    double? flagScale,
+    double? flagOffsetY,
+    String? font,
+    String? flagFit,
   }) =>
       Clip(
         shapeId: shapeId ?? this.shapeId,
@@ -310,6 +355,10 @@ class Clip {
         scatter: scatter ?? this.scatter,
         ink: ink ?? this.ink,
         stampMode: stampMode ?? this.stampMode,
+        flagScale: flagScale ?? this.flagScale,
+        flagOffsetY: flagOffsetY ?? this.flagOffsetY,
+        font: font ?? this.font,
+        flagFit: flagFit ?? this.flagFit,
       );
 }
 
@@ -492,6 +541,8 @@ class Effects {
     this.rippleFreq = 8.0,
     this.acidWash = 0.0,
     this.tieDye = 0.0,
+    this.dyed = 0.0,
+    this.spiralDye = 0.0,
     this.shatter = 0.0,
     this.shatterSpikes = 0.0,
     this.riso = 0.0,
@@ -515,6 +566,17 @@ class Effects {
   /// Psychedelic tie-dye colour wash (0 = off, 1 = full-strength concentric
   /// rainbow bleed blended over the artwork).
   final double tieDye;
+
+  /// Tie-dye in the artwork's OWN colours (0 = off, 1 = heavy): colour
+  /// borders bleed into feathered spikes, crinkle-fold veins darken and
+  /// lighten the dye, whites take a tint, and the edge goes soft and ragged.
+  /// Unlike [tieDye] it adds no new colours. Omitted from JSON at 0.
+  final double dyed;
+
+  /// Spiral tie-dye in the artwork's own colours (0 = off, 1 = heavy
+  /// twist): swirled arms, white fold creases, band rings, soft ragged
+  /// edge. Omitted from JSON at 0.
+  final double spiralDye;
 
   /// Radial "shatter/explosion" warp (0 = off, 1 = full): the artwork is blown
   /// into sharp zigzag shards radiating from a centre, with a spiky torn
@@ -546,6 +608,8 @@ class Effects {
       rippleAmp == 0 &&
       acidWash == 0 &&
       tieDye == 0 &&
+      dyed == 0 &&
+      spiralDye == 0 &&
       shatter == 0 &&
       riso == 0 &&
       newsprint == 0 &&
@@ -566,6 +630,8 @@ class Effects {
         if (rippleAmp != 0.0 && rippleFreq != 8.0) 'rippleFreq': rippleFreq,
         if (acidWash != 0.0) 'acidWash': acidWash,
         if (tieDye != 0.0) 'tieDye': tieDye,
+        if (dyed != 0.0) 'dyed': dyed,
+        if (spiralDye != 0.0) 'spiralDye': spiralDye,
         if (shatter != 0.0) 'shatter': shatter,
         if (shatter != 0.0 && shatterSpikes != 0.0) 'shatterSpikes': shatterSpikes,
         if (riso != 0.0) 'riso': riso,
@@ -587,6 +653,8 @@ class Effects {
         rippleFreq: (j['rippleFreq'] as num?)?.toDouble() ?? 8.0,
         acidWash: (j['acidWash'] as num?)?.toDouble() ?? 0.0,
         tieDye: (j['tieDye'] as num?)?.toDouble() ?? 0.0,
+        dyed: (j['dyed'] as num?)?.toDouble() ?? 0.0,
+        spiralDye: (j['spiralDye'] as num?)?.toDouble() ?? 0.0,
         shatter: (j['shatter'] as num?)?.toDouble() ?? 0.0,
         shatterSpikes: (j['shatterSpikes'] as num?)?.toDouble() ?? 0.0,
         riso: (j['riso'] as num?)?.toDouble() ?? 0.0,
@@ -608,6 +676,8 @@ class Effects {
     double? rippleFreq,
     double? acidWash,
     double? tieDye,
+    double? dyed,
+    double? spiralDye,
     double? shatter,
     double? shatterSpikes,
     double? riso,
@@ -628,6 +698,8 @@ class Effects {
         rippleFreq: rippleFreq ?? this.rippleFreq,
         acidWash: acidWash ?? this.acidWash,
         tieDye: tieDye ?? this.tieDye,
+        dyed: dyed ?? this.dyed,
+        spiralDye: spiralDye ?? this.spiralDye,
         shatter: shatter ?? this.shatter,
         shatterSpikes: shatterSpikes ?? this.shatterSpikes,
         riso: riso ?? this.riso,

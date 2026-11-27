@@ -1,7 +1,10 @@
 import 'canonical_json.dart';
+import 'captions.dart';
 import 'design_axis.dart';
+import 'globe.dart';
 import 'recipe_parts.dart';
 import 'torn_strips.dart';
+import 'watercolour.dart';
 import 'versions.dart';
 
 /// The design "family" — the top-level look. Extensible: unknown names decode to
@@ -175,6 +178,37 @@ enum SizeClass {
   }
 }
 
+/// One band of a layered outline ([Composition.outlineRings]).
+class OutlineRing {
+  const OutlineRing({required this.width, this.colour = Composition.autoOutline});
+
+  /// Band width, % of the canvas short side.
+  final double width;
+
+  /// `#RRGGBB`, `auto` (dark on light garments, light on dark) or [gap]
+  /// (a transparent band — space between the artwork and the next ring).
+  final String colour;
+
+  /// [colour] value for a transparent spacer band.
+  static const String gap = 'none';
+
+  Map<String, Object?> toJson() => {'width': width, 'colour': colour};
+
+  factory OutlineRing.fromJson(Map<String, Object?> j) {
+    final width = (j['width'] as num?)?.toDouble() ?? 0;
+    final colour = j['colour'] as String? ?? Composition.autoOutline;
+    if (width < 0 || width > 5) {
+      throw FormatException('outline ring width must be 0–5, not $width');
+    }
+    if (colour != Composition.autoOutline &&
+        colour != OutlineRing.gap &&
+        !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(colour)) {
+      throw FormatException('outline ring colour must be auto, none or #RRGGBB, not $colour');
+    }
+    return OutlineRing(width: width, colour: colour);
+  }
+}
+
 /// The macro layout skeleton.
 class Composition {
   const Composition({
@@ -189,10 +223,58 @@ class Composition {
     this.copiesPerCountry = 1,
     this.statementHero = false,
     this.sizeClass = SizeClass.medium,
-  });
+    this.rotation = 0,
+    this.outlineWidth = 0,
+    this.outlineColour = autoOutline,
+    this.outlineRings = const [],
+  }) : assert(rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270);
+
+  /// [outlineColour] value that picks dark or light from the garment.
+  static const String autoOutline = 'auto';
+
+  /// Quarter turns the finished artwork may be rotated by.
+  static const List<int> rotations = [0, 90, 180, 270];
 
   final DesignFamily family;
   final Orientation orientation;
+
+  /// Degrees ANTICLOCKWISE the finished artwork is turned, applied after every
+  /// stage (so text turns with it). One of [rotations]. Omitted from JSON when
+  /// 0, so existing recipeIds are unchanged.
+  ///
+  /// A quarter turn (90/270) also swaps the canvas: the design is drawn on its
+  /// own [orientation] and the output takes [canvasOrientation], so a turned
+  /// portrait design fills a landscape canvas edge to edge.
+  final int rotation;
+
+  /// Width of a keyline drawn around the artwork's OUTER edge (and the gaps
+  /// between torn strips), as a percentage of the canvas short side; 0 = none.
+  /// Holes inside the artwork (distress) are not outlined. Applied after every
+  /// stage, before [rotation]. Omitted from JSON when 0.
+  final double outlineWidth;
+
+  /// Keyline colour: [autoOutline] (dark on a light garment, light on a dark
+  /// one) or `#RRGGBB`. Omitted from JSON when auto.
+  final String outlineColour;
+
+  /// Layered keylines around the outer edge, innermost first — e.g. a thin
+  /// dark line, a cream band and a dark outer line for varsity lettering.
+  /// When non-empty it replaces [outlineWidth]/[outlineColour]. Omitted from
+  /// JSON when empty.
+  final List<OutlineRing> outlineRings;
+
+  /// True for 90° and 270°.
+  bool get isQuarterTurn => rotation == 90 || rotation == 270;
+
+  /// The shape of the RENDERED artwork: [orientation], swapped by a quarter
+  /// turn. Everything that sizes a canvas or a print area uses this.
+  Orientation get canvasOrientation => !isQuarterTurn
+      ? orientation
+      : switch (orientation) {
+          Orientation.portrait => Orientation.landscape,
+          Orientation.landscape => Orientation.portrait,
+          Orientation.square => Orientation.square,
+        };
 
   /// Grid-family layout mode (null for non-grid families).
   final LayoutMode? layoutMode;
@@ -227,9 +309,40 @@ class Composition {
         if (copiesPerCountry != 1) 'copiesPerCountry': copiesPerCountry,
         if (statementHero) 'statementHero': statementHero,
         if (sizeClass != SizeClass.medium) 'sizeClass': sizeClass.name,
+        if (rotation != 0) 'rotation': rotation,
+        if (outlineWidth != 0) 'outlineWidth': outlineWidth,
+        if (outlineColour != autoOutline) 'outlineColour': outlineColour,
+        if (outlineRings.isNotEmpty)
+          'outlineRings': [for (final r in outlineRings) r.toJson()],
       };
 
-  factory Composition.fromJson(Map<String, Object?> json) => Composition(
+  factory Composition.fromJson(Map<String, Object?> json) {
+    final rotation = (json['rotation'] as num?)?.toInt() ?? 0;
+    if (!rotations.contains(rotation)) {
+      throw FormatException('rotation must be one of $rotations, not $rotation');
+    }
+    final outlineWidth = (json['outlineWidth'] as num?)?.toDouble() ?? 0;
+    if (outlineWidth < 0 || outlineWidth > 5) {
+      throw FormatException('outlineWidth must be 0–5 (% of the short side), not $outlineWidth');
+    }
+    final outlineColour = json['outlineColour'] as String? ?? autoOutline;
+    if (outlineColour != autoOutline &&
+        !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(outlineColour)) {
+      throw FormatException('outlineColour must be "auto" or #RRGGBB, not $outlineColour');
+    }
+    final rings = [
+      for (final r in (json['outlineRings'] as List? ?? const []))
+        OutlineRing.fromJson((r as Map).cast<String, Object?>()),
+    ];
+    return Composition._fromJson(json, rotation).copyWith(
+        outlineWidth: outlineWidth,
+        outlineColour: outlineColour,
+        outlineRings: rings);
+  }
+
+  factory Composition._fromJson(Map<String, Object?> json, int rotation) =>
+      Composition(
+        rotation: rotation,
         family: DesignFamily.fromId(json['family'] as String?),
         orientation: Orientation.fromId(json['orientation'] as String?),
         layoutMode: json['layoutMode'] == null
@@ -262,8 +375,16 @@ class Composition {
     int? copiesPerCountry,
     bool? statementHero,
     SizeClass? sizeClass,
+    int? rotation,
+    double? outlineWidth,
+    String? outlineColour,
+    List<OutlineRing>? outlineRings,
   }) =>
       Composition(
+        outlineRings: outlineRings ?? this.outlineRings,
+        rotation: rotation ?? this.rotation,
+        outlineWidth: outlineWidth ?? this.outlineWidth,
+        outlineColour: outlineColour ?? this.outlineColour,
         family: family ?? this.family,
         orientation: orientation ?? this.orientation,
         layoutMode: layoutMode ?? this.layoutMode,
@@ -336,6 +457,9 @@ class DesignRecipe {
     this.effects,
     this.typography,
     this.tornStrips,
+    this.watercolour,
+    this.globe,
+    this.captions,
     this.motifs = const [],
     this.axisSeeds = const {},
     this.schemaVersion = kSchemaVersion,
@@ -368,6 +492,15 @@ class DesignRecipe {
   /// Parameters of the `portrait_torn_flag` recipe; read only when the family
   /// is [DesignFamily.portraitTornFlag].
   final TornStrips? tornStrips;
+
+  /// Watercolour painting of the clipped artwork; null = none.
+  final Watercolour? watercolour;
+
+  /// The flag wrapped onto a ball; null = none.
+  final Globe? globe;
+
+  /// Text above / below the artwork; null = none.
+  final Captions? captions;
   final List<Motif> motifs;
 
   /// Per-axis re-roll seeds, keyed by [DesignAxis.key]. Empty by default: an
@@ -398,6 +531,9 @@ class DesignRecipe {
         if (effects != null) 'effects': effects!.toJson(),
         if (typography != null) 'typography': typography!.toJson(),
         if (tornStrips != null) 'tornStrips': tornStrips!.toJson(),
+        if (watercolour != null) 'watercolour': watercolour!.toJson(),
+        if (globe != null) 'globe': globe!.toJson(),
+        if (captions != null) 'captions': captions!.toJson(),
         if (motifs.isNotEmpty)
           'motifs': [for (final m in motifs) m.toJson()],
         // Omitted when empty so pre-M2 recipes keep their exact recipeId; keys
@@ -459,6 +595,9 @@ class DesignRecipe {
         effects: _obj(json['effects'], Effects.fromJson),
         typography: _obj(json['typography'], Typography.fromJson),
         tornStrips: _obj(json['tornStrips'], TornStrips.fromJson),
+        watercolour: _obj(json['watercolour'], Watercolour.fromJson),
+        globe: _obj(json['globe'], Globe.fromJson),
+        captions: _obj(json['captions'], Captions.fromJson),
         motifs: [
           for (final m in (json['motifs'] as List? ?? const []))
             Motif.fromJson((m as Map).cast<String, Object?>()),
@@ -481,6 +620,9 @@ class DesignRecipe {
     Effects? effects,
     Typography? typography,
     TornStrips? tornStrips,
+    Watercolour? watercolour,
+    Globe? globe,
+    Captions? captions,
     List<Motif>? motifs,
     Map<String, int>? axisSeeds,
     RecipeProvenance? provenance,
@@ -496,6 +638,9 @@ class DesignRecipe {
         effects: effects ?? this.effects,
         typography: typography ?? this.typography,
         tornStrips: tornStrips ?? this.tornStrips,
+        watercolour: watercolour ?? this.watercolour,
+        globe: globe ?? this.globe,
+        captions: captions ?? this.captions,
         motifs: motifs ?? this.motifs,
         axisSeeds: axisSeeds ?? this.axisSeeds,
         schemaVersion: schemaVersion,

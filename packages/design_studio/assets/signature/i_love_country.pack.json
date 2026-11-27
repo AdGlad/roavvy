@@ -1,0 +1,100 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "captions": {
+      "bottom": "{{countryName}}",
+      "bottomSize": 0.13,
+      "colour": "flag",
+      "font": "brush",
+      "grit": 0.35,
+      "top": "I",
+      "topSize": 0.14,
+      "upperCase": true
+    },
+    "clip": {
+      "flagFit": "stretch",
+      "rotationDeg": -10.0,
+      "scale": 0.64,
+      "shapeId": "heart"
+    },
+    "composition": {
+      "family": "singleHero",
+      "orientation": "portrait",
+      "outlineColour": "auto",
+      "outlineRings": [
+        {
+          "colour": "none",
+          "width": 1.3
+        },
+        {
+          "colour": "#D52B1E",
+          "width": 1.0
+        }
+      ],
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 3,
+    "watercolour": {
+      "bleed": 0.05,
+      "blooms": 0.0,
+      "granulation": 0.35,
+      "paper": "#FFFFFF",
+      "pigment": 0.25,
+      "raggedEdge": 0.7,
+      "saturation": 1.0,
+      "splatter": 0.0,
+      "streaks": 0.55,
+      "tideLine": 0.1,
+      "wobble": 0.25,
+      "wobbleScale": 0.3
+    }
+  },
+  "envelope": {
+    "captions.grit": {
+      "max": 0.5,
+      "min": 0.2
+    },
+    "clip.rotationDeg": {
+      "max": -4,
+      "min": -14
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    },
+    "watercolour.streaks": {
+      "max": 0.7,
+      "min": 0.4
+    },
+    "watercolour.wobble": {
+      "max": 0.35,
+      "min": 0.15
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "i_love_country",
+  "locks": {
+    "us": "63173c0a0ca5d5ea"
+  },
+  "notes": "\"I ♥ <country>\": 'I' and the country's name in brush lettering (embedded Permanent Marker, Apache 2.0) coloured from the flag's strongest colour, around a tilted heart filled with the whole flag (stretched), painted with a dry brush, inside a white gap and a red outline. Style reference: an \"I love Greece\" print (stock; generic format, nothing reproduced).",
+  "overrides": {},
+  "status": "draft",
+  "title": "I Love Country",
+  "version": 1
+}

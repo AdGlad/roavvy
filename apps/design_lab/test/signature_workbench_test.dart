@@ -90,6 +90,17 @@ void main() {
       expect(SignatureEdit.parseLike(true, 'false'), false);
     });
 
+    test('rotation is editable and varies between upright and on its side', () {
+      final pack = _seedPack();
+      expect(SignatureEdit.editablePaths(pack), contains('composition.rotation'));
+      expect(SignatureEdit.defaultRange('composition.rotation', 0),
+          const ValueSet([0, 90]));
+      final turned = SignatureEdit.setBase(pack, 'composition.rotation', 90);
+      expect(SignatureResolver.hero(turned, 'us').composition.rotation, 90);
+      expect(() => SignatureEdit.setBase(pack, 'composition.rotation', 45),
+          throwsFormatException);
+    });
+
     test('default ranges stay inside 0..1 for unit parameters', () {
       final r = SignatureEdit.defaultRange('tornStrips.distress', 0.95) as NumRange;
       expect(r.min, closeTo(0.85, 1e-9));

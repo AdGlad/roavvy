@@ -1,0 +1,57 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "clip": {
+      "aspectRatio": 1.5,
+      "cornerRadius": 0.03,
+      "scale": 0.9,
+      "shapeId": "roundedRect"
+    },
+    "composition": {
+      "family": "singleHero",
+      "orientation": "landscape",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "effects": {
+      "dyed": 0.7
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "envelope": {
+    "effects.dyed": {
+      "max": 0.85,
+      "min": 0.55
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "tie_dye_flag",
+  "locks": {
+    "us": "482dcec7ea994637"
+  },
+  "notes": "The country's flag tie-dyed in its own colours: borders bleed into feathered spikes, crinkle-fold veins, tinted whites, bright dyed-cotton tones, soft ragged edge. Style reference: a tie-dyed Union Jack fabric photo (stock; generic technique, nothing reproduced).",
+  "overrides": {},
+  "status": "draft",
+  "title": "Tie-Dye Flag",
+  "version": 1
+}

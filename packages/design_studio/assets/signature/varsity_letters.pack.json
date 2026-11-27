@@ -1,0 +1,71 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "clip": {
+      "flagFit": "stretch",
+      "font": "varsity",
+      "scale": 0.9,
+      "shapeId": "text",
+      "text": "{{country3}}"
+    },
+    "composition": {
+      "family": "singleHero",
+      "orientation": "landscape",
+      "outlineColour": "auto",
+      "outlineRings": [
+        {
+          "colour": "#1E1414",
+          "width": 0.35
+        },
+        {
+          "colour": "#F3EAD3",
+          "width": 0.9
+        },
+        {
+          "colour": "#1E1414",
+          "width": 0.45
+        }
+      ],
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "envelope": {
+    "composition.outlineRings.1.colour": {
+      "values": [
+        "#F3EAD3",
+        "#FFFFFF",
+        "#E8C547"
+      ]
+    },
+    "composition.outlineRings.1.width": {
+      "max": 1.2,
+      "min": 0.6
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "varsity_letters",
+  "locks": {
+    "us": "2d122e591301ec20"
+  },
+  "notes": "The country's 3-letter code (USA, JPN, GBR...) in collegiate block letters (embedded Graduate, SIL OFL) filled with its flag stretched across the word, in a dark / cream / dark varsity outline. Style reference: a \"USA\" flag-letters tee (generic style; nothing reproduced).",
+  "overrides": {},
+  "status": "draft",
+  "title": "Varsity Letters",
+  "version": 1
+}

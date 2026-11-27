@@ -125,6 +125,7 @@ class SignatureEdit {
       overrides: pack.overrides,
       heroes: pack.heroes,
       locks: locks,
+      tokens: pack.tokens,
     );
   }
 
@@ -148,6 +149,7 @@ class SignatureEdit {
       overrides: overrides ?? pack.overrides,
       heroes: heroes ?? pack.heroes,
       locks: pack.locks,
+      tokens: pack.tokens,
     );
   }
 
@@ -172,6 +174,9 @@ class SignatureEdit {
   /// A sensible starting range for a parameter currently at [value].
   static ParamRange defaultRange(String path, Object? value) {
     if (path == 'seed') return const NumRange(1, 1000000, integer: true);
+    // Upright or on its side. 180 is never a default: an upside-down flag is
+    // a distress/protest signal.
+    if (path == 'composition.rotation') return const ValueSet([0, 90]);
     if (value is bool) return const ValueSet([true, false]);
     if (value is int) return NumRange(value, value + 10, integer: true);
     if (value is num) {

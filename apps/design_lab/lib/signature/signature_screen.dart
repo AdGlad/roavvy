@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
 import 'package:design_forge_render/design_forge_render.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Orientation;
 
 import '../render_service.dart';
 import 'signature_edit.dart';
@@ -46,8 +46,9 @@ class SignatureScreenState extends State<SignatureScreen> {
   static const int _inspectorLongSide = 600;
   static const int _variationCount = 12;
 
-  late final SignatureSweep _sweep =
-      SignatureSweep(widget.service, longSide: widget.sweepLongSide);
+  late final SignatureSweep _sweep = SignatureSweep(widget.service,
+      longSide: widget.sweepLongSide,
+      display: QaThresholds.orderableGarments[_garment].$1);
 
   List<String> _ids = const [];
   SignatureRecipe? _pack;
@@ -155,6 +156,22 @@ class SignatureScreenState extends State<SignatureScreen> {
 
   // ---- rendering -----------------------------------------------------------
 
+  /// Shows the sheet on another shirt colour. A design whose artwork changes
+  /// with the shirt (automatic outline) is re-rendered for it.
+  void _setGarment(int i) {
+    final p = _pack;
+    final light = QaThresholds.orderableGarments[i].$1.computeLuminance() >= 0.3;
+    final wasLight =
+        QaThresholds.orderableGarments[_garment].$1.computeLuminance() >= 0.3;
+    setState(() => _garment = i);
+    _sweep.display = QaThresholds.orderableGarments[i].$1;
+    if (p == null || light == wasLight) return;
+    final depends = SignatureSweep.dependsOnGarment(SignatureResolver.hero(p, 'us'));
+    if (!depends) return;
+    setState(_cells.clear);
+    _resweep();
+  }
+
   /// Re-renders only the countries whose hero changed (a base edit changes
   /// all of them; an override or hero edit changes one).
   Future<void> _resweep() async {
@@ -194,9 +211,12 @@ class SignatureScreenState extends State<SignatureScreen> {
       _variations.clear();
     });
     try {
-      final img = await widget.service.imageFor(
-          SignatureResolver.hero(p, cc), _inspectorLongSide,
-          transparent: true);
+      final hero = SignatureResolver.hero(p, cc);
+      final img = await widget.service.imageFor(hero, _inspectorLongSide,
+          transparent: true,
+          background: SignatureSweep.dependsOnGarment(hero)
+              ? QaThresholds.orderableGarments[_garment].$1
+              : null);
       if (!mounted || gen != _inspectorGen) return;
       setState(() => _inspectorImage = img);
     } catch (e) {
@@ -461,6 +481,15 @@ class SignatureScreenState extends State<SignatureScreen> {
     );
   }
 
+  bool _landscape(SignatureRecipe p) {
+    try {
+      return SignatureResolver.hero(p, 'us').composition.canvasOrientation ==
+          Orientation.landscape;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Widget _statusChip(SignatureRecipe p) => Chip(
         visualDensity: VisualDensity.compact,
         backgroundColor: p.isApproved ? const Color(0xFFD6F0DC) : const Color(0xFFFFF1C9),
@@ -543,7 +572,7 @@ class SignatureScreenState extends State<SignatureScreen> {
               for (var i = 0; i < QaThresholds.orderableGarments.length; i++)
                 DropdownMenuItem(value: i, child: Text('On ${QaThresholds.orderableGarments[i].$2}')),
             ],
-            onChanged: (v) => setState(() => _garment = v ?? _garment),
+            onChanged: (v) => _setGarment(v ?? _garment),
           ),
           Text(_pending > 0
               ? 'Rendering… ${widget.codes.length - _pending}/${widget.codes.length}'
@@ -553,8 +582,13 @@ class SignatureScreenState extends State<SignatureScreen> {
       Expanded(
         child: GridView.builder(
           padding: const EdgeInsets.all(12),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 150, childAspectRatio: 0.68, mainAxisSpacing: 8, crossAxisSpacing: 8),
+          // Tiles take the design's shape, so a rotated (landscape) design
+          // is shown at full size rather than letterboxed in a tall tile.
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: _landscape(p) ? 190 : 150,
+              childAspectRatio: _landscape(p) ? 1.08 : 0.68,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8),
           itemCount: shown.length,
           itemBuilder: (_, i) {
             final cc = shown[i];

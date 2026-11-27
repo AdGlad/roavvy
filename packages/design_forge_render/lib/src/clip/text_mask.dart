@@ -15,6 +15,7 @@ class TextMask {
     required double rotationDeg,
     required String text,
     String? fontFamily,
+    ui.FontWeight fontWeight = ui.FontWeight.w800,
   }) async {
     final content = text.trim().isEmpty ? ' ' : text.trim();
 
@@ -24,7 +25,7 @@ class TextMask {
         // caller centres the measured block. (center would push text ~width/2.)
         textAlign: ui.TextAlign.left,
         fontSize: fontSize,
-        fontWeight: ui.FontWeight.w800,
+        fontWeight: fontWeight,
         fontFamily: fontFamily,
       ))
         ..pushStyle(ui.TextStyle(color: const ui.Color(0xFFFFFFFF)))

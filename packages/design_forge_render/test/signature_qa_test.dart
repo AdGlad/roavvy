@@ -39,6 +39,27 @@ void main() {
     expect(r.status, QaStatus.fail);
   });
 
+  test('thin line-art is not empty; a tiny design is', () {
+    // A 1-px rectangle outline spanning most of the canvas: little ink, big span.
+    final px = Uint8List(_w * _h * 4);
+    void dot(int x, int y) => px[(y * _w + x) * 4 + 3] = 255;
+    for (var x = 15; x < 85; x++) {
+      dot(x, 15);
+      dot(x, 110);
+    }
+    for (var y = 15; y < 110; y++) {
+      dot(15, y);
+      dot(84, y);
+    }
+    expect(SignatureQa.analyse(px, _w, _h).hard.map((f) => f.code),
+        isNot(contains('empty')));
+    expect(
+        SignatureQa.analyse(_canvas(left: 45, top: 55, right: 55, bottom: 70), _w, _h)
+            .hard
+            .map((f) => f.code),
+        contains('empty'));
+  });
+
   test('a full-bleed render fails as flooded and clipped', () {
     final r = SignatureQa.analyse(
         _canvas(left: 0, top: 0, right: _w, bottom: _h), _w, _h);
