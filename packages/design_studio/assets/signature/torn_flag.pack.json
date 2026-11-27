@@ -1,0 +1,69 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "composition": {
+      "family": "portraitTornFlag",
+      "orientation": "portrait",
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1,
+    "tornStrips": {
+      "blockHeight": 0.4,
+      "blockTear": 0.6,
+      "blockWidth": 0.54,
+      "breakChance": 0.35,
+      "brightness": -0.08,
+      "curvature": 0.75,
+      "cutMode": "flag",
+      "distress": 0.75,
+      "distressScale": 0.6,
+      "edgeRoughness": 0.6,
+      "edgeWear": 0.3,
+      "flagAspect": 0.0,
+      "flagVariant": "official",
+      "fringeCount": 9,
+      "fringeDepth": 0.35,
+      "gap": 0.04,
+      "hueShift": 0.0,
+      "knockoutWhite": false,
+      "margin": 0.04,
+      "mirror": false,
+      "rotateClockwise": true,
+      "saturation": 0.95,
+      "spacingJitter": 0.08,
+      "stripCount": 13,
+      "swayCoherence": 0.8,
+      "tearJag": 0.6,
+      "tearLength": 0.38,
+      "tearPoint": 0.75,
+      "topVariation": 0.18,
+      "vintage": 0.1,
+      "waviness": 0.35,
+      "widthWobble": 0.3
+    }
+  },
+  "envelope": {},
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "torn_flag",
+  "locks": {
+    "us": "748dc73163b8ec40"
+  },
+  "notes": "Seeded from us-classic.preset.json (US Classic). Tuned against the distressed torn-flag reference (design_studio/reference_images/liked/us-flag-torn.jpg) on official 1.9:1 artwork; torn along the flag's own 13 stripes. Awaiting approval.",
+  "overrides": {},
+  "status": "draft",
+  "title": "Torn Flag",
+  "version": 1
+}

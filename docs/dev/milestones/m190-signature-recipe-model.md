@@ -2,7 +2,7 @@
 
 **Phase:** v2 Signature T-shirts (M190–M199)
 **Depends on:** none (v1.0 merged, `main` @ 9e479da2)
-**Status:** Todo
+**Status:** Done (branch `feat/m190-signature-recipes`, not merged)
 **Primary target:** `packages/design_forge` · `packages/design_studio` · ADR-181
 **Size:** M
 
@@ -49,6 +49,19 @@ packages/design_studio/
 
 ## 5. Acceptance
 
-- [ ] `dart test` in `design_forge` and `flutter test` in `design_studio` green.
-- [ ] Torn-flag seed pack loads, resolves US to the same `recipeId` as the existing preset.
-- [ ] No change to `apps/mobile_flutter` or the V1 merch path.
+- [x] `dart test` in `design_forge` (135) and `flutter test` in `design_studio` (85) green; analyze clean.
+- [x] Torn-flag seed pack loads, resolves US to the same `recipeId` as the existing preset (`748dc73163b8ec40`).
+- [x] No change to `apps/mobile_flutter` or the V1 merch path (mobile + Lab analyze: 0 errors).
+
+## 6. As built (2026-11-27)
+
+- `packages/design_forge/lib/src/signature/`: `recipe_path.dart` (dotted paths, list indices, leaf-only), `variation_envelope.dart` (`NumRange` incl. integer, `ValueSet`; draws rounded to 4 dp), `signature_recipe.dart` (model + all validation at construction), `signature_resolver.dart` (`hero`, `variation`, `driftedLocks`, `lockFor`), `signature_pack_codec.dart` (`encode`/`decode`, `draftFromRecipe`).
+- Decisions made while building:
+  - Heroes store **envelope values** (not just a seed), so "save this variation as the hero" in the Lab is exact.
+  - An override on an enveloped path **pins** it for that country and must sit inside the range; overrides can never widen the envelope.
+  - Templating is a `{{country}}` string token, required in `base`; extra `{{name}}` tokens can be passed for later recipes (trip year, name).
+  - The catalog takes an injected loader (`rootBundle.loadString` on mobile, file reads in the Lab), keeping host concerns out of design_studio, plus an `index.json` that fixes feed order.
+- `packages/design_studio/lib/src/signature_catalog.dart`, assets `assets/signature/{index.json,torn_flag.pack.json}` declared in the pubspec.
+- `packages/design_forge/tool/pack_from_preset.dart` made the torn-flag seed pack (draft, empty envelope, lock `us`).
+- Tests: `design_forge/test/signature_recipe_test.dart` (17, incl. cross-isolate determinism), `design_studio/test/signature_catalog_test.dart` (5: locks, canonical files, preset parity, drafts hidden, id mismatch).
+- Doc: `packages/design_forge/doc/SIGNATURE.md`.
