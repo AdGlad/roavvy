@@ -106,5 +106,59 @@ void main() {
     }
     expect(gold, greaterThan(500), reason: 'gold in the lower arms');
   });
+
+  test('a gap ring is transparent, the ring beyond it is drawn', () {
+    const n = 60;
+    final px = Uint8List(n * n * 4);
+    for (var y = 20; y < 40; y++) {
+      for (var x = 20; x < 40; x++) {
+        final i = (y * n + x) * 4;
+        px[i] = px[i + 3] = 255;
+      }
+    }
+    final out = Keyline.outlineRings(px, n, n, [3, 3], [
+      null,
+      [0, 0, 255],
+    ]);
+    expect(out[(30 * n + 18) * 4 + 3], 0, reason: 'gap band is empty');
+    expect(out[(30 * n + 15) * 4 + 2], greaterThan(200), reason: 'ring beyond the gap');
+  });
+
+  testWidgets('captions: brush lettering above and below, in the flag colour',
+      (tester) async {
+    late Uint8List px;
+    const w = 320, h = 400;
+    await tester.runAsync(() async {
+      final renderer = CanvasRenderer(
+          assets: SvgFlagResolver((c) => File('$_flagDir/$c.svg').readAsString()));
+      final img = (await renderer.render(
+        const DesignRecipe(
+          seed: 1,
+          content: RecipeContent(flags: [FlagRef('gr')]),
+          composition: Composition(family: DesignFamily.singleHero),
+          clip: Clip(shapeId: 'heart', scale: 0.5, flagFit: 'stretch'),
+          captions: Captions(top: 'I', bottom: 'Greece', grit: 0),
+        ),
+        const RenderTarget(width: w, height: h, paintBackground: false),
+      ))
+          .image;
+      px = (await img.toByteData(format: ui.ImageByteFormat.rawStraightRgba))!
+          .buffer
+          .asUint8List();
+    });
+    int blueIn(int y0, int y1) {
+      var n = 0;
+      for (var y = y0; y < y1; y++) {
+        for (var x = 0; x < w; x++) {
+          final i = (y * w + x) * 4;
+          if (px[i + 3] > 200 && px[i + 2] > 150 && px[i] < 80) n++;
+        }
+      }
+      return n;
+    }
+
+    expect(blueIn(0, 70), greaterThan(100), reason: 'the blue "I" on top');
+    expect(blueIn(330, 400), greaterThan(400), reason: 'GREECE in blue below');
+  });
 }
 
