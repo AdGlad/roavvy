@@ -1,4 +1,5 @@
 import 'canonical_json.dart';
+import 'captions.dart';
 import 'design_axis.dart';
 import 'globe.dart';
 import 'recipe_parts.dart';
@@ -184,8 +185,12 @@ class OutlineRing {
   /// Band width, % of the canvas short side.
   final double width;
 
-  /// `#RRGGBB`, or `auto` (dark on light garments, light on dark).
+  /// `#RRGGBB`, `auto` (dark on light garments, light on dark) or [gap]
+  /// (a transparent band — space between the artwork and the next ring).
   final String colour;
+
+  /// [colour] value for a transparent spacer band.
+  static const String gap = 'none';
 
   Map<String, Object?> toJson() => {'width': width, 'colour': colour};
 
@@ -196,8 +201,9 @@ class OutlineRing {
       throw FormatException('outline ring width must be 0–5, not $width');
     }
     if (colour != Composition.autoOutline &&
+        colour != OutlineRing.gap &&
         !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(colour)) {
-      throw FormatException('outline ring colour must be auto or #RRGGBB, not $colour');
+      throw FormatException('outline ring colour must be auto, none or #RRGGBB, not $colour');
     }
     return OutlineRing(width: width, colour: colour);
   }
@@ -453,6 +459,7 @@ class DesignRecipe {
     this.tornStrips,
     this.watercolour,
     this.globe,
+    this.captions,
     this.motifs = const [],
     this.axisSeeds = const {},
     this.schemaVersion = kSchemaVersion,
@@ -491,6 +498,9 @@ class DesignRecipe {
 
   /// The flag wrapped onto a ball; null = none.
   final Globe? globe;
+
+  /// Text above / below the artwork; null = none.
+  final Captions? captions;
   final List<Motif> motifs;
 
   /// Per-axis re-roll seeds, keyed by [DesignAxis.key]. Empty by default: an
@@ -523,6 +533,7 @@ class DesignRecipe {
         if (tornStrips != null) 'tornStrips': tornStrips!.toJson(),
         if (watercolour != null) 'watercolour': watercolour!.toJson(),
         if (globe != null) 'globe': globe!.toJson(),
+        if (captions != null) 'captions': captions!.toJson(),
         if (motifs.isNotEmpty)
           'motifs': [for (final m in motifs) m.toJson()],
         // Omitted when empty so pre-M2 recipes keep their exact recipeId; keys
@@ -586,6 +597,7 @@ class DesignRecipe {
         tornStrips: _obj(json['tornStrips'], TornStrips.fromJson),
         watercolour: _obj(json['watercolour'], Watercolour.fromJson),
         globe: _obj(json['globe'], Globe.fromJson),
+        captions: _obj(json['captions'], Captions.fromJson),
         motifs: [
           for (final m in (json['motifs'] as List? ?? const []))
             Motif.fromJson((m as Map).cast<String, Object?>()),
@@ -610,6 +622,7 @@ class DesignRecipe {
     TornStrips? tornStrips,
     Watercolour? watercolour,
     Globe? globe,
+    Captions? captions,
     List<Motif>? motifs,
     Map<String, int>? axisSeeds,
     RecipeProvenance? provenance,
@@ -627,6 +640,7 @@ class DesignRecipe {
         tornStrips: tornStrips ?? this.tornStrips,
         watercolour: watercolour ?? this.watercolour,
         globe: globe ?? this.globe,
+        captions: captions ?? this.captions,
         motifs: motifs ?? this.motifs,
         axisSeeds: axisSeeds ?? this.axisSeeds,
         schemaVersion: schemaVersion,

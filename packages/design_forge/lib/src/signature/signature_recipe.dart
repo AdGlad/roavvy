@@ -1,3 +1,4 @@
+import '../geo/country_names.dart';
 import '../geo/iso3.dart';
 import '../recipe/design_recipe.dart';
 import 'recipe_path.dart';
@@ -104,8 +105,9 @@ class SignatureRecipe {
   static const String countryToken = '{{country}}';
 
   /// Tokens every pack gets without declaring a default: `country` (the
-  /// lowercase ISO code) and `country3` (its 3-letter code, e.g. USA).
-  static const Set<String> builtInTokens = {'country', 'country3'};
+  /// lowercase ISO code), `country3` (its 3-letter code, e.g. USA) and
+  /// `countryName` (its display name, e.g. Greece).
+  static const Set<String> builtInTokens = {'country', 'country3', 'countryName'};
 
   /// Stable id, also the pack file name: `torn_flag` → `torn_flag.pack.json`.
   final String id;
@@ -151,6 +153,7 @@ class SignatureRecipe {
       ...tokens,
       'country': country.toLowerCase(),
       'country3': countryAlpha3(country),
+      'countryName': countryDisplayName(country),
     };
     return _substitute(deepCopyJson(base), all) as Map<String, Object?>;
   }

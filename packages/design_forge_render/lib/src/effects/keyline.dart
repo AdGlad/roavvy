@@ -37,16 +37,19 @@ class Keyline {
   /// [art] with layered keyline bands behind its silhouette, innermost
   /// first: each `(width px, colour)`.
   static Future<ui.Image> applyRings(
-      ui.Image art, List<(double, ui.Color)> rings) async {
+      ui.Image art, List<(double, ui.Color?)> rings) async {
     final total = rings.fold<double>(0, (a, r) => a + r.$1);
     if (total <= 0) return art;
     final data = await art.toByteData(format: ui.ImageByteFormat.rawRgba);
     final w = art.width, h = art.height;
     final bytes = data!.buffer.asUint8List();
     final widths = [for (final r in rings) r.$1];
-    final rgbs = [
+    // A null colour is a transparent spacer band.
+    final rgbs = <List<int>?>[
       for (final r in rings)
-        [(r.$2.r * 255).round(), (r.$2.g * 255).round(), (r.$2.b * 255).round()],
+        r.$2 == null
+            ? null
+            : [(r.$2!.r * 255).round(), (r.$2!.g * 255).round(), (r.$2!.b * 255).round()],
     ];
     final out =
         await Isolate.run(() => outlineRings(bytes, w, h, widths, rgbs));
@@ -65,7 +68,7 @@ class Keyline {
   /// Layered bands outside the silhouette, innermost first ([widths] px,
   /// [rgbs] 0–255), anti-aliased at every boundary.
   static Uint8List outlineRings(Uint8List rgba, int w, int h,
-      List<double> widths, List<List<int>> rgbs,
+      List<double> widths, List<List<int>?> rgbs,
       {int inkAlpha = 64}) {
     final radius = widths.fold<double>(0, (a, b) => a + b);
     final n = w * h;
@@ -140,10 +143,11 @@ class Keyline {
           final outer = inner + widths[k];
           final cov = (outer + 0.5 - d).clamp(0.0, 1.0) -
               (k == 0 ? 0.0 : (inner + 0.5 - d).clamp(0.0, 1.0));
-          if (cov > 0) {
-            lr += rgbs[k][0] * cov;
-            lg += rgbs[k][1] * cov;
-            lb += rgbs[k][2] * cov;
+          final rgb = rgbs[k];
+          if (cov > 0 && rgb != null) {
+            lr += rgb[0] * cov;
+            lg += rgb[1] * cov;
+            lb += rgb[2] * cov;
             oa += cov;
           }
           inner = outer;
