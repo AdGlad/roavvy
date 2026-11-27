@@ -9,6 +9,7 @@ export 'src/clip/shape_geometry.dart';
 export 'src/clip/text_mask.dart';
 export 'src/contact_sheet.dart';
 export 'src/effects/keyline.dart';
+export 'src/fonts/varsity_font.dart';
 export 'src/effects/textures.dart';
 export 'src/geometry/globe_raster.dart';
 export 'src/geometry/torn_mask.dart';

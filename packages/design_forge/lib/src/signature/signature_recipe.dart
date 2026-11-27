@@ -1,3 +1,4 @@
+import '../geo/iso3.dart';
 import '../recipe/design_recipe.dart';
 import 'recipe_path.dart';
 import 'variation_envelope.dart';
@@ -102,6 +103,10 @@ class SignatureRecipe {
   /// base recipe (e.g. the flag code).
   static const String countryToken = '{{country}}';
 
+  /// Tokens every pack gets without declaring a default: `country` (the
+  /// lowercase ISO code) and `country3` (its 3-letter code, e.g. USA).
+  static const Set<String> builtInTokens = {'country', 'country3'};
+
   /// Stable id, also the pack file name: `torn_flag` → `torn_flag.pack.json`.
   final String id;
   final String title;
@@ -141,7 +146,12 @@ class SignatureRecipe {
   /// substituted. A fresh mutable copy every call.
   Map<String, Object?> instantiate(String country,
       {Map<String, String> tokens = const {}}) {
-    final all = {...this.tokens, ...tokens, 'country': country.toLowerCase()};
+    final all = {
+      ...this.tokens,
+      ...tokens,
+      'country': country.toLowerCase(),
+      'country3': countryAlpha3(country),
+    };
     return _substitute(deepCopyJson(base), all) as Map<String, Object?>;
   }
 
@@ -185,7 +195,8 @@ class SignatureRecipe {
       throw const FormatException(
           'base must not carry recipeId/provenance (they are derived)');
     }
-    if (!_containsToken(base, countryToken)) {
+    if (!_containsToken(base, countryToken) &&
+        !_containsToken(base, '{{country3}}')) {
       throw const FormatException(
           'base must use {{country}} so it works for every country');
     }
@@ -195,7 +206,7 @@ class SignatureRecipe {
         .allMatches(_strings(base).join('\n'))
         .map((m) => m.group(1)!)
         .toSet()
-      ..remove('country');
+      ..removeAll(builtInTokens);
     final missing = used.difference(tokens.keys.toSet());
     if (missing.isNotEmpty) {
       throw FormatException(

@@ -188,6 +188,8 @@ class Clip {
     this.stampMode,
     this.flagScale = 1.0,
     this.flagOffsetY = 0.0,
+    this.font,
+    this.flagFit,
   });
 
   /// Convenience for the built-in [ClipShape] enum shapes.
@@ -206,6 +208,8 @@ class Clip {
     this.stampMode,
     this.flagScale = 1.0,
     this.flagOffsetY = 0.0,
+    this.font,
+    this.flagFit,
   }) : shapeId = shape.id;
 
   /// Catalog id, e.g. 'circle', 'hexagon', 'luggageTag', 'text', 'countryOutline'.
@@ -259,6 +263,20 @@ class Clip {
   /// Omitted from JSON at 0.
   final double flagOffsetY;
 
+  /// Typeface for `text` clips: null = the platform's bold sans; 'varsity' =
+  /// the embedded collegiate block face (Graduate, OFL) — identical on every
+  /// host. Omitted from JSON when null.
+  final String? font;
+
+  /// How the flag fills the shape: null = cover the whole frame (default);
+  /// 'stretch' = the flag is stretched to exactly fill the shape's own
+  /// bounding box, so every band shows inside a wide word or a thin shape.
+  /// Omitted from JSON when null.
+  final String? flagFit;
+
+  /// [flagFit] value that stretches the flag to the shape's bounds.
+  static const String fitStretch = 'stretch';
+
   /// The [ClipShape] enum for asset-backed shapes, or null for procedural/text.
   ClipShape get resolverShape => ClipShape.fromId(shapeId);
 
@@ -280,6 +298,8 @@ class Clip {
         if (stampMode != null) 'stampMode': stampMode,
         if (flagScale != 1.0) 'flagScale': flagScale,
         if (flagOffsetY != 0.0) 'flagOffsetY': flagOffsetY,
+        if (font != null) 'font': font,
+        if (flagFit != null) 'flagFit': flagFit,
       };
 
   factory Clip.fromJson(Map<String, Object?> j) => Clip(
@@ -300,6 +320,8 @@ class Clip {
         stampMode: j['stampMode'] as String?,
         flagScale: (j['flagScale'] as num?)?.toDouble() ?? 1.0,
         flagOffsetY: (j['flagOffsetY'] as num?)?.toDouble() ?? 0.0,
+        font: j['font'] as String?,
+        flagFit: j['flagFit'] as String?,
       );
 
   Clip copyWith({
@@ -317,6 +339,8 @@ class Clip {
     String? stampMode,
     double? flagScale,
     double? flagOffsetY,
+    String? font,
+    String? flagFit,
   }) =>
       Clip(
         shapeId: shapeId ?? this.shapeId,
@@ -333,6 +357,8 @@ class Clip {
         stampMode: stampMode ?? this.stampMode,
         flagScale: flagScale ?? this.flagScale,
         flagOffsetY: flagOffsetY ?? this.flagOffsetY,
+        font: font ?? this.font,
+        flagFit: flagFit ?? this.flagFit,
       );
 }
 

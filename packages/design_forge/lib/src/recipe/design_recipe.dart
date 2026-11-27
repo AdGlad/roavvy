@@ -177,6 +177,32 @@ enum SizeClass {
   }
 }
 
+/// One band of a layered outline ([Composition.outlineRings]).
+class OutlineRing {
+  const OutlineRing({required this.width, this.colour = Composition.autoOutline});
+
+  /// Band width, % of the canvas short side.
+  final double width;
+
+  /// `#RRGGBB`, or `auto` (dark on light garments, light on dark).
+  final String colour;
+
+  Map<String, Object?> toJson() => {'width': width, 'colour': colour};
+
+  factory OutlineRing.fromJson(Map<String, Object?> j) {
+    final width = (j['width'] as num?)?.toDouble() ?? 0;
+    final colour = j['colour'] as String? ?? Composition.autoOutline;
+    if (width < 0 || width > 5) {
+      throw FormatException('outline ring width must be 0–5, not $width');
+    }
+    if (colour != Composition.autoOutline &&
+        !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(colour)) {
+      throw FormatException('outline ring colour must be auto or #RRGGBB, not $colour');
+    }
+    return OutlineRing(width: width, colour: colour);
+  }
+}
+
 /// The macro layout skeleton.
 class Composition {
   const Composition({
@@ -194,6 +220,7 @@ class Composition {
     this.rotation = 0,
     this.outlineWidth = 0,
     this.outlineColour = autoOutline,
+    this.outlineRings = const [],
   }) : assert(rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270);
 
   /// [outlineColour] value that picks dark or light from the garment.
@@ -223,6 +250,12 @@ class Composition {
   /// Keyline colour: [autoOutline] (dark on a light garment, light on a dark
   /// one) or `#RRGGBB`. Omitted from JSON when auto.
   final String outlineColour;
+
+  /// Layered keylines around the outer edge, innermost first — e.g. a thin
+  /// dark line, a cream band and a dark outer line for varsity lettering.
+  /// When non-empty it replaces [outlineWidth]/[outlineColour]. Omitted from
+  /// JSON when empty.
+  final List<OutlineRing> outlineRings;
 
   /// True for 90° and 270°.
   bool get isQuarterTurn => rotation == 90 || rotation == 270;
@@ -273,6 +306,8 @@ class Composition {
         if (rotation != 0) 'rotation': rotation,
         if (outlineWidth != 0) 'outlineWidth': outlineWidth,
         if (outlineColour != autoOutline) 'outlineColour': outlineColour,
+        if (outlineRings.isNotEmpty)
+          'outlineRings': [for (final r in outlineRings) r.toJson()],
       };
 
   factory Composition.fromJson(Map<String, Object?> json) {
@@ -289,8 +324,14 @@ class Composition {
         !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(outlineColour)) {
       throw FormatException('outlineColour must be "auto" or #RRGGBB, not $outlineColour');
     }
-    return Composition._fromJson(json, rotation)
-        .copyWith(outlineWidth: outlineWidth, outlineColour: outlineColour);
+    final rings = [
+      for (final r in (json['outlineRings'] as List? ?? const []))
+        OutlineRing.fromJson((r as Map).cast<String, Object?>()),
+    ];
+    return Composition._fromJson(json, rotation).copyWith(
+        outlineWidth: outlineWidth,
+        outlineColour: outlineColour,
+        outlineRings: rings);
   }
 
   factory Composition._fromJson(Map<String, Object?> json, int rotation) =>
@@ -331,8 +372,10 @@ class Composition {
     int? rotation,
     double? outlineWidth,
     String? outlineColour,
+    List<OutlineRing>? outlineRings,
   }) =>
       Composition(
+        outlineRings: outlineRings ?? this.outlineRings,
         rotation: rotation ?? this.rotation,
         outlineWidth: outlineWidth ?? this.outlineWidth,
         outlineColour: outlineColour ?? this.outlineColour,

@@ -77,7 +77,15 @@ class CanvasRenderer implements Renderer {
     // Keyline around the silhouette, before rotation (so it turns with it).
     final comp = recipe.composition;
     final drawn = ctx.artwork;
-    if (drawn != null && comp.outlineWidth > 0) {
+    ui.Color ringColour(String c) => c == Composition.autoOutline
+        ? Keyline.autoFor(target.background)
+        : (Keyline.parse(c) ?? Keyline.dark);
+    if (drawn != null && comp.outlineRings.isNotEmpty) {
+      final unit = math.min(ctx.width, ctx.height) / 100;
+      ctx.artwork = await Keyline.applyRings(drawn, [
+        for (final r in comp.outlineRings) (r.width * unit, ringColour(r.colour)),
+      ]);
+    } else if (drawn != null && comp.outlineWidth > 0) {
       final radius = comp.outlineWidth / 100 * math.min(ctx.width, ctx.height);
       final colour = comp.outlineColour == Composition.autoOutline
           ? Keyline.autoFor(target.background)

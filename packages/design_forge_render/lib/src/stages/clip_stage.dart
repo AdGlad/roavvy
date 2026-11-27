@@ -8,6 +8,7 @@ import '../asset_resolver.dart';
 import '../clip/passport_stamp_fallback.dart';
 import '../clip/shape_geometry.dart';
 import '../clip/text_mask.dart';
+import '../fonts/varsity_font.dart';
 import 'render_stage.dart';
 
 /// Clips the artwork to a shape (the geometry/mask stage). This stage is
@@ -77,13 +78,20 @@ class ClipStage extends RenderStage {
         break;
       case ClipShapeSource.text:
         if ((clip.text ?? '').trim().isEmpty) return;
+        final varsity = clip.font == VarsityFont.id;
+        if (varsity) await VarsityFont.ensureLoaded();
         final mask = await TextMask.build(
           w: ctx.width,
           h: ctx.height,
           rect: rect,
           rotationDeg: clip.rotationDeg,
           text: clip.text!,
+          fontFamily: varsity ? VarsityFont.family : null,
+          fontWeight: varsity ? ui.FontWeight.w400 : ui.FontWeight.w800,
         );
+        if (clip.flagFit == Clip.fitStretch) {
+          await _stretchFlagTo(recipe, ctx, mask);
+        }
         await _applyMask(ctx, mask);
         break;
       case ClipShapeSource.resolver:
@@ -255,6 +263,66 @@ class ClipStage extends RenderStage {
         canvas.restore();
       }
     });
+  }
+
+  /// Redraws the artwork as the recipe's first flag stretched to exactly
+  /// fill the bounding box of [mask]'s ink (Clip.flagFit 'stretch').
+  Future<void> _stretchFlagTo(
+      DesignRecipe recipe, RenderContext ctx, ui.Image mask) async {
+    if (recipe.content.flags.isEmpty) return;
+    final data = await mask.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final px = data!.buffer.asUint8List();
+    final w = mask.width, h = mask.height;
+    var minX = w, minY = h, maxX = -1, maxY = -1;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        if (px[(y * w + x) * 4 + 3] > 8) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return;
+    final box = ui.Rect.fromLTRB(minX - 1.0, minY - 1.0, maxX + 2.0, maxY + 2.0);
+    final flag = await ctx.assets.resolveFlag(recipe.content.flags.first.code,
+        width: box.width.round().clamp(16, 4096),
+        height: box.height.round().clamp(16, 4096));
+    // Non-rectangular flags (Nepal's pennant) are transparent around the
+    // design; back them with the flag's main colour so no letter is empty.
+    final backing = await _dominantColour(flag);
+    ctx.artwork = await ctx.rasterise((canvas) {
+      if (backing != null) {
+        canvas.drawRect(box, ui.Paint()..color = backing);
+      }
+      canvas.drawImageRect(
+          flag,
+          ui.Rect.fromLTWH(0, 0, flag.width.toDouble(), flag.height.toDouble()),
+          box,
+          ui.Paint()..filterQuality = ui.FilterQuality.high);
+    });
+  }
+
+  /// The most common opaque colour of [img] (coarsely quantised), or null
+  /// when the image has no transparency worth backing.
+  static Future<ui.Color?> _dominantColour(ui.Image img) async {
+    final data = await img.toByteData(format: ui.ImageByteFormat.rawStraightRgba);
+    final px = data!.buffer.asUint8List();
+    final counts = <int, int>{};
+    var transparent = 0;
+    for (var i = 0; i < px.length; i += 16) {
+      if (px[i + 3] < 128) {
+        transparent++;
+        continue;
+      }
+      final key = (px[i] >> 4) << 8 | (px[i + 1] >> 4) << 4 | (px[i + 2] >> 4);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    if (transparent * 50 < px.length / 16 || counts.isEmpty) return null;
+    final key = counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    return ui.Color.fromARGB(255, ((key >> 8) & 0xF) * 17,
+        ((key >> 4) & 0xF) * 17, (key & 0xF) * 17);
   }
 
   Future<void> _applyMask(RenderContext ctx, ui.Image mask) async {

@@ -31,17 +31,25 @@ class Keyline {
 
   /// [art] with a keyline of [radius] px in [colour] behind its silhouette.
   static Future<ui.Image> apply(
-      ui.Image art, double radius, ui.Color colour) async {
-    if (radius <= 0) return art;
+          ui.Image art, double radius, ui.Color colour) =>
+      applyRings(art, [(radius, colour)]);
+
+  /// [art] with layered keyline bands behind its silhouette, innermost
+  /// first: each `(width px, colour)`.
+  static Future<ui.Image> applyRings(
+      ui.Image art, List<(double, ui.Color)> rings) async {
+    final total = rings.fold<double>(0, (a, r) => a + r.$1);
+    if (total <= 0) return art;
     final data = await art.toByteData(format: ui.ImageByteFormat.rawRgba);
     final w = art.width, h = art.height;
     final bytes = data!.buffer.asUint8List();
-    final rgb = [
-      (colour.r * 255).round(),
-      (colour.g * 255).round(),
-      (colour.b * 255).round(),
+    final widths = [for (final r in rings) r.$1];
+    final rgbs = [
+      for (final r in rings)
+        [(r.$2.r * 255).round(), (r.$2.g * 255).round(), (r.$2.b * 255).round()],
     ];
-    final out = await Isolate.run(() => outline(bytes, w, h, radius, rgb));
+    final out =
+        await Isolate.run(() => outlineRings(bytes, w, h, widths, rgbs));
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(out, w, h, ui.PixelFormat.rgba8888, completer.complete);
     return completer.future;
@@ -50,8 +58,16 @@ class Keyline {
   /// Pure keyline pass over PREMULTIPLIED RGBA (what `rawRgba` gives and
   /// `decodeImageFromPixels` takes). Returns a new premultiplied buffer.
   static Uint8List outline(
-      Uint8List rgba, int w, int h, double radius, List<int> rgb,
+          Uint8List rgba, int w, int h, double radius, List<int> rgb,
+          {int inkAlpha = 64}) =>
+      outlineRings(rgba, w, h, [radius], [rgb], inkAlpha: inkAlpha);
+
+  /// Layered bands outside the silhouette, innermost first ([widths] px,
+  /// [rgbs] 0–255), anti-aliased at every boundary.
+  static Uint8List outlineRings(Uint8List rgba, int w, int h,
+      List<double> widths, List<List<int>> rgbs,
       {int inkAlpha = 64}) {
+    final radius = widths.fold<double>(0, (a, b) => a + b);
     final n = w * h;
     final ink = Uint8List(n);
     for (var i = 0; i < n; i++) {
@@ -115,18 +131,31 @@ class Keyline {
     final toSil = distanceTo(silhouette, w, h);
     final out = Uint8List(n * 4);
     for (var i = 0; i < n; i++) {
-      // Keyline coverage outside the silhouette, anti-aliased at its rim.
       final d = toSil[i];
-      final oa = silhouette[i] == 1
-          ? 0.0
-          : (radius + 0.5 - d).clamp(0.0, 1.0).toDouble();
-      final aa = rgba[i * 4 + 3] / 255.0;
-      // Artwork OVER keyline, premultiplied: c = c_art + c_line·a_line·(1-a_art).
-      final under = oa * (1 - aa);
-      for (var k = 0; k < 3; k++) {
-        out[i * 4 + k] = (rgba[i * 4 + k] + rgb[k] * under).round().clamp(0, 255);
+      // Each band's coverage at this distance; together they are the keyline.
+      double lr = 0, lg = 0, lb = 0, oa = 0;
+      if (silhouette[i] == 0) {
+        var inner = 0.0;
+        for (var k = 0; k < widths.length; k++) {
+          final outer = inner + widths[k];
+          final cov = (outer + 0.5 - d).clamp(0.0, 1.0) -
+              (k == 0 ? 0.0 : (inner + 0.5 - d).clamp(0.0, 1.0));
+          if (cov > 0) {
+            lr += rgbs[k][0] * cov;
+            lg += rgbs[k][1] * cov;
+            lb += rgbs[k][2] * cov;
+            oa += cov;
+          }
+          inner = outer;
+        }
       }
-      out[i * 4 + 3] = ((aa + under) * 255).round().clamp(0, 255);
+      final aa = rgba[i * 4 + 3] / 255.0;
+      // Artwork OVER keyline, premultiplied: c = c_art + c_line·(1-a_art).
+      final under = 1 - aa;
+      out[i * 4] = (rgba[i * 4] + lr * under).round().clamp(0, 255);
+      out[i * 4 + 1] = (rgba[i * 4 + 1] + lg * under).round().clamp(0, 255);
+      out[i * 4 + 2] = (rgba[i * 4 + 2] + lb * under).round().clamp(0, 255);
+      out[i * 4 + 3] = ((aa + oa.clamp(0.0, 1.0) * under) * 255).round().clamp(0, 255);
     }
     return out;
   }
