@@ -22,17 +22,40 @@
       ]
     },
     "effects": {
+      "acidWash": 0.45,
+      "fade": 0.2,
+      "grain": 0.12,
       "spiralDye": 0.7
     },
     "engineVersion": "0.0.1",
     "grammarVersion": "0.0.1",
+    "palette": {
+      "strategy": "flagDerived",
+      "vintageGrade": 0.35
+    },
     "schemaVersion": 1,
     "seed": 1
   },
   "envelope": {
+    "effects.acidWash": {
+      "max": 0.6,
+      "min": 0.35
+    },
+    "effects.fade": {
+      "max": 0.3,
+      "min": 0.15
+    },
+    "effects.grain": {
+      "max": 0.18,
+      "min": 0.08
+    },
     "effects.spiralDye": {
       "max": 0.85,
       "min": 0.55
+    },
+    "palette.vintageGrade": {
+      "max": 0.5,
+      "min": 0.25
     },
     "seed": {
       "integer": true,
@@ -45,9 +68,9 @@
   "heroes": {},
   "id": "spiral_tie_dye",
   "locks": {
-    "us": "646fb1ca169f022c"
+    "us": "6f070aaf49543f5f"
   },
-  "notes": "The country's flag twisted into a classic spiral tie-dye in its own colours: swirled arms, colours feathering into each other, white undyed creases along the folds, rubber-band rings, bright dyed-cotton colour, soft ragged round edge. Researched from spiral/bullseye tie-dye technique (generic; nothing reproduced). Replaces the look of tie_dye_flag, which read as cracked glass (kept).",
+  "notes": "The country's flag twisted into a classic spiral tie-dye in its own colours: swirled arms, colours feathering into each other, white undyed creases along the folds, rubber-band rings, bright dyed-cotton colour, soft ragged round edge. Researched from spiral/bullseye tie-dye technique (generic; nothing reproduced). Replaces the look of tie_dye_flag, which read as cracked glass (kept). Finished in acid wash (bleach veins over the dye) and the Beachwear style: sun-faded, vintage-graded colour with light grain.",
   "overrides": {},
   "status": "draft",
   "title": "Spiral Tie-Dye",

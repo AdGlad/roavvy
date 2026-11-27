@@ -30,8 +30,14 @@ class WearRaster {
       final r = 1 - (2 * n1.fbm(u + wx, v + wy, 5) - 1).abs();
       return _smooth(0.72, 0.95, r);
     });
-    final blotch = _Field(w, h, step,
-        (x, y) => _smooth(0.52, 0.74, n3.fbm(x / s * 3.4, y / s * 3.4, 4)));
+    // Domain-warped too, so the bleach patches are organic rather than the
+    // straight-edged lattice cells plain value noise gives.
+    final blotch = _Field(w, h, step, (x, y) {
+      final u = x / s * 3.4, v = y / s * 3.4;
+      final wx = n2.fbm(u * 0.6 - 4.1, v * 0.6, 3) * 2.2;
+      final wy = n2.fbm(u * 0.6 + 2.7, v * 0.6 + 5.3, 3) * 2.2;
+      return _smooth(0.52, 0.74, n3.fbm(u + wx, v + wy, 4));
+    });
     for (var y = 0; y < h; y++) {
       for (var x = 0; x < w; x++) {
         final i = (y * w + x) * 4;
@@ -550,9 +556,18 @@ class WearRaster {
   }
 
   static double _hash01(int x, int y, int seed) {
-    var hsh = (x * 374761393 + y * 668265263 + seed * 2147483647) & 0xFFFFFFFF;
-    hsh = ((hsh ^ (hsh >> 13)) * 1274126177) & 0xFFFFFFFF;
-    hsh ^= hsh >> 16;
+    // Each input is avalanched in turn (murmur3 fmix32). A single linear
+    // combine + one mix round left the lattice values correlated along lines
+    // for some seeds, which showed as straight streaks in acid wash.
+    int fmix(int h) {
+      h = ((h ^ (h >> 16)) * 0x85EBCA6B) & 0xFFFFFFFF;
+      h = ((h ^ (h >> 13)) * 0xC2B2AE35) & 0xFFFFFFFF;
+      return h ^ (h >> 16);
+    }
+
+    var hsh = fmix(seed & 0xFFFFFFFF);
+    hsh = fmix((hsh ^ (x * 0x27D4EB2F)) & 0xFFFFFFFF);
+    hsh = fmix((hsh ^ (y * 0x165667B1)) & 0xFFFFFFFF);
     return (hsh & 0xFFFFFF) / 0x1000000;
   }
 }
