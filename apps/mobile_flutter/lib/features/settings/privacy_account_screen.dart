@@ -31,6 +31,11 @@ class PrivacyAccountScreen extends ConsumerStatefulWidget {
       _PrivacyAccountScreenState();
 }
 
+/// Map sharing links (`roavvy.app/share/…`) have no web page to open yet, so
+/// creating new links is off for v1.0. An existing link is still listed so
+/// its owner can remove it.
+const bool kMapSharingEnabled = false;
+
 class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
   String? _shareToken;
   bool _loadingToken = true;
@@ -177,6 +182,9 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
 
     final user = ref.read(authStateProvider).valueOrNull;
     final uid = user?.uid ?? '';
+    // Read before deleting: once the Auth account is gone the router replaces
+    // this screen, and `ref` can no longer be used after it is unmounted.
+    final dataEpoch = ref.read(localDataEpochProvider.notifier);
 
     try {
       final deleteFn =
@@ -189,6 +197,9 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
           ).deleteAccount;
 
       await deleteFn(uid, shareToken: _shareToken);
+
+      // Local data has been wiped — make every cached screen reload empty.
+      dataEpoch.state++;
 
       // Auth deletion succeeded — authStateProvider will emit null and
       // RoavvyApp will navigate to SignInScreen automatically.
@@ -256,10 +267,12 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
                                 .read(showPhotoThumbnailsProvider.notifier)
                                 .state = v,
                   ),
-                  _SectionHeader('Sharing'),
-                  _shareToken != null
-                      ? _activeShareTile()
-                      : _inactiveShareTile(),
+                  if (kMapSharingEnabled || _shareToken != null) ...[
+                    _SectionHeader('Sharing'),
+                    _shareToken != null
+                        ? _activeShareTile()
+                        : _inactiveShareTile(),
+                  ],
                   if (CommerceEntry.isAvailable(ref)) ...[
                     _SectionHeader('Orders'),
                     _ordersTile(),
@@ -330,7 +343,7 @@ class _PrivacyAccountScreenState extends ConsumerState<PrivacyAccountScreen> {
       title: const Text('Privacy Policy'),
       onTap:
           () => launchUrl(
-            Uri.parse('https://roavvy.app/privacy'),
+            Uri.parse('https://www.roavvy.com/privacy'),
             mode: LaunchMode.externalApplication,
           ),
     );

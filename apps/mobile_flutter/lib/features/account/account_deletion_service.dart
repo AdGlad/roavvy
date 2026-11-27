@@ -13,9 +13,12 @@ import '../sharing/share_token_service.dart';
 ///   1. Delete Firebase Auth credential — rethrows on failure (including
 ///      requires-recent-login so the caller can surface re-auth copy).
 ///   2. Revoke the Firestore share document (fire-and-forget).
-///   3. Clear local SQLite visit data via [VisitRepository.clearAll].
-///   4. Batch-delete all four Firestore subcollections under `users/{uid}`.
-///      Batch failures are logged and do not abort the sequence.
+///   3. Wipe every local SQLite table via [VisitRepository.wipeAllLocalData].
+///   4. Batch-delete four Firestore subcollections under `users/{uid}`
+///      (best effort — the user is already signed out, so these are normally
+///      rejected by security rules). Server-side deletion of ALL the user's
+///      Firestore data is done by the `delete-user-data` Firebase extension,
+///      which runs when the Auth account is deleted in step 1.
 class AccountDeletionService {
   AccountDeletionService({
     required FirebaseAuth auth,
@@ -40,14 +43,18 @@ class AccountDeletionService {
   Future<void> deleteAccount(String uid, {String? shareToken}) async {
     // Step 1: delete Firebase Auth credential.
     await _auth.currentUser!.delete();
+    // ignore: avoid_print
+    print('[roavvy-account] auth account deleted');
 
     // Step 2: revoke Firestore share document (fire-and-forget).
     if (shareToken != null) {
       unawaited(_shareTokenService.revokeFirestoreOnly(shareToken, uid));
     }
 
-    // Step 3: clear local SQLite data.
-    await _repo.clearAll();
+    // Step 3: wipe ALL local SQLite data (not just the travel record), so
+    // nothing from this account remains on the device for the next sign-in.
+    // Callers must then bump localDataEpochProvider so cached providers reload.
+    await _repo.wipeAllLocalData();
 
     // Step 3b: clear accepted T&C version so the user must re-accept on
     // next sign-up (M117).

@@ -4,5 +4,11 @@
     "dev": "roavvy-dev"
   },
   "targets": {},
-  "etags": {}
+  "etags": {
+    "roavvy-prod": {
+      "extensionInstances": {
+        "delete-user-data": "6ff87d237fd19a2c8d7fedafbae18a5c07952f39c21cb82df7dc2c6029848496"
+      }
+    }
+  }
 }

@@ -91,6 +91,34 @@ class MapScreen extends ConsumerWidget {
 
   SyncService _syncService() => syncService ?? FirestoreSyncService();
 
+  /// Signs out and wipes every local table, so the next account signed in on
+  /// this device starts empty instead of seeing (and syncing) this account's
+  /// data. Unsynced changes are flushed first; the account's data comes back
+  /// from Firestore when it signs in again.
+  Future<void> _onSignOut(WidgetRef ref) async {
+    final dataEpoch = ref.read(localDataEpochProvider.notifier);
+    final visitRepo = ref.read(visitRepositoryProvider);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      try {
+        await FirestoreSyncService()
+            .flushDirty(
+              uid,
+              visitRepo,
+              achievementRepo: ref.read(achievementRepositoryProvider),
+              tripRepo: ref.read(tripRepositoryProvider),
+            )
+            .timeout(const Duration(seconds: 10));
+      } catch (e) {
+        // ignore: avoid_print
+        print('[roavvy] sign-out flush failed (continuing): $e');
+      }
+    }
+    await visitRepo.wipeAllLocalData();
+    await FirebaseAuth.instance.signOut();
+    dataEpoch.state++;
+  }
+
   Future<void> _onDeleteHistory(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -598,7 +626,7 @@ class MapScreen extends ConsumerWidget {
                         ),
                       );
                     } else if (action == _MapMenuAction.signOut) {
-                      FirebaseAuth.instance.signOut();
+                      unawaited(_onSignOut(ref));
                     } else if (action == _MapMenuAction.filterByYear) {
                       ref.read(yearFilterProvider.notifier).state =
                           yearFilter != null ? null : DateTime.now().year;

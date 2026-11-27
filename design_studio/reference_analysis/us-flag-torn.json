@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "imageStem": "us-flag-torn",
+  "verdict": "liked",
+  "reasons": [],
+  "features": {
+    "dominantColors": [
+      "#F0EBF1",
+      "#A34652",
+      "#514C74",
+      "#B77983"
+    ],
+    "focalHierarchy": "medium",
+    "legibility": "high"
+  },
+  "provenance": {
+    "source": "own-render",
+    "rightsCleared": false
+  },
+  "analysis": {
+    "analyzerVersion": "0.1.0",
+    "computedAtEpochMs": 1795663184219,
+    "aspectRatio": 0.623,
+    "focalConcentration": 0.253,
+    "visualDensityHint": 0.694,
+    "colourfulness": 0.129,
+    "source": "host-dart-ui"
+  }
+}

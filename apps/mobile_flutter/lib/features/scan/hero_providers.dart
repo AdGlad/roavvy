@@ -6,7 +6,7 @@ import 'hero_image_repository.dart';
 
 /// Provider for the [HeroImageRepository] (M89, ADR-134).
 final heroImageRepositoryProvider = Provider<HeroImageRepository>(
-  (ref) => HeroImageRepository(ref.watch(roavvyDatabaseProvider)),
+  (ref) => HeroImageRepository(ref.watch(userDatabaseProvider)),
 );
 
 /// Streams the rank-1 [HeroImage] for [tripId], or null if none exists.

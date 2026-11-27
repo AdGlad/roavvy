@@ -63,7 +63,7 @@ final termsAcceptedProvider = FutureProvider<bool>(
 /// "Restoring your map…" progress indicator if the restore takes > 2 s (T4,
 /// ADR-160).
 final startupCompleteProvider = FutureProvider<void>((ref) async {
-  final db = ref.watch(roavvyDatabaseProvider);
+  final db = ref.watch(userDatabaseProvider);
   final visitRepo = ref.watch(visitRepositoryProvider);
   final tripRepo = ref.watch(tripRepositoryProvider);
   final regionRepo = ref.watch(regionRepositoryProvider);
@@ -80,6 +80,11 @@ final startupCompleteProvider = FutureProvider<void>((ref) async {
   // provider's AsyncError with no log — the gate proceeded and downstream
   // screens silently showed empty data.
   try {
+    // 0. The device database is shared by every account that signs in on
+    //    this phone. If it holds another account's data, wipe it before
+    //    anything reads or syncs it.
+    if (uid != null) await visitRepo.ensureOwnedBy(uid);
+
     // 1. Restore Firestore data if this is a fresh install (ADR-160).
     if (uid != null && await FirestoreRestoreService.shouldRestore(visitRepo)) {
       // ignore: avoid_print
@@ -109,13 +114,37 @@ final startupCompleteProvider = FutureProvider<void>((ref) async {
   }
 });
 
-final authStateProvider = StreamProvider<User?>(
-  (ref) => FirebaseAuth.instance.authStateChanges(),
-);
+final authStateProvider = StreamProvider<User?>((ref) {
+  try {
+    return FirebaseAuth.instance.authStateChanges();
+  } on FirebaseException {
+    // Firebase not initialised — only happens in unit tests, which now reach
+    // this provider through userDatabaseProvider. Treat as signed out.
+    return Stream.value(null);
+  }
+});
 
 final currentUidProvider = Provider<String?>(
   (ref) => ref.watch(authStateProvider).value?.uid,
 );
+
+/// Bumped after local user data is wiped (account deletion, sign-out).
+///
+/// Together with [currentUidProvider] it is watched by [userDatabaseProvider],
+/// so every repository — and every cached FutureProvider built on one —
+/// reloads when the data is wiped or a different user signs in. Without this,
+/// screens kept showing the previous account's trips from memory.
+final localDataEpochProvider = StateProvider<int>((ref) => 0);
+
+/// The local database, scoped to the current user session.
+///
+/// Use this (not [roavvyDatabaseProvider]) in providers that read user data,
+/// so they are rebuilt on sign-in, sign-out and local data wipes.
+final userDatabaseProvider = Provider<RoavvyDatabase>((ref) {
+  ref.watch(currentUidProvider);
+  ref.watch(localDataEpochProvider);
+  return ref.watch(roavvyDatabaseProvider);
+});
 
 /// Overridden in [ProviderScope] at startup with the loaded asset bytes.
 final geodataBytesProvider = Provider<Uint8List>(
@@ -133,19 +162,19 @@ final roavvyDatabaseProvider = Provider<RoavvyDatabase>(
 );
 
 final visitRepositoryProvider = Provider<VisitRepository>(
-  (ref) => VisitRepository(ref.watch(roavvyDatabaseProvider)),
+  (ref) => VisitRepository(ref.watch(userDatabaseProvider)),
 );
 
 final tripRepositoryProvider = Provider<TripRepository>(
-  (ref) => TripRepository(ref.watch(roavvyDatabaseProvider)),
+  (ref) => TripRepository(ref.watch(userDatabaseProvider)),
 );
 
 final achievementRepositoryProvider = Provider<AchievementRepository>(
-  (ref) => AchievementRepository(ref.watch(roavvyDatabaseProvider)),
+  (ref) => AchievementRepository(ref.watch(userDatabaseProvider)),
 );
 
 final heritageRepositoryProvider = Provider<HeritageRepository>(
-  (ref) => HeritageRepository(ref.watch(roavvyDatabaseProvider)),
+  (ref) => HeritageRepository(ref.watch(userDatabaseProvider)),
 );
 
 /// All visited UNESCO World Heritage Sites for the current user.
@@ -163,7 +192,7 @@ final unlockedAchievementIdsProvider = FutureProvider<Set<String>>((ref) async {
 });
 
 final regionRepositoryProvider = Provider<RegionRepository>(
-  (ref) => RegionRepository(ref.watch(roavvyDatabaseProvider)),
+  (ref) => RegionRepository(ref.watch(userDatabaseProvider)),
 );
 
 /// Calls [loadPolygons()] once; requires [initCountryLookup] to have run first.
@@ -192,14 +221,18 @@ final effectiveVisitsProvider = FutureProvider<List<EffectiveVisitedCountry>>(
 /// restore data is present in the DB before the onboarding check runs (ADR-160).
 final onboardingCompleteProvider = FutureProvider<bool>((ref) async {
   await ref.watch(startupCompleteProvider.future);
-  final db = ref.watch(roavvyDatabaseProvider);
-  if (await db.hasSeenOnboarding()) return true;
+  final db = ref.watch(userDatabaseProvider);
+  final seen = await db.hasSeenOnboarding();
   final visits = await ref.watch(effectiveVisitsProvider.future);
-  return visits.isNotEmpty;
+  // ignore: avoid_print
+  print(
+    '[roavvy-account] onboarding check: seen=$seen visits=${visits.length}',
+  );
+  return seen || visits.isNotEmpty;
 });
 
 final xpRepositoryProvider = Provider<XpRepository>(
-  (ref) => XpRepository(ref.watch(roavvyDatabaseProvider)),
+  (ref) => XpRepository(ref.watch(userDatabaseProvider)),
 );
 
 final xpNotifierProvider = StateNotifierProvider<XpNotifier, XpState>(
@@ -345,7 +378,7 @@ final scanNudgeDismissedProvider = StateProvider<bool>((ref) => false);
 
 /// Provides the [MemoryPulseService] instance (M91, M114, ADR-136).
 final memoryPulseServiceProvider = Provider<MemoryPulseService>((ref) {
-  final db = ref.watch(roavvyDatabaseProvider);
+  final db = ref.watch(userDatabaseProvider);
   return MemoryPulseService(
     heroRepo: HeroImageRepository(db),
     notifications: NotificationService.instance,
@@ -374,7 +407,7 @@ final todaysMemoriesProvider = FutureProvider<List<MemoryAnniversaryPhoto>>((
     // cards without needing an actual anniversary date.
     final heroes =
         await HeroImageRepository(
-          ref.watch(roavvyDatabaseProvider),
+          ref.watch(userDatabaseProvider),
         ).getHeroesForRank1();
     return heroes
         .take(3)
@@ -404,11 +437,11 @@ final memoriesDismissedProvider = StateProvider<Set<String>>((ref) => {});
 // ── M133 / M134 Daily Heritage Challenge ──────────────────────────────────────
 
 final dailyChallengeRepositoryProvider = Provider<DailyChallengeRepository>(
-  (ref) => DailyChallengeRepository(ref.watch(roavvyDatabaseProvider)),
+  (ref) => DailyChallengeRepository(ref.watch(userDatabaseProvider)),
 );
 
 final challengeStatsServiceProvider = Provider<ChallengeStatsService>(
-  (ref) => ChallengeStatsService(ref.watch(roavvyDatabaseProvider)),
+  (ref) => ChallengeStatsService(ref.watch(userDatabaseProvider)),
 );
 
 final challengeAggregateProvider = FutureProvider<ChallengeAggregate>(
@@ -687,12 +720,12 @@ final mapGallerySortAnchorProvider = StateProvider<PhotoLocation?>(
 final mapPhotoPanelExpandedProvider = StateProvider<bool>((ref) => false);
 
 final photoGpsRepositoryProvider = Provider<PhotoGpsRepository>(
-  (ref) => PhotoGpsRepository(ref.watch(roavvyDatabaseProvider)),
+  (ref) => PhotoGpsRepository(ref.watch(userDatabaseProvider)),
 );
 
 final photoGpsFetchServiceProvider = Provider<PhotoGpsFetchService>(
   (ref) => PhotoGpsFetchService(
-    db: ref.watch(roavvyDatabaseProvider),
+    db: ref.watch(userDatabaseProvider),
     repo: ref.watch(photoGpsRepositoryProvider),
   ),
 );
@@ -707,8 +740,18 @@ final photoGpsFetchProvider = FutureProvider.autoDispose<void>((ref) async {
   // and "re-entering the tab" never re-runs it. Depend on the visits instead:
   // every scan (and manual edit) refreshes them, so the photos a first scan
   // finds reach the globe without an app restart (M189 QA).
+  // Stop an in-flight fetch when this provider rebuilds — notably when the
+  // local data is wiped (sign-out, account deletion) or another account signs
+  // in. Without this the old run kept writing the previous account's photo
+  // locations back into the freshly wiped cache.
+  var cancelled = false;
+  ref.onDispose(() => cancelled = true);
   await ref.watch(effectiveVisitsProvider.future);
-  await ref.read(photoGpsFetchServiceProvider).fetchAndCache();
+  if (cancelled) return;
+  await ref
+      .read(photoGpsFetchServiceProvider)
+      .fetchAndCache(isCancelled: () => cancelled);
+  if (cancelled) return;
   ref.invalidate(photoLocationsProvider);
 });
 

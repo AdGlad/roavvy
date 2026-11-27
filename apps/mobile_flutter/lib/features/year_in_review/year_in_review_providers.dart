@@ -12,7 +12,7 @@ final yearInReviewDataProvider = FutureProvider.family<YearInReviewData?, int>((
 ) async {
   final service = YearInReviewService(
     tripRepo: ref.watch(tripRepositoryProvider),
-    heroRepo: HeroImageRepository(ref.watch(roavvyDatabaseProvider)),
+    heroRepo: HeroImageRepository(ref.watch(userDatabaseProvider)),
   );
   return service.getDataForYear(year);
 });

@@ -31,17 +31,24 @@ class PhotoGpsFetchService {
   /// whose lat/lng is null (no EXIF location data).
   ///
   /// Safe to call multiple times — already-cached assets are skipped.
-  Future<void> fetchAndCache() async {
+  ///
+  /// Stops as soon as [isCancelled] returns true, and never writes a batch
+  /// after that, so a wipe of local data is not undone by a run still in
+  /// progress.
+  Future<void> fetchAndCache({bool Function()? isCancelled}) async {
+    bool stop() => isCancelled?.call() ?? false;
     final allAssetIds = await _loadAllAssetIds();
-    if (allAssetIds.isEmpty) return;
+    if (allAssetIds.isEmpty || stop()) return;
 
     final cached = await _repo.cachedAssetIds();
     final uncached = allAssetIds.where((id) => !cached.contains(id)).toList();
     if (uncached.isEmpty) return;
 
     for (var i = 0; i < uncached.length; i += _kBatchSize) {
+      if (stop()) return;
       final batch = uncached.skip(i).take(_kBatchSize).toList();
       final locations = await _fetchBatch(batch);
+      if (stop()) return;
       if (locations.isNotEmpty) {
         await _repo.storeBatch(locations);
       }
