@@ -195,6 +195,21 @@ class SignatureRecipe {
         throw FormatException(
             'envelope path "${entry.key}" addresses a templated value');
       }
+      // Every bound of the range must make a valid recipe (e.g. rotation
+      // only takes quarter turns), so a bad range fails here, not at render.
+      final probes = switch (entry.value) {
+        NumRange(:final min, :final max) => [min, max],
+        ValueSet(:final values) => values,
+      };
+      for (final v in probes) {
+        final probe = instantiate('us');
+        path.write(probe, v);
+        try {
+          DesignRecipe.fromJson(probe);
+        } catch (e) {
+          throw FormatException('envelope "${entry.key}" allows $v: $e');
+        }
+      }
     }
     for (final o in overrides.entries) {
       for (final p in o.value.params.entries) {

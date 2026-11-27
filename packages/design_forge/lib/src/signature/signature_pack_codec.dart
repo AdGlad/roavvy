@@ -111,6 +111,9 @@ class SignaturePackCodec {
     final flags = RecipePath('content.flags.0.code');
     final country = (flags.read(json) as String).toLowerCase();
     flags.write(json, SignatureRecipe.countryToken);
+    // Listed explicitly (even at 0) so the Lab shows it as an editable
+    // parameter; DesignRecipe omits 0 when hashing, so recipeIds don't move.
+    (json['composition'] as Map<String, Object?>).putIfAbsent('rotation', () => 0);
     final draft = SignatureRecipe(
       id: id,
       title: title,

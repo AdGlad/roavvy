@@ -189,10 +189,20 @@ class Composition {
     this.copiesPerCountry = 1,
     this.statementHero = false,
     this.sizeClass = SizeClass.medium,
-  });
+    this.rotation = 0,
+  }) : assert(rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270);
+
+  /// Quarter turns the finished artwork may be rotated by.
+  static const List<int> rotations = [0, 90, 180, 270];
 
   final DesignFamily family;
   final Orientation orientation;
+
+  /// Degrees ANTICLOCKWISE the finished artwork is turned, applied after every
+  /// stage (so text turns with it) and fitted back into the print area: 90/270
+  /// put a portrait design on its side at ~80% width. One of [rotations].
+  /// Omitted from JSON when 0, so existing recipeIds are unchanged.
+  final int rotation;
 
   /// Grid-family layout mode (null for non-grid families).
   final LayoutMode? layoutMode;
@@ -227,9 +237,20 @@ class Composition {
         if (copiesPerCountry != 1) 'copiesPerCountry': copiesPerCountry,
         if (statementHero) 'statementHero': statementHero,
         if (sizeClass != SizeClass.medium) 'sizeClass': sizeClass.name,
+        if (rotation != 0) 'rotation': rotation,
       };
 
-  factory Composition.fromJson(Map<String, Object?> json) => Composition(
+  factory Composition.fromJson(Map<String, Object?> json) {
+    final rotation = (json['rotation'] as num?)?.toInt() ?? 0;
+    if (!rotations.contains(rotation)) {
+      throw FormatException('rotation must be one of $rotations, not $rotation');
+    }
+    return Composition._fromJson(json, rotation);
+  }
+
+  factory Composition._fromJson(Map<String, Object?> json, int rotation) =>
+      Composition(
+        rotation: rotation,
         family: DesignFamily.fromId(json['family'] as String?),
         orientation: Orientation.fromId(json['orientation'] as String?),
         layoutMode: json['layoutMode'] == null
@@ -262,8 +283,10 @@ class Composition {
     int? copiesPerCountry,
     bool? statementHero,
     SizeClass? sizeClass,
+    int? rotation,
   }) =>
       Composition(
+        rotation: rotation ?? this.rotation,
         family: family ?? this.family,
         orientation: orientation ?? this.orientation,
         layoutMode: layoutMode ?? this.layoutMode,

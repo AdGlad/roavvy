@@ -4,6 +4,7 @@
     "composition": {
       "family": "portraitTornFlag",
       "orientation": "portrait",
+      "rotation": 0,
       "sizeClass": "large"
     },
     "content": {

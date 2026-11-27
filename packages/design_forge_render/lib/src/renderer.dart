@@ -61,20 +61,8 @@ class CanvasRenderer implements Renderer {
       }
       final art = ctx.artwork;
       if (art != null) {
-        // SizeClass shrinks the whole artwork onto the garment (centred).
-        final s = recipe.composition.sizeClass.scale;
-        if (s >= 0.999) {
-          canvas.drawImage(art, ui.Offset.zero, ui.Paint());
-        } else {
-          final w = ctx.width.toDouble(), h = ctx.height.toDouble();
-          final dst = ui.Rect.fromLTWH(
-              w * (1 - s) / 2, h * (1 - s) / 2, w * s, h * s);
-          canvas.drawImageRect(
-              art,
-              ui.Rect.fromLTWH(0, 0, w, h),
-              dst,
-              ui.Paint()..filterQuality = ui.FilterQuality.high);
-        }
+        _drawArtwork(canvas, art, ctx.width.toDouble(), ctx.height.toDouble(),
+            recipe.composition.sizeClass.scale, recipe.composition.rotation);
       }
     });
 
@@ -94,6 +82,37 @@ class CanvasRenderer implements Renderer {
 
 /// Stable 64-bit FNV-1a over bytes → 16-char hex. Used to assert render
 /// determinism without relying on cross-GPU pixel equality.
+/// Draws the finished [art] (canvas-sized, [w]×[h]) centred, shrunk by the
+/// size class [scale] and turned [rotation] degrees ANTICLOCKWISE. A quarter
+/// turn swaps the artwork's width and height, so it is fitted back inside the
+/// same footprint (a portrait design on its side lands at ~80% width).
+void _drawArtwork(ui.Canvas canvas, ui.Image art, double w, double h,
+    double scale, int rotation) {
+  final src = ui.Rect.fromLTWH(0, 0, w, h);
+  final paint = ui.Paint()..filterQuality = ui.FilterQuality.high;
+  if (rotation == 0) {
+    if (scale >= 0.999) {
+      canvas.drawImage(art, ui.Offset.zero, ui.Paint());
+    } else {
+      canvas.drawImageRect(art, src,
+          ui.Rect.fromLTWH(w * (1 - scale) / 2, h * (1 - scale) / 2, w * scale, h * scale),
+          paint);
+    }
+    return;
+  }
+  final quarter = rotation == 90 || rotation == 270;
+  // Turned footprint is (h × w); fit it inside (w × h) · scale.
+  final k = quarter ? scale * (w / h < h / w ? w / h : h / w) : scale;
+  canvas
+    ..save()
+    ..translate(w / 2, h / 2)
+    // Canvas y points down, so a negative angle turns anticlockwise on screen.
+    ..rotate(-rotation * 3.141592653589793 / 180)
+    ..drawImageRect(art, src,
+        ui.Rect.fromCenter(center: ui.Offset.zero, width: w * k, height: h * k), paint)
+    ..restore();
+}
+
 String _fnv1aBytes(List<int> bytes) {
   const int mask = 0xFFFFFFFFFFFFFFFF;
   var h = 0xCBF29CE484222325;
