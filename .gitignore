@@ -135,3 +135,9 @@ __pycache__/
 # Local read-only mirror of Firebase Storage for the silhouette review tool
 # (synced on demand, not a source of truth — see tools/silhouette_review/server.py)
 /tools/silhouette_review/.storage_cache/
+
+# Signature Workbench review sheets (M191): large PNGs, regenerated on demand.
+# Approved versions keep their qa_report.json (v*/) as the approval record.
+design_studio/contact_sheets/signature/**/*.png
+design_studio/contact_sheets/signature/*/review-*/
+design_studio/contact_sheets/signature/*/all-*/

@@ -24,3 +24,9 @@ Open the `index.html` in a browser, or have the Critic/Analyst read it via the
 agent. Judge **systematically** (patterns across cards per context/family), never
 one card at a time — see `../OPTIMIZATION_STUDIO.md` §3 and the `design-critic` /
 `reference-analyst` agents.
+
+## signature/ — Signature Workbench reviews (M191, ADR-181)
+`signature/<pack>/<label>/` holds `contact_sheet.png` (every country's hero with a QA dot) and
+`qa_report.json`, written by the Lab's Signature Workbench (Export sheet / Approve) or headlessly:
+`PACK=torn_flag flutter test test/signature_qa_cli_test.dart` in `apps/design_lab`.
+PNGs and `review-*` folders are git-ignored; each approval's `v<version>/qa_report.json` is committed.
