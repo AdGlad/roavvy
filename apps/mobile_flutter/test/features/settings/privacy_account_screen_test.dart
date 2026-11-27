@@ -66,14 +66,16 @@ void main() {
 
   // ── Sharing section — inactive state ──────────────────────────────────────
 
-  testWidgets('shows Share your map when no token exists', (tester) async {
+  testWidgets('hides Share your map while map sharing is off for v1.0', (
+    tester,
+  ) async {
     final repo = _makeRepo();
 
     await tester.pumpWidget(_pumpScreen(repo));
     await tester.pumpAndSettle();
 
-    expect(find.text('Share your map'), findsOneWidget);
-    expect(find.text('Create link'), findsOneWidget);
+    expect(find.text('Share your map'), findsNothing);
+    expect(find.text('Create link'), findsNothing);
     expect(find.text('Your map is shared'), findsNothing);
   });
 
@@ -126,7 +128,7 @@ void main() {
     expect(find.text('Your map is shared'), findsOneWidget);
   });
 
-  testWidgets('confirming removal switches to inactive sharing state', (
+  testWidgets('confirming removal removes the sharing section (v1.0)', (
     tester,
   ) async {
     final repo = _makeRepo();
@@ -141,7 +143,8 @@ void main() {
     await tester.tap(find.text('Remove Link'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Share your map'), findsOneWidget);
+    // Creating new links is off for v1.0, so nothing replaces it.
+    expect(find.text('Share your map'), findsNothing);
     expect(find.text('Your map is shared'), findsNothing);
   });
 

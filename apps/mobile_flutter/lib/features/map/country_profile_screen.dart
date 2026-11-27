@@ -294,7 +294,7 @@ class _CountryProfileScreenState extends ConsumerState<CountryProfileScreen> {
         '$tripLine$daysLine$photosLine'
         '$regionsLine'
         '$unescoLine'
-        '\n\nTrack your travels: roavvy.app';
+        '\n\nTrack your travels: www.roavvy.com';
 
     Share.share(text);
   }
