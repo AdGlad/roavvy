@@ -17,6 +17,13 @@ export 'src/recipe/shape_catalog.dart';
 export 'src/recipe/torn_strips.dart';
 export 'src/recipe/versions.dart';
 export 'src/library/design_library.dart';
+
+// Signature Recipes (ADR-181).
+export 'src/signature/recipe_path.dart';
+export 'src/signature/signature_pack_codec.dart';
+export 'src/signature/signature_recipe.dart';
+export 'src/signature/signature_resolver.dart';
+export 'src/signature/variation_envelope.dart';
 export 'src/travel/trip.dart';
 
 // Recommendation / preference system.

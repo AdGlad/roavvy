@@ -1,4 +1,32 @@
-# Next tasks (planner handoff, updated 2026-11-20)
+# Next tasks (planner handoff, updated 2026-11-27)
+
+# PLAN: v2 Signature T-shirts, M190–M199 (commerce back on)
+
+**Goal:** six "signature" recipes that each make a good T-shirt for every country, developed and approved one at a time in the macOS Design Lab, then shown in the app: six heroes first, generated variations as the user scrolls.
+**Architecture:** ADR-181 (Signature Recipe packs: base + variation envelope + sparse per-country overrides + locks; bundled; QA-gated approval). Builds on ADR-179 (torn flag, one engine) and ADR-180 (commerce flag/seam).
+**Defaults taken (owner can change):** Torn Flag first; packs bundled in the app (remote delivery later); single-country designs only in v2.
+
+| # | Milestone | Depends | Size | Doc |
+|---|---|---|---|---|
+| M190 | Signature Recipe model, pack format, resolver | | M | `docs/dev/milestones/m190-signature-recipe-model.md` |
+| M191 | Design Lab Signature Workbench (all countries, QA, approve) | M190 | L | `m191-lab-signature-workbench.md` |
+| M192 | Signature 1: Torn Flag | M191 | M | `m192-signature-1-torn-flag.md` |
+| M193 | Signature 2: Vintage Passport Stamp | M192 | M/L | `m193-signature-2-passport-stamp.md` |
+| M194 | Signature 3: Crest / Badge | M193 | L | `m194-signature-3-crest-badge.md` |
+| M195 | Signature 4: Bold Typographic | M194 | M | `m195-signature-4-typographic.md` |
+| M196 | Signature 5: Silhouette Fill | M195 | M | `m196-signature-5-silhouette-fill.md` |
+| M197 | Signature 6: Retro Travel Poster | M196 | L | `m197-signature-6-retro-poster.md` |
+| M198 | In-app Signature Feed (heroes + endless variations) | M190, M192 | L | `m198-signature-feed-in-app.md` |
+| M199 | v2 release: commerce on, print-validated | M192–M198 | M + owner | `m199-v2-commerce-release.md` |
+
+**Sequencing:** M190 → M191 → recipes strictly one at a time (each exits only on owner approval in the Lab). M198 can start once M192 is approved and runs alongside M193–M197. M199 last.
+
+**Owner gates:** approval of each recipe in the Lab (M192–M197); recipe order/choice can be changed before each starts; sample shirts, prod commerce deploy, store/legal copy (M199).
+
+---
+
+# PREVIOUS HANDOFF (2026-11-20), retained below
+
 
 # PLAN: Free Launch, M184–M189 (ship v1.0 with commerce OFF)
 

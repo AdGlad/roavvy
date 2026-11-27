@@ -15,6 +15,7 @@ export 'src/lab_styles.dart';
 export 'src/lab_showcase_generator.dart';
 export 'src/production_render.dart';
 export 'src/render_service.dart';
+export 'src/signature_catalog.dart';
 export 'src/studio_context.dart';
 export 'src/studio_controller.dart';
 export 'src/studio_session.dart';
