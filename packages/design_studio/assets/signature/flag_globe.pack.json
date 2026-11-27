@@ -22,6 +22,12 @@
         }
       ]
     },
+    "effects": {
+      "acidWash": 0.55,
+      "cracks": 0.5,
+      "distress": 0.12,
+      "fade": 0.08
+    },
     "engineVersion": "0.0.1",
     "globe": {
       "bulge": 0.85,
@@ -30,8 +36,8 @@
       "rim": 0.035,
       "rimColour": "#FFFFFF",
       "shading": 0.6,
-      "sparkles": 0.5,
-      "specular": 0.35,
+      "sparkles": 0.25,
+      "specular": 0.25,
       "zoom": 0.95
     },
     "grammarVersion": "0.0.1",
@@ -39,6 +45,14 @@
     "seed": 1
   },
   "envelope": {
+    "effects.acidWash": {
+      "max": 0.7,
+      "min": 0.4
+    },
+    "effects.cracks": {
+      "max": 0.6,
+      "min": 0.3
+    },
     "globe.bulge": {
       "max": 0.95,
       "min": 0.75
@@ -51,14 +65,6 @@
       "max": -0.3,
       "min": -0.7
     },
-    "globe.sparkles": {
-      "max": 0.7,
-      "min": 0.3
-    },
-    "globe.specular": {
-      "max": 0.5,
-      "min": 0.25
-    },
     "seed": {
       "integer": true,
       "max": 1000000,
@@ -70,9 +76,9 @@
   "heroes": {},
   "id": "flag_globe",
   "locks": {
-    "us": "59be1a611a68b107"
+    "us": "644289ccab74caa8"
   },
-  "notes": "The country's flag wrapped onto a glossy ball: stripes curve with the sphere, soft light from the upper left with a highlight and darker edges, faint sparkle stars, white sticker rim. Style reference: a US flag ball (generic style; nothing reproduced). The flag is drawn at 0.8 behind the ball (mirrored fill) so nearly the whole flag wraps round it.",
+  "notes": "The country's flag wrapped onto a glossy ball: stripes curve with the sphere, soft light from the upper left with a highlight and darker edges, faint sparkle stars, white sticker rim. Style reference: a US flag ball (generic style; nothing reproduced). The flag is drawn at 0.8 behind the ball (mirrored fill) so nearly the whole flag wraps round it. Distressed + acid-washed (2026-11-27): marbled bleach swirls, sparse ink cracks, light worn speckle and fade; gloss toned down.",
   "overrides": {},
   "status": "draft",
   "title": "Flag Globe",

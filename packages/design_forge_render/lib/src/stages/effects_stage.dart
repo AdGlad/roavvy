@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -7,6 +8,7 @@ import 'package:design_forge/design_forge.dart';
 
 import '../effects/textures.dart';
 import 'render_stage.dart';
+import '../geometry/wear_raster.dart';
 
 /// Continuous treatments applied to the artwork: distress, grain, fade and
 /// halftone. Each is gated by its recipe value (0 = skip) and seeded from the
@@ -51,6 +53,12 @@ class EffectsStage extends RenderStage {
     if (fx.photocopy > 0) {
       await _photocopy(ctx, seed, fx.photocopy);
     }
+    if (fx.acidWash > 0) {
+      await _raster(ctx, (px, w, h) => WearRaster.acidWash(px, w, h, fx.acidWash, seed));
+    }
+    if (fx.cracks > 0) {
+      await _raster(ctx, (px, w, h) => WearRaster.cracks(px, w, h, fx.cracks, seed));
+    }
     if (fx.distress > 0) {
       await _distress(ctx, seed, fx.distress);
     }
@@ -60,6 +68,20 @@ class EffectsStage extends RenderStage {
     if (fx.fade > 0) {
       await _fade(ctx, fx.fade);
     }
+  }
+
+  /// Runs a pure-Dart pass over the artwork's premultiplied pixels on an
+  /// isolate and swaps the result in.
+  Future<void> _raster(RenderContext ctx,
+      Uint8List Function(Uint8List px, int w, int h) pass) async {
+    final art = ctx.artwork!;
+    final data = await art.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final bytes = data!.buffer.asUint8List();
+    final w = art.width, h = art.height;
+    final out = await Isolate.run(() => pass(bytes, w, h));
+    final completer = Completer<ui.Image>();
+    ui.decodeImageFromPixels(out, w, h, ui.PixelFormat.rgba8888, completer.complete);
+    ctx.artwork = await completer.future;
   }
 
   /// Film grain: a noise texture blended `softLight`, restricted to artwork alpha.
