@@ -70,4 +70,41 @@ void main() {
     expect(red, greaterThan(ink * 0.1));
     expect(gold, greaterThan(ink * 0.1));
   });
+
+  testWidgets('stretch also fits a drawn shape: a German star shows all three bands',
+      (tester) async {
+    late Uint8List px;
+    await tester.runAsync(() async {
+      final renderer = CanvasRenderer(
+          assets: SvgFlagResolver((c) => File('$_flagDir/$c.svg').readAsString()));
+      final img = (await renderer.render(
+        const DesignRecipe(
+          seed: 1,
+          content: RecipeContent(flags: [FlagRef('de')]),
+          composition: Composition(
+              family: DesignFamily.singleHero, orientation: Orientation.square),
+          clip: Clip(shapeId: 'star', scale: 0.94, flagFit: 'stretch'),
+        ),
+        const RenderTarget(width: 300, height: 300, paintBackground: false),
+      ))
+          .image;
+      px = (await img.toByteData(format: ui.ImageByteFormat.rawStraightRgba))!
+          .buffer
+          .asUint8List();
+    });
+    // Top point (black), centre (red), lower arms (gold).
+    List<int> at(int x, int y) => px.sublist((y * 300 + x) * 4, (y * 300 + x) * 4 + 4);
+    expect(at(150, 40)[0], lessThan(40), reason: 'black at the top point');
+    expect(at(150, 150)[0], greaterThan(180), reason: 'red across the middle');
+    expect(at(150, 150)[1], lessThan(60));
+    var gold = 0;
+    for (var y = 210; y < 290; y++) {
+      for (var x = 0; x < 300; x++) {
+        final p = at(x, y);
+        if (p[3] > 200 && p[0] > 200 && p[1] > 150 && p[2] < 60) gold++;
+      }
+    }
+    expect(gold, greaterThan(500), reason: 'gold in the lower arms');
+  });
 }
+

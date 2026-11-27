@@ -73,8 +73,11 @@ class ClipStage extends RenderStage {
       case ClipShapeSource.procedural:
         final path = ShapeGeometry.build(clip.shapeId, rect, clip.cornerRadius);
         if (path == null) return;
-        await _clipToPath(ctx, _rotate(path, rect.center, clip.rotationDeg),
-            clip.feather);
+        final placed = _rotate(path, rect.center, clip.rotationDeg);
+        if (clip.flagFit == Clip.fitStretch) {
+          await _stretchFlagToBox(recipe, ctx, placed.getBounds());
+        }
+        await _clipToPath(ctx, placed, clip.feather);
         break;
       case ClipShapeSource.text:
         if ((clip.text ?? '').trim().isEmpty) return;
@@ -285,7 +288,15 @@ class ClipStage extends RenderStage {
       }
     }
     if (maxX < 0) return;
-    final box = ui.Rect.fromLTRB(minX - 1.0, minY - 1.0, maxX + 2.0, maxY + 2.0);
+    await _stretchFlagToBox(recipe, ctx,
+        ui.Rect.fromLTRB(minX - 1.0, minY - 1.0, maxX + 2.0, maxY + 2.0));
+  }
+
+  /// Redraws the artwork as the recipe's first flag stretched to exactly
+  /// fill [box] (Clip.flagFit 'stretch').
+  Future<void> _stretchFlagToBox(
+      DesignRecipe recipe, RenderContext ctx, ui.Rect box) async {
+    if (recipe.content.flags.isEmpty || box.isEmpty) return;
     final flag = await ctx.assets.resolveFlag(recipe.content.flags.first.code,
         width: box.width.round().clamp(16, 4096),
         height: box.height.round().clamp(16, 4096));
