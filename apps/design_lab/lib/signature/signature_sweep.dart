@@ -35,6 +35,7 @@ class SignatureSweep {
     this.service, {
     this.longSide = defaultLongSide,
     this.thresholds = QaThresholds.standard,
+    this.display,
   });
 
   /// Preview size for QA + the contact sheet (portrait 300×375).
@@ -53,8 +54,25 @@ class SignatureSweep {
   final int longSide;
   final QaThresholds thresholds;
 
+  /// The garment the kept image is shown on (null = neutral). Only matters
+  /// for designs that change with the garment ([dependsOnGarment]).
+  ui.Color? display;
+
+  /// True when the artwork itself differs by garment: an automatic outline
+  /// (dark on light shirts, light on dark) or garment-adaptive ink.
+  static bool dependsOnGarment(DesignRecipe r) =>
+      (r.composition.outlineWidth > 0 &&
+          r.composition.outlineColour == Composition.autoOutline) ||
+      r.inkIsAdaptive;
+
+  static bool _isLight(ui.Color c) => c.computeLuminance() >= 0.3;
+
   /// Renders and checks one design. A render error becomes a hard failure,
   /// never an exception, so one bad flag cannot stop a sweep.
+  ///
+  /// A garment-dependent design is rendered once for the light garments and
+  /// once for the dark ones, and each render is checked only against its own
+  /// garments — so a green dot means it reads on every shirt AS PRINTED.
   Future<SweepCell> cell(SignatureRecipe pack, String country, int index,
       {bool keepImage = true}) async {
     final DesignRecipe recipe;
@@ -69,16 +87,40 @@ class SignatureSweep {
       );
     }
     try {
-      final image =
-          await service.imageFor(recipe, longSide, transparent: true);
-      final report =
-          await SignatureQa.checkImage(image, thresholds: thresholds);
+      if (!dependsOnGarment(recipe)) {
+        final image =
+            await service.imageFor(recipe, longSide, transparent: true);
+        final report =
+            await SignatureQa.checkImage(image, thresholds: thresholds);
+        return SweepCell(
+          country: country,
+          index: index,
+          recipe: recipe,
+          report: report,
+          image: keepImage ? image : null,
+        );
+      }
+      final parts = <QaReport>[];
+      ui.Image? shown;
+      final wantLight = display == null || _isLight(display!);
+      for (final light in [true, false]) {
+        final group = [
+          for (final g in thresholds.garments)
+            if (_isLight(g.$1) == light) g,
+        ];
+        if (group.isEmpty) continue;
+        final image = await service.imageFor(recipe, longSide,
+            transparent: true, background: group.first.$1);
+        parts.add(await SignatureQa.checkImage(image,
+            thresholds: thresholds.only(group)));
+        if (light == wantLight) shown = image;
+      }
       return SweepCell(
         country: country,
         index: index,
         recipe: recipe,
-        report: report,
-        image: keepImage ? image : null,
+        report: QaReport.merge(parts),
+        image: keepImage ? shown : null,
       );
     } catch (e) {
       return SweepCell(

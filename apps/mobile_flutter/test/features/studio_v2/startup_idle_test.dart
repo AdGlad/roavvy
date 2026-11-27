@@ -55,6 +55,7 @@ class _CountingService extends RenderService {
     DesignRecipe recipe,
     int longSide, {
     bool transparent = false,
+    ui.Color? background,
   }) async {
     calls++;
     keys.add('${recipe.recipeId}@$longSide');

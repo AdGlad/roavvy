@@ -19,7 +19,10 @@ class SignatureQa {
     QaThresholds thresholds = QaThresholds.standard,
     bool allowBleed = false,
   }) async {
-    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    // Straight (un-premultiplied) colour: a half-transparent edge pixel must
+    // be judged by its real colour, not one darkened by its own alpha.
+    final data =
+        await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba);
     return analyse(data!.buffer.asUint8List(), image.width, image.height,
         thresholds: thresholds, allowBleed: allowBleed);
   }
@@ -31,6 +34,7 @@ class SignatureQa {
         metrics: const {},
       );
 
+  /// [rgba] is STRAIGHT (un-premultiplied) RGBA.
   static QaReport analyse(
     Uint8List rgba,
     int width,
@@ -68,6 +72,57 @@ class SignatureQa {
             dg = gr - garmentRgb[g][1],
             db = b - garmentRgb[g][2];
         if (dr * dr + dg * dg + db * db < maxDist2) lowContrast[g] += w;
+      }
+    }
+
+    // The design's OUTER edge: ink pixels touching empty space that connects
+    // to the canvas border. Holes inside the artwork (distress) don't count —
+    // what matters on a shirt is whether the shape reads, not whether every
+    // colour inside it does.
+    final exterior = Uint8List(n);
+    final stack = <int>[];
+    void reach(int i) {
+      if (ink[i] == 0 && exterior[i] == 0) {
+        exterior[i] = 1;
+        stack.add(i);
+      }
+    }
+
+    for (var x = 0; x < width; x++) {
+      reach(x);
+      reach((height - 1) * width + x);
+    }
+    for (var y = 0; y < height; y++) {
+      reach(y * width);
+      reach(y * width + width - 1);
+    }
+    while (stack.isNotEmpty) {
+      final i = stack.removeLast();
+      final x = i % width;
+      if (x > 0) reach(i - 1);
+      if (x < width - 1) reach(i + 1);
+      if (i >= width) reach(i - width);
+      if (i < n - width) reach(i + width);
+    }
+    var edgeCount = 0;
+    final edgeVanish = List<int>.filled(t.garments.length, 0);
+    for (var i = 0; i < n; i++) {
+      if (ink[i] == 0) continue;
+      final x = i % width;
+      final onEdge = (x > 0 && exterior[i - 1] == 1) ||
+          (x < width - 1 && exterior[i + 1] == 1) ||
+          (i >= width && exterior[i - width] == 1) ||
+          (i < n - width && exterior[i + width] == 1);
+      if (!onEdge) continue;
+      edgeCount++;
+      final r = rgba[i * 4], gr = rgba[i * 4 + 1], b = rgba[i * 4 + 2];
+      final l = _lumRgb(r, gr, b);
+      for (var g = 0; g < garmentLum.length; g++) {
+        if (_ratio(l, garmentLum[g]) >= t.minContrastRatio) continue;
+        final dr = r - garmentRgb[g][0],
+            dg = gr - garmentRgb[g][1],
+            db = b - garmentRgb[g][2];
+        if (dr * dr + dg * dg + db * db < maxDist2) edgeVanish[g]++;
       }
     }
 
@@ -122,12 +177,15 @@ class SignatureQa {
     }
 
     final contrast = <String, double>{};
+    final edge = <String, double>{};
     for (var g = 0; g < t.garments.length; g++) {
-      final share = alphaSum == 0 ? 0.0 : lowContrast[g] / alphaSum;
-      contrast[t.garments[g].$2] = share;
-      if (share > t.maxLowContrastShare) {
-        soft.add(QaFinding('contrast:${t.garments[g].$2}',
-            '${_pct(share)} of the artwork disappears on ${t.garments[g].$2}'));
+      final name = t.garments[g].$2;
+      contrast[name] = alphaSum == 0 ? 0.0 : lowContrast[g] / alphaSum;
+      final share = edgeCount == 0 ? 0.0 : edgeVanish[g] / edgeCount;
+      edge[name] = share;
+      if (share > t.maxEdgeVanishShare) {
+        soft.add(QaFinding('contrast:$name',
+            '${_pct(share)} of the design\'s outline disappears on $name'));
       }
     }
 
@@ -138,6 +196,11 @@ class SignatureQa {
         'coverage': _round(coverage),
         'edgeShare': _round(edgeShare),
         'speckShare': _round(speckShare),
+        // Share of the outer edge that vanishes per garment (drives warnings).
+        'edgeVanish': {
+          for (final e in edge.entries) e.key: _round(e.value),
+        },
+        // Share of all ink that vanishes per garment (information only).
         'lowContrast': {
           for (final e in contrast.entries) e.key: _round(e.value),
         },
@@ -190,6 +253,31 @@ class QaReport {
   final List<QaFinding> soft;
   final Map<String, Object?> metrics;
 
+  /// One report from several partial ones (e.g. one per garment group, when
+  /// the artwork differs by garment): findings combined, metrics merged.
+  factory QaReport.merge(List<QaReport> parts) {
+    final hard = <QaFinding>[], soft = <QaFinding>[];
+    final metrics = <String, Object?>{};
+    final seen = <String>{};
+    for (final p in parts) {
+      for (final f in p.hard) {
+        if (seen.add('h:${f.code}')) hard.add(f);
+      }
+      for (final f in p.soft) {
+        if (seen.add('s:${f.code}')) soft.add(f);
+      }
+      for (final e in p.metrics.entries) {
+        final v = e.value;
+        if (v is Map && metrics[e.key] is Map) {
+          metrics[e.key] = {...(metrics[e.key] as Map), ...v};
+        } else {
+          metrics.putIfAbsent(e.key, () => v);
+        }
+      }
+    }
+    return QaReport(hard: hard, soft: soft, metrics: metrics);
+  }
+
   QaStatus get status => hard.isNotEmpty
       ? QaStatus.fail
       : soft.isNotEmpty
@@ -215,9 +303,23 @@ class QaThresholds {
     this.maxSpeckShare = 0.02,
     this.minContrastRatio = 1.5,
     this.minColourDistance = 110,
-    this.maxLowContrastShare = 0.35,
+    this.maxEdgeVanishShare = 0.25,
     this.garments = orderableGarments,
   });
+
+  /// The same thresholds, checking only [subset] of the garments.
+  QaThresholds only(List<(ui.Color, String)> subset) => QaThresholds(
+        inkAlpha: inkAlpha,
+        minCoverage: minCoverage,
+        maxCoverage: maxCoverage,
+        edgeRingFraction: edgeRingFraction,
+        maxEdgeShare: maxEdgeShare,
+        maxSpeckShare: maxSpeckShare,
+        minContrastRatio: minContrastRatio,
+        minColourDistance: minColourDistance,
+        maxEdgeVanishShare: maxEdgeVanishShare,
+        garments: subset,
+      );
 
   static const QaThresholds standard = QaThresholds();
 
@@ -254,8 +356,9 @@ class QaThresholds {
   final double minContrastRatio;
   final double minColourDistance;
 
-  /// Max share of the artwork that may vanish on any one garment.
-  final double maxLowContrastShare;
+  /// Max share of the design's OUTER EDGE that may vanish on any one garment
+  /// before it warns (the shape stops reading against the shirt).
+  final double maxEdgeVanishShare;
 
   final List<(ui.Color, String)> garments;
 }

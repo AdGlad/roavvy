@@ -91,12 +91,18 @@ class RenderService {
   /// carrying a coloured card around it. The default bakes the recipe's garment
   /// colour behind the art (falling back to a neutral grey), which is what a
   /// standalone preview tile wants.
+  ///
+  /// [background] overrides the garment tone the design is made for (what an
+  /// automatic outline or garment-aware ink contrasts against); by default it
+  /// is the recipe's own garment colour, else neutral grey.
   Future<ui.Image> imageFor(
     DesignRecipe recipe,
     int longSide, {
     bool transparent = false,
+    ui.Color? background,
   }) async {
-    final key = '${recipe.recipeId}@$longSide${transparent ? '#alpha' : ''}';
+    final key = '${recipe.recipeId}@$longSide${transparent ? '#alpha' : ''}'
+        '${background == null ? '' : '/${background.toARGB32().toRadixString(16)}'}';
     final cached = _cache[key];
     if (cached != null) {
       // Touch: move to the most-recently-used end so it survives eviction.
@@ -113,8 +119,10 @@ class RenderService {
     final sw = _kTrace ? (Stopwatch()..start()) : null;
     // `transparent` withholds the FILL, not the colour: the stages still ink
     // titles and contrast against the garment tone they will sit on.
-    final result = await _renderer.render(recipe,
-        targetFor(recipe, longSide, paintBackground: !transparent));
+    final result = await _renderer.render(
+        recipe,
+        targetFor(recipe, longSide,
+            background: background, paintBackground: !transparent));
     if (sw != null) {
       debugPrint('[v2trace] RenderService.render #$_renderCalls DONE '
           'in ${sw.elapsedMilliseconds}ms');

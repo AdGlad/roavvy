@@ -1,8 +1,10 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
 
 import 'asset_resolver.dart';
+import 'effects/keyline.dart';
 import 'render_target.dart';
 import 'stages/render_stage.dart';
 import 'stages/composition_stage.dart';
@@ -66,6 +68,17 @@ class CanvasRenderer implements Renderer {
 
     for (final stage in stages) {
       await stage.apply(recipe, ctx);
+    }
+
+    // Keyline around the silhouette, before rotation (so it turns with it).
+    final comp = recipe.composition;
+    final drawn = ctx.artwork;
+    if (drawn != null && comp.outlineWidth > 0) {
+      final radius = comp.outlineWidth / 100 * math.min(ctx.width, ctx.height);
+      final colour = comp.outlineColour == Composition.autoOutline
+          ? Keyline.autoFor(target.background)
+          : (Keyline.parse(comp.outlineColour) ?? Keyline.dark);
+      ctx.artwork = await Keyline.apply(drawn, radius, colour);
     }
 
     // Flatten: background (garment) then the final artwork layer.

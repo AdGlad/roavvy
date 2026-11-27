@@ -8,6 +8,7 @@ export 'src/asset_resolver.dart';
 export 'src/clip/shape_geometry.dart';
 export 'src/clip/text_mask.dart';
 export 'src/contact_sheet.dart';
+export 'src/effects/keyline.dart';
 export 'src/effects/textures.dart';
 export 'src/geometry/torn_mask.dart';
 export 'src/geometry/torn_strips_raster.dart';

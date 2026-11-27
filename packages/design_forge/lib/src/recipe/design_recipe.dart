@@ -190,7 +190,12 @@ class Composition {
     this.statementHero = false,
     this.sizeClass = SizeClass.medium,
     this.rotation = 0,
+    this.outlineWidth = 0,
+    this.outlineColour = autoOutline,
   }) : assert(rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270);
+
+  /// [outlineColour] value that picks dark or light from the garment.
+  static const String autoOutline = 'auto';
 
   /// Quarter turns the finished artwork may be rotated by.
   static const List<int> rotations = [0, 90, 180, 270];
@@ -206,6 +211,16 @@ class Composition {
   /// own [orientation] and the output takes [canvasOrientation], so a turned
   /// portrait design fills a landscape canvas edge to edge.
   final int rotation;
+
+  /// Width of a keyline drawn around the artwork's OUTER edge (and the gaps
+  /// between torn strips), as a percentage of the canvas short side; 0 = none.
+  /// Holes inside the artwork (distress) are not outlined. Applied after every
+  /// stage, before [rotation]. Omitted from JSON when 0.
+  final double outlineWidth;
+
+  /// Keyline colour: [autoOutline] (dark on a light garment, light on a dark
+  /// one) or `#RRGGBB`. Omitted from JSON when auto.
+  final String outlineColour;
 
   /// True for 90° and 270°.
   bool get isQuarterTurn => rotation == 90 || rotation == 270;
@@ -254,6 +269,8 @@ class Composition {
         if (statementHero) 'statementHero': statementHero,
         if (sizeClass != SizeClass.medium) 'sizeClass': sizeClass.name,
         if (rotation != 0) 'rotation': rotation,
+        if (outlineWidth != 0) 'outlineWidth': outlineWidth,
+        if (outlineColour != autoOutline) 'outlineColour': outlineColour,
       };
 
   factory Composition.fromJson(Map<String, Object?> json) {
@@ -261,7 +278,17 @@ class Composition {
     if (!rotations.contains(rotation)) {
       throw FormatException('rotation must be one of $rotations, not $rotation');
     }
-    return Composition._fromJson(json, rotation);
+    final outlineWidth = (json['outlineWidth'] as num?)?.toDouble() ?? 0;
+    if (outlineWidth < 0 || outlineWidth > 5) {
+      throw FormatException('outlineWidth must be 0–5 (% of the short side), not $outlineWidth');
+    }
+    final outlineColour = json['outlineColour'] as String? ?? autoOutline;
+    if (outlineColour != autoOutline &&
+        !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(outlineColour)) {
+      throw FormatException('outlineColour must be "auto" or #RRGGBB, not $outlineColour');
+    }
+    return Composition._fromJson(json, rotation)
+        .copyWith(outlineWidth: outlineWidth, outlineColour: outlineColour);
   }
 
   factory Composition._fromJson(Map<String, Object?> json, int rotation) =>
@@ -300,9 +327,13 @@ class Composition {
     bool? statementHero,
     SizeClass? sizeClass,
     int? rotation,
+    double? outlineWidth,
+    String? outlineColour,
   }) =>
       Composition(
         rotation: rotation ?? this.rotation,
+        outlineWidth: outlineWidth ?? this.outlineWidth,
+        outlineColour: outlineColour ?? this.outlineColour,
         family: family ?? this.family,
         orientation: orientation ?? this.orientation,
         layoutMode: layoutMode ?? this.layoutMode,
