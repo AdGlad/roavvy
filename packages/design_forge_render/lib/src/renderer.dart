@@ -48,20 +48,34 @@ class CanvasRenderer implements Renderer {
   @override
   Future<RenderResult> render(DesignRecipe recipe, RenderTarget target) async {
     final sw = Stopwatch()..start();
-    final ctx = RenderContext(target: target, assets: assets);
+    // A quarter turn draws the design on the swapped canvas (its own shape),
+    // then turns it onto [target], which it fills exactly.
+    final quarter = recipe.composition.isQuarterTurn;
+    final ctx = RenderContext(
+      target: quarter
+          ? RenderTarget(
+              width: target.height,
+              height: target.width,
+              quality: target.quality,
+              background: target.background,
+              paintBackground: target.paintBackground)
+          : target,
+      assets: assets,
+    );
+    final out = RenderContext(target: target, assets: assets);
 
     for (final stage in stages) {
       await stage.apply(recipe, ctx);
     }
 
     // Flatten: background (garment) then the final artwork layer.
-    final image = await ctx.rasterise((canvas) {
+    final image = await out.rasterise((canvas) {
       if (target.background != null && target.paintBackground) {
-        canvas.drawRect(ctx.fullRect, ui.Paint()..color = target.background!);
+        canvas.drawRect(out.fullRect, ui.Paint()..color = target.background!);
       }
       final art = ctx.artwork;
       if (art != null) {
-        _drawArtwork(canvas, art, ctx.width.toDouble(), ctx.height.toDouble(),
+        _drawArtwork(canvas, art, out.width.toDouble(), out.height.toDouble(),
             recipe.composition.sizeClass.scale, recipe.composition.rotation);
       }
     });
@@ -82,34 +96,28 @@ class CanvasRenderer implements Renderer {
 
 /// Stable 64-bit FNV-1a over bytes → 16-char hex. Used to assert render
 /// determinism without relying on cross-GPU pixel equality.
-/// Draws the finished [art] (canvas-sized, [w]×[h]) centred, shrunk by the
-/// size class [scale] and turned [rotation] degrees ANTICLOCKWISE. A quarter
-/// turn swaps the artwork's width and height, so it is fitted back inside the
-/// same footprint (a portrait design on its side lands at ~80% width).
+/// Draws the finished [art] onto a [w]×[h] canvas, centred, shrunk by the
+/// size class [scale] and turned [rotation] degrees ANTICLOCKWISE. For a
+/// quarter turn [art] was drawn on the swapped (h×w) canvas, so once turned it
+/// fills [w]×[h] exactly.
 void _drawArtwork(ui.Canvas canvas, ui.Image art, double w, double h,
     double scale, int rotation) {
-  final src = ui.Rect.fromLTWH(0, 0, w, h);
-  final paint = ui.Paint()..filterQuality = ui.FilterQuality.high;
-  if (rotation == 0) {
-    if (scale >= 0.999) {
-      canvas.drawImage(art, ui.Offset.zero, ui.Paint());
-    } else {
-      canvas.drawImageRect(art, src,
-          ui.Rect.fromLTWH(w * (1 - scale) / 2, h * (1 - scale) / 2, w * scale, h * scale),
-          paint);
-    }
+  final aw = art.width.toDouble(), ah = art.height.toDouble();
+  final src = ui.Rect.fromLTWH(0, 0, aw, ah);
+  if (rotation == 0 && scale >= 0.999) {
+    canvas.drawImage(art, ui.Offset.zero, ui.Paint());
     return;
   }
-  final quarter = rotation == 90 || rotation == 270;
-  // Turned footprint is (h × w); fit it inside (w × h) · scale.
-  final k = quarter ? scale * (w / h < h / w ? w / h : h / w) : scale;
   canvas
     ..save()
     ..translate(w / 2, h / 2)
     // Canvas y points down, so a negative angle turns anticlockwise on screen.
     ..rotate(-rotation * 3.141592653589793 / 180)
-    ..drawImageRect(art, src,
-        ui.Rect.fromCenter(center: ui.Offset.zero, width: w * k, height: h * k), paint)
+    ..drawImageRect(
+        art,
+        src,
+        ui.Rect.fromCenter(center: ui.Offset.zero, width: aw * scale, height: ah * scale),
+        ui.Paint()..filterQuality = ui.FilterQuality.high)
     ..restore();
 }
 

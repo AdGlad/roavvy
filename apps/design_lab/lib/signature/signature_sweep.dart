@@ -174,7 +174,13 @@ class SignatureSweep {
   }) async {
     final shown = [for (final c in cells) if (c.image != null) c];
     if (shown.isEmpty) throw StateError('No rendered cells to lay out');
-    final cw = shown.first.image!.width, ch = shown.first.image!.height;
+    // Cells fit the largest render in each direction, so portrait and
+    // landscape (rotated) designs share one grid at full size.
+    var cw = 0, ch = 0;
+    for (final c in shown) {
+      if (c.image!.width > cw) cw = c.image!.width;
+      if (c.image!.height > ch) ch = c.image!.height;
+    }
     const labelH = 26, pad = 10;
     final cols = shown.length < columns ? shown.length : columns;
     final rows = (shown.length / cols).ceil();
@@ -188,7 +194,9 @@ class SignatureSweep {
       final c = shown[i];
       final x = (pad + (i % cols) * (cw + pad)).toDouble();
       final y = (pad + (i ~/ cols) * (ch + labelH + pad)).toDouble();
-      canvas.drawImage(c.image!, ui.Offset(x, y), ui.Paint());
+      final img = c.image!;
+      canvas.drawImage(img,
+          ui.Offset(x + (cw - img.width) / 2, y + (ch - img.height) / 2), ui.Paint());
       canvas.drawCircle(ui.Offset(x + 9, y + 9), 6,
           ui.Paint()..color = statusColour(c.report.status));
       final label = names[c.country] == null

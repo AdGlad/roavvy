@@ -40,62 +40,71 @@ void main() {
           rotation: rotation),
       tornStrips: const TornStrips(),
     );
+    // As RenderService.targetFor does: the canvas takes the turned shape.
+    final landscape = recipe.composition.canvasOrientation == Orientation.landscape;
     final img = (await renderer.render(
             recipe,
-            const RenderTarget(
-                width: 320, height: 400, paintBackground: false)))
+            RenderTarget(
+                width: landscape ? 400 : 320,
+                height: landscape ? 320 : 400,
+                paintBackground: false)))
         .image;
     final bytes = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
     return (bytes!.buffer.asUint8List(), img.width, img.height);
   }
 
-  testWidgets('90° and 270° lay a portrait design on its side, centred, inside the canvas',
+  test('a quarter turn swaps the canvas shape', () {
+    Composition c(int r) =>
+        Composition(family: DesignFamily.portraitTornFlag, rotation: r);
+    expect(c(0).canvasOrientation, Orientation.portrait);
+    expect(c(90).canvasOrientation, Orientation.landscape);
+    expect(c(180).canvasOrientation, Orientation.portrait);
+    expect(c(270).canvasOrientation, Orientation.landscape);
+  });
+
+  testWidgets('90° and 270° fill a landscape canvas as fully as 0° fills portrait',
       (tester) async {
     await tester.runAsync(() async {
-      final (p0, w, h) = await render(0);
-      final b0 = _bbox(p0, w, h);
-      expect(b0.$4 - b0.$2, greaterThan(b0.$3 - b0.$1), reason: 'portrait at 0°');
+      final (p0, w0, h0) = await render(0);
+      final b0 = _bbox(p0, w0, h0);
+      expect((w0, h0), (320, 400));
+      final tall = (b0.$4 - b0.$2) / h0, wide0 = (b0.$3 - b0.$1) / w0;
       for (final deg in [90, 270]) {
-        final (p, _, _) = await render(deg);
+        final (p, w, h) = await render(deg);
+        expect((w, h), (400, 320), reason: 'landscape canvas at $deg°');
         final b = _bbox(p, w, h);
-        final bw = b.$3 - b.$1, bh = b.$4 - b.$2;
-        expect(bw, greaterThan(bh), reason: 'landscape at $deg°');
-        expect(b.$1, greaterThanOrEqualTo(0));
-        expect(b.$3, lessThan(w));
-        // Centred vertically (within a few pixels).
-        expect(((b.$2 + b.$4) / 2 - h / 2).abs(), lessThan(h * 0.08));
+        // The turned design spans the canvas the way it did upright.
+        expect(((b.$3 - b.$1) / w - tall).abs(), lessThan(0.02));
+        expect(((b.$4 - b.$2) / h - wide0).abs(), lessThan(0.02));
       }
     });
   });
 
-  testWidgets('90° anticlockwise moves the torn (bottom) end to the right',
+  testWidgets('90° is the upright render turned anticlockwise',
       (tester) async {
     await tester.runAsync(() async {
-      // Japan: one white field, frayed only at the free end. At 0° the ragged
-      // end is at the bottom; turned anticlockwise it must be on the right,
-      // where a real flag frays (the fly end).
-      final (p0, w, h) = await render(0, flag: 'jp');
-      final (p90, _, _) = await render(90, flag: 'jp');
-      double inkShare(Uint8List px, int x0, int y0, int x1, int y1) {
-        var ink = 0, all = 0;
-        for (var y = y0; y < y1; y++) {
-          for (var x = x0; x < x1; x++) {
-            all++;
-            if (px[(y * w + x) * 4 + 3] > 32) ink++;
+      // The free (torn) end is at the bottom upright; turned anticlockwise it
+      // must land on the right, where a real flag frays (the fly end).
+      final (p0, w0, h0) = await render(0, flag: 'jp');
+      final (p90, w, h) = await render(90, flag: 'jp');
+      expect((w, h), (h0, w0));
+      // Compare WHERE the ink is (alpha > 32): resampling the distress
+      // texture softens partial-alpha edges slightly differently once turned.
+      var agree = 0, ink = 0, kept = 0;
+      for (var y = 0; y < h0; y++) {
+        for (var x = 0; x < w0; x++) {
+          // Anticlockwise: source (x, y) -> (y, w0 - 1 - x).
+          final ink0 = p0[(y * w0 + x) * 4 + 3] > 32;
+          final ink90 = p90[((w0 - 1 - x) * w + y) * 4 + 3] > 32;
+          if (ink0 == ink90) agree++;
+          if (ink0) {
+            ink++;
+            if (ink90) kept++;
           }
         }
-        return ink / all;
       }
-
-      final b0 = _bbox(p0, w, h);
-      final top0 = inkShare(p0, b0.$1, b0.$2, b0.$3, b0.$2 + 12);
-      final bottom0 = inkShare(p0, b0.$1, b0.$4 - 12, b0.$3, b0.$4);
-      expect(bottom0, lessThan(top0), reason: 'frayed end is ragged (less ink)');
-
-      final b = _bbox(p90, w, h);
-      final left = inkShare(p90, b.$1, b.$2, b.$1 + 12, b.$4);
-      final right = inkShare(p90, b.$3 - 12, b.$2, b.$3, b.$4);
-      expect(right, lessThan(left), reason: 'frayed end now on the right');
+      expect(kept / ink, greaterThan(0.999), reason: 'every inked pixel moves, none is lost');
+      expect(agree / (w0 * h0), greaterThan(0.985), reason: 'only faint specks differ');
     });
   });
 }

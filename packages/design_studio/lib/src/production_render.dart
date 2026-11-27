@@ -260,7 +260,7 @@ class ProductionRenderer {
   }
 
   /// The recipe's own aspect (width / height), from its orientation.
-  static double aspectOf(DesignRecipe r) => switch (r.composition.orientation) {
+  static double aspectOf(DesignRecipe r) => switch (r.composition.canvasOrientation) {
     Orientation.portrait => 0.8,
     Orientation.landscape => 1.25,
     Orientation.square => 1.0,

@@ -58,7 +58,7 @@ class RenderService {
       {RenderQuality quality = RenderQuality.preview,
       ui.Color? background,
       bool paintBackground = true}) {
-    final (w, h) = dimsFor(r.composition.orientation, longSide);
+    final (w, h) = dimsFor(r.composition.canvasOrientation, longSide);
     // The garment colour is a real design property: fill the background with the
     // recipe's garmentColour when set, so garment-aware re-inking has the right
     // tone to contrast against. Falls back to the neutral preview grey.

@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
 import 'package:design_forge_render/design_forge_render.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Orientation;
 
 import '../render_service.dart';
 import 'signature_edit.dart';
@@ -461,6 +461,15 @@ class SignatureScreenState extends State<SignatureScreen> {
     );
   }
 
+  bool _landscape(SignatureRecipe p) {
+    try {
+      return SignatureResolver.hero(p, 'us').composition.canvasOrientation ==
+          Orientation.landscape;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Widget _statusChip(SignatureRecipe p) => Chip(
         visualDensity: VisualDensity.compact,
         backgroundColor: p.isApproved ? const Color(0xFFD6F0DC) : const Color(0xFFFFF1C9),
@@ -553,8 +562,13 @@ class SignatureScreenState extends State<SignatureScreen> {
       Expanded(
         child: GridView.builder(
           padding: const EdgeInsets.all(12),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 150, childAspectRatio: 0.68, mainAxisSpacing: 8, crossAxisSpacing: 8),
+          // Tiles take the design's shape, so a rotated (landscape) design
+          // is shown at full size rather than letterboxed in a tall tile.
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: _landscape(p) ? 190 : 150,
+              childAspectRatio: _landscape(p) ? 1.08 : 0.68,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8),
           itemCount: shown.length,
           itemBuilder: (_, i) {
             final cc = shown[i];

@@ -199,10 +199,26 @@ class Composition {
   final Orientation orientation;
 
   /// Degrees ANTICLOCKWISE the finished artwork is turned, applied after every
-  /// stage (so text turns with it) and fitted back into the print area: 90/270
-  /// put a portrait design on its side at ~80% width. One of [rotations].
-  /// Omitted from JSON when 0, so existing recipeIds are unchanged.
+  /// stage (so text turns with it). One of [rotations]. Omitted from JSON when
+  /// 0, so existing recipeIds are unchanged.
+  ///
+  /// A quarter turn (90/270) also swaps the canvas: the design is drawn on its
+  /// own [orientation] and the output takes [canvasOrientation], so a turned
+  /// portrait design fills a landscape canvas edge to edge.
   final int rotation;
+
+  /// True for 90° and 270°.
+  bool get isQuarterTurn => rotation == 90 || rotation == 270;
+
+  /// The shape of the RENDERED artwork: [orientation], swapped by a quarter
+  /// turn. Everything that sizes a canvas or a print area uses this.
+  Orientation get canvasOrientation => !isQuarterTurn
+      ? orientation
+      : switch (orientation) {
+          Orientation.portrait => Orientation.landscape,
+          Orientation.landscape => Orientation.portrait,
+          Orientation.square => Orientation.square,
+        };
 
   /// Grid-family layout mode (null for non-grid families).
   final LayoutMode? layoutMode;
