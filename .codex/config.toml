@@ -1,0 +1,23 @@
+[mcp_servers.firebase]
+command = "npx"
+args = [
+    "-y",
+    "firebase-tools@latest",
+    "experimental:mcp",
+    "--only",
+    "firestore,auth,storage",
+]
+
+[mcp_servers.lottie-creator]
+command = "npx"
+args = [
+    "-y",
+    "@lottiefiles/creator-mcp@latest",
+]
+
+[mcp_servers.lottiefiles]
+command = "npx"
+args = [
+    "-y",
+    "mcp-server-lottiefiles",
+]
