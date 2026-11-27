@@ -11,6 +11,7 @@ export 'src/contact_sheet.dart';
 export 'src/effects/textures.dart';
 export 'src/geometry/torn_mask.dart';
 export 'src/geometry/torn_strips_raster.dart';
+export 'src/qa/signature_qa.dart';
 export 'src/render_target.dart';
 export 'src/renderer.dart';
 export 'src/stages/clip_stage.dart';

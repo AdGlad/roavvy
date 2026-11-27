@@ -1,0 +1,204 @@
+import 'dart:io';
+
+import 'package:design_forge/design_forge.dart';
+import 'package:design_lab/flag_source.dart';
+import 'package:design_lab/render_service.dart';
+import 'package:design_lab/signature/signature_edit.dart';
+import 'package:design_lab/signature/signature_io.dart';
+import 'package:design_lab/signature/signature_screen.dart';
+import 'package:design_lab/signature/signature_sweep.dart';
+import 'package:design_forge_render/design_forge_render.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// The bundled torn-flag seed pack, read from the repo.
+SignatureRecipe _seedPack() => SignaturePackCodec.decode(
+    File('../../packages/design_studio/assets/signature/torn_flag.pack.json')
+        .readAsStringSync());
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory tmp;
+  late SignatureIO io;
+  late RenderService service;
+
+  setUp(() {
+    tmp = Directory.systemTemp.createTempSync('signature_workbench');
+    io = SignatureIO(tmp)..save(_seedPack());
+    service = RenderService(FlagSource.locate()!.resolver());
+  });
+  tearDown(() => tmp.deleteSync(recursive: true));
+
+  group('SignatureIO', () {
+    test('save writes canonical packs and keeps the index', () {
+      expect(io.listIds(), ['torn_flag']);
+      final pack = io.load('torn_flag');
+      expect(io.packFile('torn_flag').readAsStringSync(),
+          SignaturePackCodec.encode(pack));
+      io.save(pack);
+      expect(io.listIds(), ['torn_flag'], reason: 'no duplicate index entries');
+    });
+  });
+
+  group('SignatureEdit', () {
+    test('editable paths hide engine versions and the country slot', () {
+      final paths = SignatureEdit.editablePaths(_seedPack());
+      expect(paths.first, 'seed');
+      expect(paths, contains('tornStrips.distress'));
+      expect(paths.where((p) => p.startsWith('content.')), isEmpty);
+      expect(paths, isNot(contains('engineVersion')));
+    });
+
+    test('editing an approved pack reopens it as the next draft version', () {
+      final approved = SignatureEdit.approve(_seedPack(),
+          lockCountries: ['us', 'jp'], approvedAt: DateTime.utc(2026, 11, 27));
+      expect(approved.isApproved, isTrue);
+      expect(approved.version, 1, reason: 'approval keeps the reviewed version');
+      expect(approved.locks.keys, unorderedEquals(['us', 'jp']));
+      expect(SignatureResolver.driftedLocks(approved), isEmpty);
+
+      final edited = SignatureEdit.setBase(approved, 'tornStrips.distress', 0.6);
+      expect(edited.status, SignatureStatus.draft);
+      expect(edited.version, 2);
+      expect(edited.approvedAt, isNull);
+    });
+
+    test('a variation saved as hero reproduces that variation', () {
+      var p = SignatureEdit.setRange(_seedPack(), 'seed',
+          SignatureEdit.defaultRange('seed', 1));
+      p = SignatureEdit.setRange(p, 'tornStrips.distress',
+          SignatureEdit.defaultRange('tornStrips.distress', 0.75));
+      final v5 = SignatureResolver.variation(p, 'jp', 5);
+      p = SignatureEdit.setHero(p, 'jp', SignatureEdit.heroValuesOf(p, v5));
+      expect(SignatureResolver.hero(p, 'jp').recipeId, v5.recipeId);
+
+      // Dropping a range drops hero values for it.
+      p = SignatureEdit.setRange(p, 'tornStrips.distress', null);
+      expect(p.heroes['jp']!.keys, ['seed']);
+    });
+
+    test('invalid edits are refused', () {
+      final p = SignatureEdit.setRange(_seedPack(), 'tornStrips.distress',
+          const NumRange(0.6, 0.8));
+      expect(
+          () => SignatureEdit.setOverride(p, 'jp',
+              CountryOverride(params: {'tornStrips.distress': 0.95}, reason: 'x')),
+          throwsFormatException);
+      expect(() => SignatureEdit.parseLike(1, 'abc'), throwsFormatException);
+      expect(SignatureEdit.parseLike(0.5, '0.25'), 0.25);
+      expect(SignatureEdit.parseLike(true, 'false'), false);
+    });
+
+    test('default ranges stay inside 0..1 for unit parameters', () {
+      final r = SignatureEdit.defaultRange('tornStrips.distress', 0.95) as NumRange;
+      expect(r.min, closeTo(0.85, 1e-9));
+      expect(r.max, 1.0);
+    });
+  });
+
+  group('SignatureSweep', () {
+    testWidgets('renders, checks and reports the same way for UI and CLI',
+        (tester) async {
+      await tester.runAsync(() async {
+        final sweep = SignatureSweep(service, longSide: 150);
+        final pack = SignatureEdit.setRange(_seedPack(), 'seed',
+            SignatureEdit.defaultRange('seed', 1));
+        final cells =
+            await sweep.run(pack, ['us', 'jp'], variations: 2).toList();
+        expect(cells.map((c) => c.key), ['us#0', 'jp#0', 'us#1', 'jp#1', 'us#2', 'jp#2']);
+        expect(SignatureSweep.blockers(cells), isEmpty);
+        final report = SignatureSweep.report(pack, cells, label: 't');
+        expect((report['summary'] as Map)['countries'], 2);
+        expect((report['countries'] as Map)['jp'], hasLength(3));
+        final png = await SignatureSweep.contactSheet(
+            [for (final c in cells) if (c.isHero) c]);
+        expect(png.length, greaterThan(1000));
+      });
+    });
+
+    testWidgets('an unknown flag is a hard failure, not a crash', (tester) async {
+      await tester.runAsync(() async {
+        final cell = await SignatureSweep(service, longSide: 150)
+            .cell(_seedPack(), 'zz-not-a-flag', 0);
+        expect(cell.report.status, QaStatus.fail);
+      });
+    });
+  });
+
+  testWidgets('the workbench shows every country with a QA dot and edits the pack',
+      (tester) async {
+    tester.view.physicalSize = const Size(1800, 1100);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final key = GlobalKey<SignatureScreenState>();
+
+    await tester.pumpWidget(MaterialApp(
+      home: SignatureScreen(
+        key: key,
+        service: service,
+        io: io,
+        codes: const ['us', 'jp', 'sc'],
+        countryNames: const {'us': 'United States', 'jp': 'Japan', 'sc': 'Seychelles'},
+        sweepLongSide: 150,
+      ),
+    ));
+    Future<void> settle() async {
+      for (var i = 0; i < 600; i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 30)));
+        await tester.pump();
+        if (!key.currentState!.isSweeping && key.currentState!.cells.length == 3) {
+          return;
+        }
+      }
+    }
+
+    await settle();
+    expect(find.text('Signature Workbench'), findsOneWidget);
+    expect(find.text('draft v1'), findsOneWidget);
+    expect(key.currentState!.cells.keys, unorderedEquals(['us', 'jp', 'sc']));
+    expect(find.byKey(const ValueKey('tile-jp')), findsOneWidget);
+
+    // Tick "Vary" on the seed: the pack gains a range and becomes unsaved.
+    await tester.tap(find.byKey(const ValueKey('vary-seed')));
+    await tester.pump();
+    expect(key.currentState!.pack!.envelope.ranges.keys, contains('seed'));
+    expect(find.text('draft v1 · unsaved'), findsOneWidget);
+
+    // Save writes it to disk.
+    await tester.tap(find.text('Save draft'));
+    await tester.pump();
+    expect(io.load('torn_flag').envelope.ranges.keys, contains('seed'));
+
+    // Undo restores the previous pack.
+    await tester.tap(find.byTooltip('Undo'));
+    await tester.pump();
+    expect(key.currentState!.pack!.envelope.isEmpty, isTrue);
+    await settle();
+
+    // Approve: checks heroes + variations, saves the approved pack with
+    // locks, writes the review sheet, then offers the golden update.
+    await tester.tap(find.text('Approve…'));
+    await tester.pump();
+    await tester.enterText(find.widgetWithText(TextField, 'Lock countries (goldens)'), 'us, jp');
+    await tester.tap(find.text('Check & approve'));
+    for (var i = 0; i < 900 && find.text('Done').evaluate().isEmpty; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)));
+      await tester.pump();
+    }
+    expect(find.text('Done'), findsOneWidget);
+    final saved = io.load('torn_flag');
+    expect(saved.isApproved, isTrue);
+    expect(saved.locks.keys, unorderedEquals(['us', 'jp']));
+    expect(SignatureResolver.driftedLocks(saved), isEmpty);
+    expect(
+        File('${tmp.path}/design_studio/contact_sheets/signature/torn_flag/v1/qa_report.json')
+            .existsSync(),
+        isTrue);
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    expect(find.text('approved v1'), findsOneWidget);
+  });
+}

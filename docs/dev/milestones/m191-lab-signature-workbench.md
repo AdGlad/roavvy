@@ -2,7 +2,7 @@
 
 **Phase:** v2 Signature T-shirts (M190–M199)
 **Depends on:** M190
-**Status:** Todo
+**Status:** Done (branch `feat/m191-signature-workbench`)
 **Primary target:** `apps/design_lab` · `packages/design_forge_render` (SignatureQa)
 **Size:** L
 
@@ -44,8 +44,24 @@ apps/design_lab/test/signature_qa_cli_test.dart   headless: PACK=<id> -> report 
 
 ## 4. Acceptance
 
-- [ ] The torn-flag seed pack opens and shows all 272 countries with QA badges.
-- [ ] Editing a base parameter updates the whole sheet; editing an override updates one tile.
-- [ ] Approve is refused with any hard failure and succeeds otherwise, writing pack + goldens + sheet.
-- [ ] The CLI produces the same report as the UI for the same pack.
-- [ ] `flutter build macos` ✓; Lab tests green.
+- [x] The torn-flag seed pack opens and shows all 271 flag codes with QA badges.
+- [x] Editing a base parameter updates the whole sheet; editing an override updates one tile (re-render is keyed on each hero's recipeId).
+- [x] Approve is refused with any hard failure and succeeds otherwise, writing pack + locks + sheet/report; goldens via the offered command (see below).
+- [x] The CLI and the UI share `SignatureSweep`, so they produce the same report for the same pack.
+- [x] `flutter build macos` ✓; Lab 92 tests, design_forge_render 66, design_studio 85, design_forge 135 green; analyze clean.
+
+## 6. As built (2026-11-27)
+
+- `packages/design_forge_render/lib/src/qa/signature_qa.dart`: `SignatureQa.analyse` (pure over RGBA) / `checkImage`, `QaReport`, `QaThresholds` (one constant set, 6 orderable garments).
+- `apps/design_lab/lib/signature/`: `signature_io.dart` (packs, index, review output, golden runner), `signature_sweep.dart` (render + QA per cell, report JSON, contact sheet), `signature_edit.dart` (pure edits, approve, reopen-as-draft), `signature_screen.dart` (workbench). Lab top bar: **Signatures**.
+- `apps/design_lab/test/signature_qa_cli_test.dart` (headless review), `signature_workbench_test.dart` (9, incl. edit → save → undo → approve end to end); `packages/design_forge_render/test/signature_qa_test.dart` (8), `signature_golden_test.dart` (approved packs' locks; none yet).
+- First full run, torn_flag draft: 271 countries in 50 s, 0 hard failures, 120 pass / 151 warnings (contrast on matching shirt colours).
+- Guide: `docs/design/signature-workbench.md`.
+
+**Deviations from the plan, and why:**
+- **Version is not bumped on approval.** Variations are seeded by version, so bumping on approve would ship different variations from the ones reviewed. Instead, editing an approved pack reopens it as a draft at version + 1.
+- **Contrast = brightness AND colour.** A luminance-only rule flagged Brazil's green on a red shirt; a pixel now "vanishes" only when its contrast ratio < 1.5 and RGB distance < 110.
+- **Thin features** are measured as isolated specks at preview size; a true 300 dpi line-width check needs a print-size render and moves to M193+ if a recipe needs it. **Text cap height** needs typography data and arrives with the first text recipe (M193/M195).
+- **"Countries users have" toggle** replaced by search: there is no usage list without user data.
+- **Goldens** are written by `flutter test --update-goldens` (the Lab's "Update goldens now" button runs it) rather than by the Lab itself, so they are always produced by the same comparator that checks them.
+- **Review PNGs are git-ignored** (a full sheet is ~20 MB); each approval's `qa_report.json` is committed.
