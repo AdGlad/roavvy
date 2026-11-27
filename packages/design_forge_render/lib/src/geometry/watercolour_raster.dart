@@ -58,7 +58,8 @@ class WatercolourRaster {
 
     // Outline proximity (for splatter): a wide blur of alpha.
     final near = p.splatter > 0
-        ? _boxBlur3Alpha(warped, w, h, math.max(2, (0.035 * s).round()))
+        ? _boxBlur3Alpha(warped, w, h,
+            math.max(2, ((0.035 + 0.09 * p.splatterSpread.clamp(0.0, 1.0)) * s).round()))
         : null;
 
     // ---- 3. pigment fields -------------------------------------------------
@@ -135,25 +136,89 @@ class WatercolourRaster {
       }
     }
 
-    // ---- 4. splatter --------------------------------------------------------
+    // ---- 4. halo wash (computed from the painting, composited beneath) -----
+    final halo = p.halo > 0 ? _halo(out, w, h, s, step, p, paper, seed) : null;
+
+    // ---- 5. splatter --------------------------------------------------------
     if (near != null && p.splatter > 0) {
-      _splatter(out, near, w, h, s, p.splatter, seed);
+      _splatter(out, near, w, h, s, p.splatter, p.splatterSpread, seed);
+    }
+    if (halo != null) {
+      // Painting (and splatter) OVER the halo, premultiplied.
+      for (var i = 0; i < n * 4; i += 4) {
+        final a = out[i + 3] / 255.0;
+        if (a >= 0.999) continue;
+        for (var k = 0; k < 4; k++) {
+          out[i + k] = (out[i + k] + halo[i + k] * (1 - a)).round().clamp(0, 255);
+        }
+      }
     }
     return out;
   }
 
-  /// A few droplets just outside the outline, each in the colour of the
-  /// painting nearest to it.
-  static void _splatter(
-      Uint8List out, Float32List near, int w, int h, double s, double amount, int seed) {
+  /// A pale cloudy wash of the painting's own edge colours around it:
+  /// the painting blurred wide, broken into clouds by noise, lightened toward
+  /// the paper, with a faint darker rim where each cloud dried. Returned as a
+  /// premultiplied layer to composite beneath the painting.
+  static Uint8List _halo(Uint8List painted, int w, int h, double s, int step,
+      Watercolour p, List<double> paper, int seed) {
+    final n = w * h;
+    final f = Float32List(n * 4);
+    for (var i = 0; i < n * 4; i++) {
+      f[i] = painted[i] / 255.0;
+    }
+    final r = math.max(2, ((0.05 + 0.14 * p.haloSize.clamp(0.0, 1.0)) * s).round());
+    final big = _boxBlur3(f, w, h, r);
+    final hn = _Noise(seed ^ 0x0A10);
+    final cloudNoise = _Field(w, h, step,
+        (x, y) => hn.fbm(x / s * 3.2, y / s * 3.2, 4));
+    final out = Uint8List(n * 4);
+    final strength = p.halo.clamp(0.0, 1.0);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final i = (y * w + x) * 4;
+        final ba = big[i + 3];
+        if (ba < 0.01) continue;
+        // Clouds are likelier close to the painting.
+        final c = _smooth(0.3, 0.56, cloudNoise.at(x, y) + (ba - 0.35) * 1.1);
+        if (c <= 0) continue;
+        // Fade out before the print-area edge: a wash never hard-cuts there.
+        final border = math.min(math.min(x, y), math.min(w - 1 - x, h - 1 - y));
+        final fade = _smooth(0.01 * s, 0.08 * s, border.toDouble());
+        var a = strength * 0.95 * c * (ba * 3).clamp(0.0, 1.0) * fade;
+        final rim = 4 * c * (1 - c);
+        var cr = big[i] / ba, cg = big[i + 1] / ba, cb = big[i + 2] / ba;
+        // Lighter than the paint, with a slightly denser dried rim.
+        final lift = 0.38 - 0.18 * rim;
+        cr += (paper[0] - cr) * lift;
+        cg += (paper[1] - cg) * lift;
+        cb += (paper[2] - cb) * lift;
+        a = (a * (1 + 0.35 * rim)).clamp(0.0, 1.0);
+        out[i] = (cr.clamp(0.0, 1.0) * a * 255).round();
+        out[i + 1] = (cg.clamp(0.0, 1.0) * a * 255).round();
+        out[i + 2] = (cb.clamp(0.0, 1.0) * a * 255).round();
+        out[i + 3] = (a * 255).round();
+      }
+    }
+    return out;
+  }
+
+  /// Droplets just outside the outline, each in the colour of the painting
+  /// nearest to it. [spread] throws more of them, wider and in mixed sizes.
+  static void _splatter(Uint8List out, Float32List near, int w, int h, double s,
+      double amount, double spread, int seed) {
     final rng = DeterministicRng(seed).stream('watercolour:splatter');
-    final count = (amount.clamp(0.0, 1.0) * 34).round();
+    final sp = spread.clamp(0.0, 1.0);
+    final count = (amount.clamp(0.0, 1.0) * 34 * (1 + 3 * sp)).round();
     var placed = 0;
     for (var tries = 0; placed < count && tries < count * 60; tries++) {
       final x = rng.nextInt(w), y = rng.nextInt(h);
       final v = near[y * w + x];
       // Close to the painting but outside it.
-      if (v < 0.04 || v > 0.42 || out[(y * w + x) * 4 + 3] > 10) continue;
+      if (v < 0.04 - 0.03 * sp || v > 0.42 || out[(y * w + x) * 4 + 3] > 10) continue;
+      // Keep drops off the print-area edge.
+      final margin = 0.035 * s;
+      if (x < margin || y < margin || x > w - 1 - margin || y > h - 1 - margin) continue;
       // Colour: walk toward the nearest painted pixel along the near gradient.
       var cx = x.toDouble(), cy = y.toDouble();
       int? hit;
@@ -173,7 +238,7 @@ class WatercolourRaster {
       if (hit == null) continue;
       final a = out[hit + 3] / 255.0;
       final cr = out[hit] / 255.0 / a, cg = out[hit + 1] / 255.0 / a, cb = out[hit + 2] / 255.0 / a;
-      final radius = s * (0.0018 + 0.006 * math.pow(rng.nextDouble(), 2.2));
+      final radius = s * (0.0018 + 0.0022 * sp + (0.006 + 0.012 * sp) * math.pow(rng.nextDouble(), 1.8));
       final r0 = radius.ceil() + 1;
       for (var dy = -r0; dy <= r0; dy++) {
         for (var dx = -r0; dx <= r0; dx++) {

@@ -51,4 +51,35 @@ void main() {
     };
     expect(reds.length, greaterThan(4));
   });
+
+  test('halo: a wash spreads around the shape but fades before the edge', () {
+    int alphaAt(Uint8List px, int x, int y) => px[(y * _w + x) * 4 + 3];
+    final plain = WatercolourRaster.paint(
+        _art(), _w, _h, const Watercolour(splatter: 0), 7);
+    final washed = WatercolourRaster.paint(
+        _art(), _w, _h, const Watercolour(splatter: 0, halo: 1, haloSize: 1), 7);
+    var plainOutside = 0, washedOutside = 0, washedBorder = 0;
+    for (var y = 0; y < _h; y++) {
+      for (var x = 0; x < _w; x++) {
+        final dx = x - 60, dy = y - 60;
+        if (dx * dx + dy * dy > 46 * 46) {
+          plainOutside += alphaAt(plain, x, y);
+          washedOutside += alphaAt(washed, x, y);
+        }
+        if (x == 0 || y == 0 || x == _w - 1 || y == _h - 1) {
+          washedBorder += alphaAt(washed, x, y);
+        }
+      }
+    }
+    expect(washedOutside, greaterThan(plainOutside + 1000));
+    expect(washedBorder, 0, reason: 'nothing at the print-area edge');
+  });
+
+  test('new fields are omitted at defaults so existing recipe ids hold', () {
+    final j = const Watercolour().toJson();
+    expect(j.containsKey('halo'), isFalse);
+    expect(j.containsKey('haloSize'), isFalse);
+    expect(j.containsKey('splatterSpread'), isFalse);
+  });
 }
+

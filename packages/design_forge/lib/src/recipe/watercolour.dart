@@ -24,6 +24,9 @@ class Watercolour {
     this.splatter = 0.3,
     this.saturation = 1.0,
     this.paper = '#FBF6EC',
+    this.halo = 0,
+    this.haloSize = 0.5,
+    this.splatterSpread = 0,
   });
 
   /// How far colour edges (and the outline) wander off their straight lines,
@@ -65,6 +68,20 @@ class Watercolour {
   /// The paper colour whites become, `#RRGGBB`.
   final String paper;
 
+  /// A pale, cloudy wash of the painting's own edge colours spreading out
+  /// around it (blue above a blue canton, pink around red stripes), under
+  /// the painting. 0 = none. Omitted from JSON at 0.
+  final double halo;
+
+  /// How far the halo spreads (0 = hugging the painting, 1 = wide). Omitted
+  /// from JSON at the default.
+  final double haloSize;
+
+  /// How far and how heavily splatter is thrown (0 = a few drops near the
+  /// edge, as before; 1 = many drops of mixed size thrown wide). Omitted from
+  /// JSON at 0.
+  final double splatterSpread;
+
   Map<String, Object?> toJson() => {
         'wobble': wobble,
         'wobbleScale': wobbleScale,
@@ -78,6 +95,11 @@ class Watercolour {
         'splatter': splatter,
         'saturation': saturation,
         'paper': paper,
+        // New fields are omitted at their defaults so existing recipe ids
+        // (and approved locks) do not move.
+        if (halo != 0) 'halo': halo,
+        if (haloSize != 0.5) 'haloSize': haloSize,
+        if (splatterSpread != 0) 'splatterSpread': splatterSpread,
       };
 
   factory Watercolour.fromJson(Map<String, Object?> j) {
@@ -101,6 +123,9 @@ class Watercolour {
       splatter: n('splatter', d.splatter),
       saturation: n('saturation', d.saturation),
       paper: paper,
+      halo: n('halo', d.halo),
+      haloSize: n('haloSize', d.haloSize),
+      splatterSpread: n('splatterSpread', d.splatterSpread),
     );
   }
 }
