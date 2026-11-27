@@ -31,6 +31,7 @@ class SignaturePackCodec {
     'overrides',
     'heroes',
     'locks',
+    'tokens',
   };
 
   static String encode(SignatureRecipe s) {
@@ -50,6 +51,7 @@ class SignaturePackCodec {
       },
       'heroes': s.heroes,
       'locks': s.locks,
+      if (s.tokens.isNotEmpty) 'tokens': s.tokens,
     };
     return '${const JsonEncoder.withIndent('  ').convert(_sorted(json))}\n';
   }
@@ -90,6 +92,10 @@ class SignaturePackCodec {
       },
       locks: {
         for (final e in _map(json['locks'] ?? {}, 'locks').entries)
+          e.key: e.value as String,
+      },
+      tokens: {
+        for (final e in _map(json['tokens'] ?? {}, 'tokens').entries)
           e.key: e.value as String,
       },
     );

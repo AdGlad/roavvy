@@ -83,9 +83,11 @@ class SignatureRecipe {
     Map<String, CountryOverride> overrides = const {},
     Map<String, Map<String, Object?>> heroes = const {},
     Map<String, String> locks = const {},
+    Map<String, String> tokens = const {},
     this.approvedAt,
     this.notes,
-  })  : base = Map.unmodifiable(deepCopyJson(base) as Map<String, Object?>),
+  })  : tokens = Map.unmodifiable(tokens),
+        base = Map.unmodifiable(deepCopyJson(base) as Map<String, Object?>),
         envelope = envelope ?? VariationEnvelope.empty,
         overrides = Map.unmodifiable(_lowerKeys(overrides)),
         heroes = Map.unmodifiable({
@@ -127,13 +129,19 @@ class SignatureRecipe {
   /// Lowercase country code → the hero's expected `recipeId`.
   final Map<String, String> locks;
 
+  /// Default values for the base's other `{{name}}` tokens (e.g. a trip's
+  /// `entry` / `exit` dates). The Lab renders with these; the app passes the
+  /// traveller's real values, which take precedence. Every token the base
+  /// uses (besides [countryToken]) must have a default.
+  final Map<String, String> tokens;
+
   bool get isApproved => status == SignatureStatus.approved;
 
   /// The base template with [countryToken] (and any extra `{{name}}` tokens)
   /// substituted. A fresh mutable copy every call.
   Map<String, Object?> instantiate(String country,
       {Map<String, String> tokens = const {}}) {
-    final all = {'country': country.toLowerCase(), ...tokens};
+    final all = {...this.tokens, ...tokens, 'country': country.toLowerCase()};
     return _substitute(deepCopyJson(base), all) as Map<String, Object?>;
   }
 
@@ -146,6 +154,7 @@ class SignatureRecipe {
     Map<String, CountryOverride>? overrides,
     Map<String, Map<String, Object?>>? heroes,
     Map<String, String>? locks,
+    Map<String, String>? tokens,
     String? approvedAt,
     String? notes,
   }) =>
@@ -159,6 +168,7 @@ class SignatureRecipe {
         overrides: overrides ?? this.overrides,
         heroes: heroes ?? this.heroes,
         locks: locks ?? this.locks,
+        tokens: tokens ?? this.tokens,
         approvedAt: approvedAt ?? this.approvedAt,
         notes: notes ?? this.notes,
       );
@@ -178,6 +188,18 @@ class SignatureRecipe {
     if (!_containsToken(base, countryToken)) {
       throw const FormatException(
           'base must use {{country}} so it works for every country');
+    }
+
+    // Every other token needs a default, so the Lab can always render.
+    final used = RegExp(r'\{\{([a-zA-Z0-9_]+)\}\}')
+        .allMatches(_strings(base).join('\n'))
+        .map((m) => m.group(1)!)
+        .toSet()
+      ..remove('country');
+    final missing = used.difference(tokens.keys.toSet());
+    if (missing.isNotEmpty) {
+      throw FormatException(
+          'base uses tokens without defaults: ${missing.map((t) => '{{$t}}').join(', ')}');
     }
 
     // The base must be a real recipe once a country is filled in.
@@ -246,6 +268,20 @@ class SignatureRecipe {
       return path.read(json);
     } on RecipePathError catch (e) {
       throw FormatException('$where: ${e.path} ${e.reason}');
+    }
+  }
+}
+
+Iterable<String> _strings(Object? node) sync* {
+  if (node is String) yield node;
+  if (node is Map) {
+    for (final v in node.values) {
+      yield* _strings(v);
+    }
+  }
+  if (node is List) {
+    for (final v in node) {
+      yield* _strings(v);
     }
   }
 }

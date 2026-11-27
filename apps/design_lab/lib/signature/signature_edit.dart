@@ -125,6 +125,7 @@ class SignatureEdit {
       overrides: pack.overrides,
       heroes: pack.heroes,
       locks: locks,
+      tokens: pack.tokens,
     );
   }
 
@@ -148,6 +149,7 @@ class SignatureEdit {
       overrides: overrides ?? pack.overrides,
       heroes: heroes ?? pack.heroes,
       locks: pack.locks,
+      tokens: pack.tokens,
     );
   }
 

@@ -130,9 +130,24 @@ class SignatureQa {
     final soft = <QaFinding>[];
     final coverage = inkCount / n;
 
-    if (coverage < t.minCoverage) {
+    // Empty = no design: almost no ink, or ink that spans only a sliver of the
+    // print area. Measured by FOOTPRINT (bounding box), not ink area, so
+    // line-art (a thin-outlined passport stamp) is not mistaken for empty.
+    var minX = width, minY = height, maxX = -1, maxY = -1;
+    for (var i = 0; i < n; i++) {
+      if (ink[i] == 0) continue;
+      final x = i % width, y = i ~/ width;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    final footprint =
+        maxX < 0 ? 0.0 : (maxX - minX + 1) * (maxY - minY + 1) / n;
+    if (coverage < t.minCoverage || footprint < t.minFootprint) {
       hard.add(QaFinding('empty',
-          'Artwork covers ${_pct(coverage)} of the print area (min ${_pct(t.minCoverage)})'));
+          'Artwork spans ${_pct(footprint)} of the print area with ${_pct(coverage)} ink '
+          '(min ${_pct(t.minFootprint)} span, ${_pct(t.minCoverage)} ink)'));
     } else if (coverage > t.maxCoverage) {
       hard.add(QaFinding('flooded',
           'Artwork covers ${_pct(coverage)} of the print area (max ${_pct(t.maxCoverage)})'));
@@ -194,6 +209,7 @@ class SignatureQa {
       soft: soft,
       metrics: {
         'coverage': _round(coverage),
+        'footprint': _round(footprint),
         'edgeShare': _round(edgeShare),
         'speckShare': _round(speckShare),
         // Share of the outer edge that vanishes per garment (drives warnings).
@@ -296,7 +312,8 @@ class QaReport {
 class QaThresholds {
   const QaThresholds({
     this.inkAlpha = 32,
-    this.minCoverage = 0.08,
+    this.minCoverage = 0.01,
+    this.minFootprint = 0.15,
     this.maxCoverage = 0.92,
     this.edgeRingFraction = 0.01,
     this.maxEdgeShare = 0.005,
@@ -311,6 +328,7 @@ class QaThresholds {
   QaThresholds only(List<(ui.Color, String)> subset) => QaThresholds(
         inkAlpha: inkAlpha,
         minCoverage: minCoverage,
+        minFootprint: minFootprint,
         maxCoverage: maxCoverage,
         edgeRingFraction: edgeRingFraction,
         maxEdgeShare: maxEdgeShare,
@@ -337,8 +355,13 @@ class QaThresholds {
   /// Alpha above which a pixel counts as ink.
   final int inkAlpha;
 
-  /// Ink area as a share of the print area: below = empty, above = flooded.
+  /// Ink area as a share of the print area: below [minCoverage] = empty,
+  /// above [maxCoverage] = flooded.
   final double minCoverage;
+
+  /// Bounding-box area of the ink as a share of the print area; below = empty
+  /// (a design too small to be a T-shirt print).
+  final double minFootprint;
   final double maxCoverage;
 
   /// Width of the border ring, as a share of the short side.

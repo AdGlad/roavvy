@@ -1,0 +1,79 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "clip": {
+      "code": "{{country}}|{{entry}}|{{exit}}",
+      "ink": "black",
+      "scale": 1.0,
+      "scatter": 0.5,
+      "shapeId": "passportPage",
+      "stampMode": "entryExit"
+    },
+    "composition": {
+      "family": "passportStamp",
+      "orientation": "portrait",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "palette": {
+      "strategy": "garmentAware"
+    },
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "envelope": {
+    "clip.ink": {
+      "values": [
+        "black",
+        "flag"
+      ]
+    },
+    "clip.scale": {
+      "max": 1.1,
+      "min": 0.9
+    },
+    "clip.scatter": {
+      "max": 0.7,
+      "min": 0.35
+    },
+    "clip.stampMode": {
+      "values": [
+        "entryExit",
+        "entryOnly"
+      ]
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "passport_stamp",
+  "locks": {
+    "us": "3990a71a3311868a"
+  },
+  "notes": "The country's real entry + exit stamps (built-in stamp where no artwork exists), trip dates in the stamps' own date boxes, no border. Ink adapts to the shirt (dark on light, light on dark); variations may use flag-filled ink. Lab dates are samples; the app fills the traveller's real entry/exit dates.",
+  "overrides": {},
+  "status": "draft",
+  "title": "Passport Stamp",
+  "tokens": {
+    "entry": "12 MAR 24",
+    "exit": "26 MAR 24"
+  },
+  "version": 1
+}
