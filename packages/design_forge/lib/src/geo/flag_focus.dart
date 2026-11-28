@@ -131,8 +131,12 @@ FlagFocus _emblem(double l, double t, double w, double h) =>
 FlagFocus _fly(double l, double t, double w, double h) =>
     FlagFocus(FlagFocusKind.fly, l + w / 2, t + h / 2, FlagBox(l, t, w, h));
 
-/// A hoist triangle/chevron reaching [depth] of the width.
-FlagFocus _triangle(double depth) => _hoist(0, 0, depth, 1);
+/// A hoist triangle/chevron reaching [depth] of the width. The protected
+/// part is its middle (the apex side and the star or emblem it carries), not
+/// the thin corners along the hoist: a crop may lose those, and a flag turned
+/// upright in a narrow half (Diagonal Split, M212) could never show the
+/// whole hoist.
+FlagFocus _triangle(double depth) => _hoist(0, 0.2, depth, 0.6);
 
 /// Nordic cross: no emblem, but keep the crossing in view.
 const FlagFocus _nordic = FlagFocus(FlagFocusKind.hoist, 0.37, 0.5);
@@ -174,9 +178,9 @@ final Map<String, FlagFocus> _table = {
   'nu': _canton(0.5, 0.5),
   'tv': _ensign,
   'fj': _ensign,
-  'au': _hoist(0, 0, 0.5, 1),
+  'au': _ensign,
   'nz': _ensign,
-  'hm': _hoist(0, 0, 0.5, 1),
+  'hm': _ensign,
   'na': _canton(0.4, 0.5),
   'mt': _canton(0.2, 0.3),
   'si': _canton(0.36, 0.5),
@@ -233,7 +237,7 @@ final Map<String, FlagFocus> _table = {
   'kr': _emblem(0.15, 0.1, 0.7, 0.8),
   'la': _emblem(0.35, 0.3, 0.3, 0.4),
   'ne': _emblem(0.42, 0.36, 0.16, 0.28),
-  'ch': _emblem(0.2, 0.2, 0.6, 0.6),
+  'ch': _emblem(0.27, 0.19, 0.47, 0.62),
   'ge': _emblem(0.25, 0.15, 0.5, 0.7),
   'il': _emblem(0.33, 0.25, 0.34, 0.5),
   'lb': _emblem(0.3, 0.25, 0.4, 0.5),
@@ -262,7 +266,7 @@ final Map<String, FlagFocus> _table = {
   'bz': _emblem(0.25, 0.15, 0.5, 0.7),
   'pe': _emblem(0.4, 0.25, 0.2, 0.5),
   'sr': _emblem(0.38, 0.25, 0.24, 0.5),
-  'pa': _emblem(0, 0, 1, 1),
+  'pa': _hoist(0.12, 0.1, 0.26, 0.32),
   'ke': _emblem(0.35, 0.15, 0.3, 0.7),
   'ug': _emblem(0.38, 0.25, 0.24, 0.5),
   'et': _emblem(0.3, 0.2, 0.4, 0.6),
@@ -274,8 +278,8 @@ final Map<String, FlagFocus> _table = {
   'mw': _emblem(0.3, 0, 0.4, 0.35),
   'ao': _emblem(0.3, 0.2, 0.4, 0.6),
   'kh': _emblem(0.3, 0.28, 0.4, 0.44),
-  'bt': _emblem(0.15, 0.1, 0.7, 0.8),
-  'np': _emblem(0, 0, 1, 1),
+  'bt': _emblem(0.32, 0.25, 0.36, 0.5),
+  'np': _hoist(0, 0, 0.6, 1),
   'lk': _fly(0.38, 0.08, 0.58, 0.84),
   'pk': _fly(0.4, 0.15, 0.5, 0.7),
   'rw': _fly(0.7, 0.05, 0.25, 0.4),
@@ -286,8 +290,8 @@ final Map<String, FlagFocus> _table = {
   'eu': _emblem(0.25, 0.12, 0.5, 0.76),
   'un': _emblem(0.25, 0.15, 0.5, 0.7),
   'gb-wls': _emblem(0.12, 0.1, 0.76, 0.8),
-  'ki': _emblem(0, 0, 1, 1),
-  'pg': _emblem(0, 0, 1, 1),
+  'ki': _emblem(0.3, 0.08, 0.4, 0.5),
+  'pg': _fly(0.55, 0.05, 0.4, 0.45),
   'sb': _canton(0.4, 0.5),
   'mh': _canton(0.4, 0.6),
   'fm': _emblem(0.3, 0.2, 0.4, 0.6),
@@ -302,10 +306,10 @@ final Map<String, FlagFocus> _table = {
   'kn': _emblem(0.2, 0.2, 0.6, 0.6),
   'lc': _emblem(0.3, 0.15, 0.4, 0.7),
   'vc': _emblem(0.35, 0.2, 0.3, 0.6),
-  'tt': _emblem(0, 0, 1, 1),
+  'tt': _emblem(0.3, 0.1, 0.4, 0.8),
   'cd': _canton(0.35, 0.5),
-  'cg': _emblem(0, 0, 1, 1),
-  'tz': _emblem(0, 0, 1, 1),
+  'cg': _emblem(0.3, 0.1, 0.4, 0.8),
+  'tz': _emblem(0.3, 0.1, 0.4, 0.8),
   'zm': _fly(0.7, 0.05, 0.28, 0.95),
   'bf': _emblem(0.4, 0.33, 0.2, 0.34),
   'gn': FlagFocus.plain,

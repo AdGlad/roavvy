@@ -485,6 +485,110 @@ class WearRaster {
     return (f1, f2);
   }
 
+  /// Grunge-print wear on a rectangular block (Curtain Split, M209):
+  /// streaky torn outer edges, clustered speckle knockouts, thin scratch
+  /// lines and a worn colour fade. Knockouts are transparent (the garment
+  /// shows through). [left]…[bottom] is the block in pixels; [edgeWear],
+  /// [distress], [scratches] and [fade] are 0..1, [scale] sets fleck size
+  /// (0 fine … 1 coarse). [rgba] is premultiplied.
+  static Uint8List grunge(
+    Uint8List rgba,
+    int w,
+    int h, {
+    required double left,
+    required double top,
+    required double right,
+    required double bottom,
+    double edgeWear = 0.6,
+    double distress = 0.6,
+    double scale = 0.5,
+    double scratches = 0.5,
+    double fade = 0.15,
+    required int seed,
+  }) {
+    final out = Uint8List.fromList(rgba);
+    final s = math.max(1.0, math.min(right - left, bottom - top));
+    final ew = edgeWear.clamp(0.0, 1.0);
+    final ds = distress.clamp(0.0, 1.0);
+    final sc = scratches.clamp(0.0, 1.0);
+    final fd = fade.clamp(0.0, 1.0);
+    final band = s * (0.012 + 0.05 * ew);
+    final nEdge = _Noise(seed ^ 0xED6E),
+        nEdge2 = _Noise(seed ^ 0x2ED6),
+        nClus = _Noise(seed ^ 0xC105),
+        nSpk = _Noise(seed ^ 0x5BEC),
+        nSpk2 = _Noise(seed ^ 0x5BED),
+        nScr = _Noise(seed ^ 0x5C2A),
+        nGate = _Noise(seed ^ 0x6A7E);
+    final step = math.max(1, (s / 300).floor());
+    final cluster = _Field(w, h, step, (x, y) => nClus.fbm(x / s * 3.2, y / s * 3.2, 3));
+    // Fleck frequency: fine (≈1/150 of the block) to coarse (≈1/60).
+    final f = 200 - 120 * scale.clamp(0.0, 1.0);
+    for (var y = 0; y < h; y++) {
+      final v = y / s;
+      for (var x = 0; x < w; x++) {
+        final i = (y * w + x) * 4;
+        if (rgba[i + 3] == 0) continue;
+        final u = x / s;
+        var keep = 1.0;
+
+        // Streaky torn edge: noise stretched along the nearest edge so the
+        // bite runs across it (drips at the top/bottom, tears at the sides).
+        final dl = x - left, dr = right - x, dt = y - top, db = bottom - y;
+        final dh = math.min(dl, dr), dv = math.min(dt, db);
+        final d = math.min(dh, dv);
+        if (ew > 0 && d < band * 2.2) {
+          final along = dv < dh
+              ? 0.6 * nEdge.fbm(u * 30, v * 10, 4) + 0.4 * nEdge2.fbm(u * 7, v * 3, 2)
+              : 0.6 * nEdge.fbm(u * 10, v * 30, 4) + 0.4 * nEdge2.fbm(u * 3, v * 7, 2);
+          final depth = band * (0.2 + 1.9 * _smooth(0.3, 0.75, along));
+          keep *= _smooth(depth - 0.9, depth + 0.9, d);
+          if (keep <= 0) {
+            out[i] = out[i + 1] = out[i + 2] = out[i + 3] = 0;
+            continue;
+          }
+        }
+
+        // Clustered flecks, denser towards the edge.
+        if (ds > 0) {
+          final near = 1 - _smooth(0, band * 5, d);
+          final cl = _smooth(0.38, 0.72, cluster.at(x, y));
+          final local = (ds * (0.25 + 0.95 * cl) + 0.6 * ds * near).clamp(0.0, 1.4);
+          final sp = 0.62 * nSpk.fbm(u * f, v * f, 3) + 0.38 * nSpk2.fbm(u * f * 0.3, v * f * 0.3, 2);
+          final thr = 0.74 - 0.2 * local;
+          keep *= 1 - _smooth(thr - 0.015, thr + 0.015, sp);
+        }
+
+        // Thin, mostly horizontal scratches in broken runs.
+        if (sc > 0) {
+          final vv = v + u * 0.06;
+          final n = nScr.fbm(u * 1.6, vv * 38, 2);
+          final ridge = 1 - (2 * n - 1).abs();
+          final gate = nGate.fbm(u * 5, vv * 14, 2);
+          if (gate > 0.66 - 0.12 * sc) {
+            keep *= 1 - _smooth(0.965, 0.99, ridge);
+          }
+        }
+
+        final al = rgba[i + 3];
+        if (al == 0) continue;
+        var r = rgba[i].toDouble(), g = rgba[i + 1].toDouble(), b = rgba[i + 2].toDouble();
+        if (fd > 0) {
+          final l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          final mix = 0.22 * fd, dark = 1 - 0.1 * fd;
+          r = (r + (l - r) * mix) * dark;
+          g = (g + (l - g) * mix) * dark;
+          b = (b + (l - b) * mix) * dark;
+        }
+        out[i] = (r * keep).round().clamp(0, 255);
+        out[i + 1] = (g * keep).round().clamp(0, 255);
+        out[i + 2] = (b * keep).round().clamp(0, 255);
+        out[i + 3] = (al * keep).round().clamp(0, 255);
+      }
+    }
+    return out;
+  }
+
   /// Two-pass separable box blur (≈ gaussian) with clamped edges.
   static Float32List _blur(Float32List src, int w, int h, int r) {
     var a = Float32List.fromList(src);

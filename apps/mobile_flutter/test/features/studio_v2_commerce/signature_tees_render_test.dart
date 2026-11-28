@@ -37,7 +37,6 @@ void main() {
             isManual: false,
           );
           final tees = teesFor(catalog.packs, cc, trip: trip);
-          // Pair packs (ADR-185) are offered as pair tees, not here.
           final singles = catalog.packs.where((p) => !p.isPair).length;
           if (tees.length != singles) {
             problems.add('$cc: only ${tees.length} of $singles');

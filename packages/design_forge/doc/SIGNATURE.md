@@ -104,6 +104,57 @@ countries, A (left/top) and B (right/bottom). Order matters: `fr+jp` and
   `PairGeometry.of(recipe)` (`FlagCrop` per flag, plus `PairSeam`) so pair QA
   can check it.
 
+### `splitPair` — two flags along a seam (M209)
+
+Family `splitPair` + a `splitPair` group (`SplitPair`,
+`design_forge/lib/src/recipe/split_pair.dart`). Flag A is left of the seam,
+B right; both cover the block height and are cropped around their focus.
+Layout maths is `SplitPairLayout` (pure), shared by the renderer
+(`SplitPairComposer`) and `PairGeometry.of`, so QA checks what is drawn.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `seam` | `curtain` | `straight` \| `curtain` (eased sweep) \| `diagonal` |
+| `seamPosition` | 0.47 | seam x at mid height (fraction of block width) |
+| `seamSlant` | 0.27 | x travel top→bottom; sign set by the focus rule |
+| `seamCurve` | 0.6 | curtain ease-out |
+| `seamFlip` | false | slant direction when no flag needs the top |
+| `seamGap` | 0 | garment-colour channel (fraction of block width) |
+| `autoGap` | 0.012 | channel used when the flags look alike at the seam |
+| `blockAspect` | 0.86 | block width/height |
+| `margin` | 0.04 | block to canvas edge |
+| `rotateFlags` | false | quarter-turn both flags (Diagonal Split) |
+| `shadow` | 0.3 | shade on A along the seam |
+| `edge` | `torn` | `clean` \| `torn` \| `brush` (M208 `BrushEdge`, stroke running down the block) |
+| `brush` | unset | `BrushStroke` for `edge: brush` (written only when set) |
+| `edgeWear`, `distress`, `distressScale`, `scratches`, `fade` | 0.6, 0.6, 0.5, 0.5, 0.15 | `WearRaster.grunge` |
+
+Shared rules (engine, not pack): the top of the block goes to the flag whose
+focus is high (a canton) — so the US keeps its stars on either side; two such
+flags straighten the seam and widen the block; a wide canton widens the block
+just enough; a protected box that cannot fit its half (Swiss cross, Nepal's
+pennant, Bhutan's dragon) shrinks the flag and each one-colour edge is
+extended to fill the half; vertical-stripe flags with no emblem (France) are
+narrowed so all stripes show; look-alike flags get `autoGap` (pair QA
+recognises a drawn channel even when `seamGap` is 0).
+
+Diagonal Split (M212, `diagonal_split`) uses `seam: diagonal`, `seamSlant`
+0.7–0.82 with `seamFlip: true` (top-left → bottom-right, as the reference),
+`seamGap` 0.035, `rotateFlags: true`, `edge: brush`, almost no distress.
+With `edge: brush` the block outline is painted by `BrushEdge` (spikes carry
+the paint next to them), the inside keeps the composed art exactly (the
+channel and any bare garment stay bare), and the channel's sides are
+roughened by the same brush.
+
+More shared rules for turned flags (M212): a flag whose emblem sits at the
+hoist (a canton, a hoist triangle) turns so its hoist lands at the end where
+its half is widest — clockwise (hoist at the top) or anticlockwise
+(`SplitFlagPlacement.ccw`, hoist at the bottom); every other flag turns
+clockwise. On a diagonal seam a flag that must shrink is placed at the
+height that allows the largest flag (Nepal sits in the wide end). A hoist
+triangle's protected box is its middle 60% (`FlagFocus`), not the thin
+corners along the hoist.
+
 ## Resolving
 
 ```dart

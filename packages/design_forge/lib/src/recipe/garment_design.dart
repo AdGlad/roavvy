@@ -217,6 +217,7 @@ class GarmentDesign {
     ],
     DesignFamily.tornHero: [DesignFamily.badge, DesignFamily.frontRibbon],
     DesignFamily.portraitTornFlag: [DesignFamily.badge, DesignFamily.frontRibbon],
+    DesignFamily.splitPair: [DesignFamily.badge, DesignFamily.frontRibbon],
     DesignFamily.landmark: [DesignFamily.badge, DesignFamily.typographic],
     DesignFamily.timeline: [DesignFamily.badge, DesignFamily.frontRibbon],
     DesignFamily.journeys: [DesignFamily.badge, DesignFamily.frontRibbon],

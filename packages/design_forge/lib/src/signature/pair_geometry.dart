@@ -1,6 +1,7 @@
 import '../geo/flag_focus.dart';
 import '../recipe/design_recipe.dart';
 import 'heart_pair_layout.dart';
+import '../recipe/split_pair.dart';
 
 /// The part of one flag a two-country design shows (ADR-185 §4), in the
 /// flag's own normalised space (see [FlagBox]).
@@ -110,8 +111,46 @@ class PairGeometry {
       return hearts.toPairGeometry(scale: recipe.composition.sizeClass.scale);
     }
     return switch (recipe.composition.family) {
-      // Other pair compositions (M209 splitPair) add a case here.
+      DesignFamily.splitPair => _splitPair(recipe),
       _ => null,
     };
+  }
+
+  /// [SplitPairLayout] on a unit-height canvas of the recipe's shape. Only
+  /// unrotated designs report (a turned design's seam is not vertical-ish).
+  static PairGeometry? _splitPair(DesignRecipe recipe) {
+    if (recipe.composition.rotation != 0) return null;
+    final aspect = canvasAspectOf(recipe.composition.canvasOrientation);
+    final layout = SplitPairLayout.of(recipe, aspect * 1000, 1000);
+    if (layout == null) return null;
+    final seam = layout.renderSeam(recipe.composition.sizeClass.scale);
+    return PairGeometry(
+      crops: [
+        for (final f in layout.flags) _crop(f),
+      ],
+      seam: PairSeam(seam.seam, gap: seam.gap),
+    );
+  }
+
+  static FlagCrop _crop(SplitFlagPlacement f) {
+    final poly = f.flagPolygon;
+    var l = double.infinity, t = double.infinity;
+    var r = -double.infinity, b = -double.infinity;
+    for (final (x, y) in poly) {
+      if (x < l) l = x;
+      if (x > r) r = x;
+      if (y < t) t = y;
+      if (y > b) b = y;
+    }
+    l = l.clamp(0.0, 1.0);
+    t = t.clamp(0.0, 1.0);
+    r = r.clamp(0.0, 1.0);
+    b = b.clamp(0.0, 1.0);
+    return FlagCrop(
+      slot: f.slot,
+      code: f.code,
+      visible: FlagBox(l, t, r - l, b - t),
+      polygon: poly,
+    );
   }
 }
