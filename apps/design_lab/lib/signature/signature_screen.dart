@@ -47,9 +47,11 @@ class SignatureScreenState extends State<SignatureScreen> {
   static const int _inspectorLongSide = 600;
   static const int _variationCount = 12;
 
-  late final SignatureSweep _sweep = SignatureSweep(widget.service,
-      longSide: widget.sweepLongSide,
-      display: QaThresholds.orderableGarments[_garment].$1);
+  late final SignatureSweep _sweep = SignatureSweep(
+    widget.service,
+    longSide: widget.sweepLongSide,
+    display: QaThresholds.orderableGarments[_garment].$1,
+  );
 
   List<String> _ids = const [];
   SignatureRecipe? _pack;
@@ -66,6 +68,57 @@ class SignatureScreenState extends State<SignatureScreen> {
   int _garment = 2; // Dark Heather: shows both light and dark ink
 
   String? _selected;
+
+  // Pair packs (ADR-185): the A/B picker, and pairs added beyond the sample
+  // set (shown after it in the sheet).
+  String _pairA = 'us';
+  String _pairB = 'co';
+  final List<String> _extraPairs = [];
+
+  /// What the sheet shows: every country for a single pack, the sample
+  /// pairs (plus any picked) for a pair pack.
+  List<String> get _keys {
+    final p = _pack;
+    if (p == null) return const [];
+    if (!p.isPair) return widget.codes;
+    final base = SignatureSweep.keysFor(p, widget.codes);
+    return [
+      ...base,
+      for (final k in _extraPairs)
+        if (!base.contains(k)) k,
+    ];
+  }
+
+  /// "Greece" for a country key, "Greece + Costa Rica" for a pair key.
+  String _name(String key) {
+    if (!key.contains('+')) return widget.countryNames[key] ?? '';
+    final pr = SignaturePair.parse(key);
+    return '${widget.countryNames[pr.a] ?? pr.a.toUpperCase()} + '
+        '${widget.countryNames[pr.b] ?? pr.b.toUpperCase()}';
+  }
+
+  /// Shows pair [key] in the sheet (adding it after the samples) and
+  /// inspects it.
+  @visibleForTesting
+  void showPair(String a, String b) {
+    final p = _pack;
+    if (p == null || !p.isPair) return;
+    final SignaturePair pair;
+    try {
+      pair = SignaturePair(a, b);
+    } on FormatException catch (e) {
+      _toast(e.message);
+      return;
+    }
+    setState(() {
+      _pairA = pair.a;
+      _pairB = pair.b;
+      if (!_keys.contains(pair.key)) _extraPairs.add(pair.key);
+    });
+    _resweep();
+    _inspect(pair.key);
+  }
+
   ui.Image? _inspectorImage;
   final Map<int, SweepCell> _variations = {};
   int _inspectorGen = 0;
@@ -76,6 +129,10 @@ class SignatureScreenState extends State<SignatureScreen> {
   Map<String, SweepCell> get cells => _cells;
   @visibleForTesting
   bool get isSweeping => _pending > 0;
+  @visibleForTesting
+  List<String> get keys => _keys;
+  @visibleForTesting
+  String? get selected => _selected;
 
   @override
   void initState() {
@@ -97,6 +154,11 @@ class SignatureScreenState extends State<SignatureScreen> {
         _redo.clear();
         _cells.clear();
         _selected = null;
+        _extraPairs.clear();
+        if (p.isPair) {
+          _pairA = p.firstPair.a;
+          _pairB = p.firstPair.b;
+        }
       });
       _resweep();
     } on FormatException catch (e) {
@@ -139,7 +201,8 @@ class SignatureScreenState extends State<SignatureScreen> {
     final now = DateTime.now();
     final last = _lastLayoutEdit;
     final continuing =
-        last != null && now.difference(last) < const Duration(milliseconds: 800);
+        last != null &&
+        now.difference(last) < const Duration(milliseconds: 800);
     setState(() {
       if (!continuing) {
         _undo.add(current);
@@ -187,13 +250,16 @@ class SignatureScreenState extends State<SignatureScreen> {
   /// with the shirt (automatic outline) is re-rendered for it.
   void _setGarment(int i) {
     final p = _pack;
-    final light = QaThresholds.orderableGarments[i].$1.computeLuminance() >= 0.3;
+    final light =
+        QaThresholds.orderableGarments[i].$1.computeLuminance() >= 0.3;
     final wasLight =
         QaThresholds.orderableGarments[_garment].$1.computeLuminance() >= 0.3;
     setState(() => _garment = i);
     _sweep.display = QaThresholds.orderableGarments[i].$1;
     if (p == null || light == wasLight) return;
-    final depends = SignatureSweep.dependsOnGarment(SignatureResolver.hero(p, 'us'));
+    final depends = SignatureSweep.dependsOnGarment(
+      SignatureResolver.heroFor(p, SignatureSweep.probeKey(p)),
+    );
     if (!depends) return;
     setState(_cells.clear);
     _resweep();
@@ -206,11 +272,11 @@ class SignatureScreenState extends State<SignatureScreen> {
     if (p == null) return;
     final gen = ++_sweepGen;
     final todo = <String>[];
-    for (final cc in widget.codes) {
+    for (final cc in _keys) {
       final old = _cells[cc];
       final DesignRecipe hero;
       try {
-        hero = SignatureResolver.hero(p, cc);
+        hero = SignatureResolver.heroFor(p, cc);
       } catch (_) {
         todo.add(cc);
         continue;
@@ -238,12 +304,15 @@ class SignatureScreenState extends State<SignatureScreen> {
       _variations.clear();
     });
     try {
-      final hero = SignatureResolver.hero(p, cc);
-      final img = await widget.service.imageFor(hero, _inspectorLongSide,
-          transparent: true,
-          background: SignatureSweep.dependsOnGarment(hero)
-              ? QaThresholds.orderableGarments[_garment].$1
-              : null);
+      final hero = SignatureResolver.heroFor(p, cc);
+      final img = await widget.service.imageFor(
+        hero,
+        _inspectorLongSide,
+        transparent: true,
+        background: SignatureSweep.dependsOnGarment(hero)
+            ? QaThresholds.orderableGarments[_garment].$1
+            : null,
+      );
       if (!mounted || gen != _inspectorGen) return;
       setState(() => _inspectorImage = img);
     } catch (e) {
@@ -262,11 +331,21 @@ class SignatureScreenState extends State<SignatureScreen> {
   Future<void> _exportReview() async {
     final p = _pack;
     if (p == null) return;
-    final heroes = [for (final cc in widget.codes) if (_cells[cc] != null) _cells[cc]!];
+    final heroes = [
+      for (final cc in _keys)
+        if (_cells[cc] != null) _cells[cc]!,
+    ];
     final label = 'review-${SignatureIO.timestamp()}';
-    final sheet = await SignatureSweep.contactSheet(heroes, names: widget.countryNames);
-    final (png, _) = widget.io.writeReview(p.id, label,
-        sheetPng: sheet, report: SignatureSweep.report(p, heroes, label: label));
+    final sheet = await SignatureSweep.contactSheet(
+      heroes,
+      names: widget.countryNames,
+    );
+    final (png, _) = widget.io.writeReview(
+      p.id,
+      label,
+      sheetPng: sheet,
+      report: SignatureSweep.report(p, heroes, label: label),
+    );
     _toast('Wrote ${png.parent.path}');
   }
 
@@ -274,10 +353,12 @@ class SignatureScreenState extends State<SignatureScreen> {
     final p = _pack;
     if (p == null) return;
     final locksField = TextEditingController(
-        text: (p.locks.keys.isNotEmpty
-                ? ({...SignatureSweep.defaultLockCountries, ...p.locks.keys})
-                : SignatureSweep.defaultLockCountries)
-            .join(', '));
+      text:
+          (p.locks.keys.isNotEmpty
+                  ? ({...SignatureSweep.defaultLocksFor(p), ...p.locks.keys})
+                  : SignatureSweep.defaultLocksFor(p))
+              .join(', '),
+    );
     final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -288,22 +369,34 @@ class SignatureScreenState extends State<SignatureScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Checks every country\'s hero and its first '
-                  '${SignatureSweep.approvalVariations} variations '
-                  '(${widget.codes.length * (SignatureSweep.approvalVariations + 1)} renders, '
-                  'several minutes). Any hard failure blocks approval.'),
+              Text(
+                'Checks every country\'s hero and its first '
+                '${SignatureSweep.approvalVariations} variations '
+                '(${_keys.length * (SignatureSweep.approvalVariations + 1)} renders, '
+                'several minutes). Any hard failure blocks approval.',
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: locksField,
-                decoration: const InputDecoration(
-                    labelText: 'Lock countries (goldens)', isDense: true),
+                decoration: InputDecoration(
+                  labelText: p.isPair
+                      ? 'Lock pairs (a+b, goldens)'
+                      : 'Lock countries (goldens)',
+                  isDense: true,
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Check & approve')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Check & approve'),
+          ),
         ],
       ),
     );
@@ -312,46 +405,68 @@ class SignatureScreenState extends State<SignatureScreen> {
       for (final s in locksField.text.split(','))
         if (s.trim().isNotEmpty) s.trim().toLowerCase(),
     ];
-    final unknown = lockCountries.where((c) => !widget.codes.contains(c)).toList();
+    bool known(String k) {
+      if (!p.isPair) return !k.contains('+') && widget.codes.contains(k);
+      try {
+        final pr = SignaturePair.parse(k);
+        return widget.codes.contains(pr.a) && widget.codes.contains(pr.b);
+      } on FormatException {
+        return false;
+      }
+    }
+
+    final unknown = lockCountries.where((c) => !known(c)).toList();
     if (unknown.isNotEmpty || lockCountries.isEmpty) {
-      _toast(lockCountries.isEmpty
-          ? 'Name at least one lock country'
-          : 'Unknown lock countries: ${unknown.join(', ')}');
+      _toast(
+        lockCountries.isEmpty
+            ? 'Name at least one lock country'
+            : 'Unknown lock countries: ${unknown.join(', ')}',
+      );
       return;
     }
 
     final progress = ValueNotifier<(int, int)>((0, 0));
     var cancelled = false;
-    final total = widget.codes.length * (SignatureSweep.approvalVariations + 1);
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Checking every country…'),
-        content: ValueListenableBuilder<(int, int)>(
-          valueListenable: progress,
-          builder: (_, v, _) => Column(mainAxisSize: MainAxisSize.min, children: [
-            LinearProgressIndicator(value: v.$1 / total),
-            const SizedBox(height: 8),
-            Text('${v.$1} / $total · ${v.$2} hard failures'),
-          ]),
-        ),
-        actions: [
-          TextButton(
+    final keys = _keys;
+    final total = keys.length * (SignatureSweep.approvalVariations + 1);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Checking every country…'),
+          content: ValueListenableBuilder<(int, int)>(
+            valueListenable: progress,
+            builder: (_, v, _) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(value: v.$1 / total),
+                const SizedBox(height: 8),
+                Text('${v.$1} / $total · ${v.$2} hard failures'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
               onPressed: () {
                 cancelled = true;
                 Navigator.pop(ctx);
               },
-              child: const Text('Cancel')),
-        ],
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
     final cells = <SweepCell>[];
     var fails = 0;
-    await for (final c in _sweep.run(p, widget.codes,
-        variations: SignatureSweep.approvalVariations,
-        keepImages: false,
-        cancelled: () => cancelled)) {
+    await for (final c in _sweep.run(
+      p,
+      keys,
+      variations: SignatureSweep.approvalVariations,
+      keepImages: false,
+      cancelled: () => cancelled,
+    )) {
       cells.add(c);
       if (c.report.status == QaStatus.fail) fails++;
       progress.value = (cells.length, fails);
@@ -368,27 +483,49 @@ class SignatureScreenState extends State<SignatureScreen> {
           content: SizedBox(
             width: 480,
             height: 320,
-            child: ListView(children: [
-              for (final b in blockers)
-                Text('${b.country.toUpperCase()} '
+            child: ListView(
+              children: [
+                for (final b in blockers)
+                  Text(
+                    '${b.country.toUpperCase()} '
                     '${b.isHero ? 'hero' : 'v${b.index}'}: '
-                    '${b.report.hard.map((f) => f.message).join('; ')}'),
-            ]),
+                    '${b.report.hard.map((f) => f.message).join('; ')}',
+                  ),
+              ],
+            ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
       return;
     }
 
-    final approved = SignatureEdit.approve(p,
-        lockCountries: lockCountries, approvedAt: DateTime.now());
+    final approved = SignatureEdit.approve(
+      p,
+      lockCountries: lockCountries,
+      approvedAt: DateTime.now(),
+    );
     widget.io.save(approved);
-    final heroes = [for (final cc in widget.codes) if (_cells[cc] != null) _cells[cc]!];
+    final heroes = [
+      for (final cc in _keys)
+        if (_cells[cc] != null) _cells[cc]!,
+    ];
     final label = 'v${approved.version}';
-    final sheet = await SignatureSweep.contactSheet(heroes, names: widget.countryNames);
-    widget.io.writeReview(approved.id, label,
-        sheetPng: sheet, report: SignatureSweep.report(approved, cells, label: label));
+    final sheet = await SignatureSweep.contactSheet(
+      heroes,
+      names: widget.countryNames,
+    );
+    widget.io.writeReview(
+      approved.id,
+      label,
+      sheetPng: sheet,
+      report: SignatureSweep.report(approved, cells, label: label),
+    );
     if (!mounted) return;
     setState(() {
       _undo.add(p);
@@ -408,23 +545,44 @@ class SignatureScreenState extends State<SignatureScreen> {
           title: Text('${approved.title} v${approved.version} approved'),
           content: SizedBox(
             width: 520,
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Saved the pack with locks for '
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Saved the pack with locks for '
                   '${approved.locks.keys.join(', ').toUpperCase()} and wrote the '
                   'review sheet to design_studio/contact_sheets/signature/'
-                  '${approved.id}/v${approved.version}/.'),
-              const SizedBox(height: 8),
-              const Text('Goldens are written by (in packages/design_forge_render):'),
-              const SelectableText(SignatureIO.goldenCommand,
-                  style: TextStyle(fontFamily: 'Menlo', fontSize: 12)),
-              if (running) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
-              if (output != null)
-                SizedBox(
-                  height: 160,
-                  child: SingleChildScrollView(
-                      child: SelectableText(output!, style: const TextStyle(fontFamily: 'Menlo', fontSize: 11))),
+                  '${approved.id}/v${approved.version}/.',
                 ),
-            ]),
+                const SizedBox(height: 8),
+                const Text(
+                  'Goldens are written by (in packages/design_forge_render):',
+                ),
+                const SelectableText(
+                  SignatureIO.goldenCommand,
+                  style: TextStyle(fontFamily: 'Menlo', fontSize: 12),
+                ),
+                if (running)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: LinearProgressIndicator(),
+                  ),
+                if (output != null)
+                  SizedBox(
+                    height: 160,
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        output!,
+                        style: const TextStyle(
+                          fontFamily: 'Menlo',
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -435,12 +593,16 @@ class SignatureScreenState extends State<SignatureScreen> {
                       final (code, out) = await widget.io.updateGoldens();
                       setLocal(() {
                         running = false;
-                        output = 'exit $code\n${out.trim().split('\n').take(40).join('\n')}';
+                        output =
+                            'exit $code\n${out.trim().split('\n').take(40).join('\n')}';
                       });
                     },
               child: const Text('Update goldens now'),
             ),
-            FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Done'),
+            ),
           ],
         ),
       ),
@@ -451,7 +613,9 @@ class SignatureScreenState extends State<SignatureScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 4)));
+      ..showSnackBar(
+        SnackBar(content: Text(msg), duration: const Duration(seconds: 4)),
+      );
   }
 
   // ---- layout --------------------------------------------------------------
@@ -467,15 +631,26 @@ class SignatureScreenState extends State<SignatureScreen> {
             DropdownButton<String>(
               value: p?.id,
               underline: const SizedBox.shrink(),
-              items: [for (final id in _ids) DropdownMenuItem(value: id, child: Text(id))],
+              items: [
+                for (final id in _ids)
+                  DropdownMenuItem(value: id, child: Text(id)),
+              ],
               onChanged: (id) {
                 if (id != null && id != p?.id) _open(id);
               },
             ),
           const SizedBox(width: 8),
           if (p != null) _statusChip(p),
-          IconButton(tooltip: 'Undo', onPressed: _undo.isEmpty ? null : _undoEdit, icon: const Icon(Icons.undo)),
-          IconButton(tooltip: 'Redo', onPressed: _redo.isEmpty ? null : _redoEdit, icon: const Icon(Icons.redo)),
+          IconButton(
+            tooltip: 'Undo',
+            onPressed: _undo.isEmpty ? null : _undoEdit,
+            icon: const Icon(Icons.undo),
+          ),
+          IconButton(
+            tooltip: 'Redo',
+            onPressed: _redo.isEmpty ? null : _redoEdit,
+            icon: const Icon(Icons.redo),
+          ),
           TextButton.icon(
             onPressed: p == null || !_dirty ? null : _save,
             icon: const Icon(Icons.save_outlined, size: 16),
@@ -487,7 +662,9 @@ class SignatureScreenState extends State<SignatureScreen> {
             label: const Text('Export sheet'),
           ),
           FilledButton.icon(
-            onPressed: p == null || _pending > 0 || p.isApproved && !_dirty ? null : _approve,
+            onPressed: p == null || _pending > 0 || p.isApproved && !_dirty
+                ? null
+                : _approve,
             icon: const Icon(Icons.verified_outlined, size: 16),
             label: const Text('Approve…'),
           ),
@@ -495,24 +672,34 @@ class SignatureScreenState extends State<SignatureScreen> {
         ],
       ),
       body: p == null
-          ? const Center(child: Text('No signature packs in packages/design_studio/assets/signature'))
-          : Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              SizedBox(width: 340, child: _paramsPanel(p)),
-              const VerticalDivider(width: 1),
-              Expanded(child: _sheetPanel(p)),
-              if (_selected != null) ...[
+          ? const Center(
+              child: Text(
+                'No signature packs in packages/design_studio/assets/signature',
+              ),
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(width: 340, child: _paramsPanel(p)),
                 const VerticalDivider(width: 1),
-                SizedBox(width: 400, child: _inspector(p, _selected!)),
+                Expanded(child: _sheetPanel(p)),
+                if (_selected != null) ...[
+                  const VerticalDivider(width: 1),
+                  SizedBox(width: 400, child: _inspector(p, _selected!)),
+                ],
+                const VerticalDivider(width: 1),
+                _shirtPanel(p),
               ],
-              const VerticalDivider(width: 1),
-              _shirtPanel(p),
-            ]),
+            ),
     );
   }
 
   bool _landscape(SignatureRecipe p) {
     try {
-      return SignatureResolver.hero(p, 'us').composition.canvasOrientation ==
+      return SignatureResolver.heroFor(
+            p,
+            SignatureSweep.probeKey(p),
+          ).composition.canvasOrientation ==
           Orientation.landscape;
     } catch (_) {
       return false;
@@ -520,23 +707,29 @@ class SignatureScreenState extends State<SignatureScreen> {
   }
 
   Widget _statusChip(SignatureRecipe p) => Chip(
-        visualDensity: VisualDensity.compact,
-        backgroundColor: p.isApproved ? const Color(0xFFD6F0DC) : const Color(0xFFFFF1C9),
-        label: Text('${p.status.name} v${p.version}${_dirty ? ' · unsaved' : ''}'),
-      );
+    visualDensity: VisualDensity.compact,
+    backgroundColor: p.isApproved
+        ? const Color(0xFFD6F0DC)
+        : const Color(0xFFFFF1C9),
+    label: Text('${p.status.name} v${p.version}${_dirty ? ' · unsaved' : ''}'),
+  );
 
   // Far right: the selected (else US) hero on the actual shirt, through the
   // app's own mockup.
   Widget _shirtPanel(SignatureRecipe p) {
-    final cc = _selected ?? (widget.codes.contains('us') ? 'us' : widget.codes.firstOrNull);
+    final cc =
+        _selected ??
+        (p.isPair
+            ? SignatureSweep.probeKey(p)
+            : (widget.codes.contains('us') ? 'us' : widget.codes.firstOrNull));
     DesignRecipe? hero;
     try {
-      if (cc != null) hero = SignatureResolver.hero(p, cc);
+      if (cc != null) hero = SignatureResolver.heroFor(p, cc);
     } catch (_) {}
     return LabShirtPanel(
       service: widget.service,
       recipe: hero,
-      title: cc == null ? null : '${cc.toUpperCase()} ${widget.countryNames[cc] ?? ''}',
+      title: cc == null ? null : '${cc.toUpperCase()} ${_name(cc)}',
       width: 340,
       // The tee's default print layout is part of the pack: the app opens
       // every tee of this signature on it. Undoable and saved like any edit;
@@ -556,21 +749,28 @@ class SignatureScreenState extends State<SignatureScreen> {
         if (p.notes != null)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text(p.notes!, style: const TextStyle(fontSize: 11, color: Colors.black54)),
+            child: Text(
+              p.notes!,
+              style: const TextStyle(fontSize: 11, color: Colors.black54),
+            ),
           ),
         const SizedBox(height: 8),
-        const Text('Value applies to every country. "Vary" lets variations move '
-            'it within the range.', style: TextStyle(fontSize: 11)),
-        const Divider(),
-        for (final path in paths) _ParamRow(
-          key: ValueKey('param-$path-${p.version}-${identityHashCode(p)}'),
-          path: path,
-          value: SignatureEdit.baseValue(p, path),
-          range: p.envelope.ranges[path],
-          onValue: (v) => _apply((s) => SignatureEdit.setBase(s, path, v)),
-          onRange: (r) => _apply((s) => SignatureEdit.setRange(s, path, r)),
-          parseError: _toast,
+        const Text(
+          'Value applies to every country. "Vary" lets variations move '
+          'it within the range.',
+          style: TextStyle(fontSize: 11),
         ),
+        const Divider(),
+        for (final path in paths)
+          _ParamRow(
+            key: ValueKey('param-$path-${p.version}-${identityHashCode(p)}'),
+            path: path,
+            value: SignatureEdit.baseValue(p, path),
+            range: p.envelope.ranges[path],
+            onValue: (v) => _apply((s) => SignatureEdit.setBase(s, path, v)),
+            onRange: (r) => _apply((s) => SignatureEdit.setRange(s, path, r)),
+            parseError: _toast,
+          ),
       ],
     );
   }
@@ -583,10 +783,10 @@ class SignatureScreenState extends State<SignatureScreen> {
     }
     final q = _query.toLowerCase();
     final shown = [
-      for (final cc in widget.codes)
+      for (final cc in _keys)
         if ((q.isEmpty ||
                 cc.contains(q) ||
-                (widget.countryNames[cc]?.toLowerCase().contains(q) ?? false)) &&
+                _name(cc).toLowerCase().contains(q)) &&
             switch (_filter) {
               _Filter.all => true,
               _Filter.warnings => _cells[cc]?.report.status == QaStatus.warn,
@@ -595,103 +795,218 @@ class SignatureScreenState extends State<SignatureScreen> {
           cc,
     ];
     final garment = QaThresholds.orderableGarments[_garment];
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-        child: Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          SegmentedButton<_Filter>(
-            showSelectedIcon: false,
-            segments: [
-              ButtonSegment(value: _Filter.all, label: Text('All ${widget.codes.length}')),
-              ButtonSegment(value: _Filter.warnings, label: Text('Warnings ${counts[QaStatus.warn]}')),
-              ButtonSegment(value: _Filter.failures, label: Text('Failures ${counts[QaStatus.fail]}')),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SegmentedButton<_Filter>(
+                showSelectedIcon: false,
+                segments: [
+                  ButtonSegment(
+                    value: _Filter.all,
+                    label: Text('All ${_keys.length}'),
+                  ),
+                  ButtonSegment(
+                    value: _Filter.warnings,
+                    label: Text('Warnings ${counts[QaStatus.warn]}'),
+                  ),
+                  ButtonSegment(
+                    value: _Filter.failures,
+                    label: Text('Failures ${counts[QaStatus.fail]}'),
+                  ),
+                ],
+                selected: {_filter},
+                onSelectionChanged: (s) => setState(() => _filter = s.first),
+              ),
+              if (p.isPair) _pairPicker(),
+              SizedBox(
+                width: 180,
+                child: TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Search country',
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search, size: 16),
+                  ),
+                  onChanged: (v) => setState(() => _query = v),
+                ),
+              ),
+              DropdownButton<int>(
+                value: _garment,
+                items: [
+                  for (
+                    var i = 0;
+                    i < QaThresholds.orderableGarments.length;
+                    i++
+                  )
+                    DropdownMenuItem(
+                      value: i,
+                      child: Text('On ${QaThresholds.orderableGarments[i].$2}'),
+                    ),
+                ],
+                onChanged: (v) => _setGarment(v ?? _garment),
+              ),
+              Text(
+                _pending > 0
+                    ? 'Rendering… ${_keys.length - _pending}/${_keys.length}'
+                    : '${counts[QaStatus.pass]} pass · ${counts[QaStatus.warn]} warn · ${counts[QaStatus.fail]} fail',
+              ),
             ],
-            selected: {_filter},
-            onSelectionChanged: (s) => setState(() => _filter = s.first),
           ),
-          SizedBox(
-            width: 180,
-            child: TextField(
-              decoration: const InputDecoration(hintText: 'Search country', isDense: true, prefixIcon: Icon(Icons.search, size: 16)),
-              onChanged: (v) => setState(() => _query = v),
-            ),
-          ),
-          DropdownButton<int>(
-            value: _garment,
-            items: [
-              for (var i = 0; i < QaThresholds.orderableGarments.length; i++)
-                DropdownMenuItem(value: i, child: Text('On ${QaThresholds.orderableGarments[i].$2}')),
-            ],
-            onChanged: (v) => _setGarment(v ?? _garment),
-          ),
-          Text(_pending > 0
-              ? 'Rendering… ${widget.codes.length - _pending}/${widget.codes.length}'
-              : '${counts[QaStatus.pass]} pass · ${counts[QaStatus.warn]} warn · ${counts[QaStatus.fail]} fail'),
-        ]),
-      ),
-      Expanded(
-        child: GridView.builder(
-          padding: const EdgeInsets.all(12),
-          // Tiles take the design's shape, so a rotated (landscape) design
-          // is shown at full size rather than letterboxed in a tall tile.
-          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(12),
+            // Tiles take the design's shape, so a rotated (landscape) design
+            // is shown at full size rather than letterboxed in a tall tile.
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: _landscape(p) ? 190 : 150,
               childAspectRatio: _landscape(p) ? 1.08 : 0.68,
               mainAxisSpacing: 8,
-              crossAxisSpacing: 8),
-          itemCount: shown.length,
-          itemBuilder: (_, i) {
-            final cc = shown[i];
-            final cell = _cells[cc];
-            final overridden = p.overrides.containsKey(cc);
-            final hero = p.heroes.containsKey(cc);
-            return InkWell(
-              key: ValueKey('tile-$cc'),
-              onTap: () => _inspect(cc),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: garment.$1,
-                  border: Border.all(
-                      color: _selected == cc ? Colors.blueAccent : Colors.black12,
-                      width: _selected == cc ? 2 : 1),
-                ),
-                child: Column(children: [
-                  Expanded(
-                    child: Stack(children: [
-                      Positioned.fill(
-                        child: cell?.image == null
-                            ? const Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)))
-                            : RawImage(image: cell!.image, fit: BoxFit.contain),
-                      ),
-                      if (cell != null)
-                        Positioned(
-                          left: 4,
-                          top: 4,
-                          child: Tooltip(
-                            message: [...cell.report.hard, ...cell.report.soft].map((f) => f.message).join('\n').ifEmpty('All checks pass'),
-                            child: CircleAvatar(radius: 5, backgroundColor: SignatureSweep.statusColour(cell.report.status)),
-                          ),
-                        ),
-                    ]),
-                  ),
-                  Container(
-                    width: double.infinity,
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      '${cc.toUpperCase()} ${widget.countryNames[cc] ?? ''}${overridden ? ' ✎' : ''}${hero ? ' ★' : ''}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11),
+              crossAxisSpacing: 8,
+            ),
+            itemCount: shown.length,
+            itemBuilder: (_, i) {
+              final cc = shown[i];
+              final cell = _cells[cc];
+              final overridden = p.overrides.containsKey(cc);
+              final hero = p.heroes.containsKey(cc);
+              return InkWell(
+                key: ValueKey('tile-$cc'),
+                onTap: () => _inspect(cc),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: garment.$1,
+                    border: Border.all(
+                      color: _selected == cc
+                          ? Colors.blueAccent
+                          : Colors.black12,
+                      width: _selected == cc ? 2 : 1,
                     ),
                   ),
-                ]),
-              ),
-            );
-          },
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: cell?.image == null
+                                  ? const Center(
+                                      child: SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    )
+                                  : RawImage(
+                                      image: cell!.image,
+                                      fit: BoxFit.contain,
+                                    ),
+                            ),
+                            if (cell != null)
+                              Positioned(
+                                left: 4,
+                                top: 4,
+                                child: Tooltip(
+                                  message:
+                                      [...cell.report.hard, ...cell.report.soft]
+                                          .map((f) => f.message)
+                                          .join('\n')
+                                          .ifEmpty('All checks pass'),
+                                  child: CircleAvatar(
+                                    radius: 5,
+                                    backgroundColor:
+                                        SignatureSweep.statusColour(
+                                          cell.report.status,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: double.infinity,
+                        color: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        child: Text(
+                          '${cc.toUpperCase()} ${p.isPair ? '' : _name(cc)}${overridden ? ' ✎' : ''}${hero ? ' ★' : ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
-      ),
-    ]);
+      ],
+    );
+  }
+
+  /// Country A / country B, ⇄ swap, and Show (pair packs only).
+  Widget _pairPicker() {
+    DropdownButton<String> pick(
+      String key,
+      String value,
+      ValueChanged<String> on,
+    ) => DropdownButton<String>(
+      key: ValueKey(key),
+      value: widget.codes.contains(value) ? value : null,
+      isDense: true,
+      menuMaxHeight: 420,
+      items: [
+        for (final c in widget.codes)
+          DropdownMenuItem(
+            value: c,
+            child: Text(
+              '${c.toUpperCase()} ${widget.countryNames[c] ?? ''}',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+      ],
+      onChanged: (v) {
+        if (v != null) setState(() => on(v));
+      },
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('A ', style: TextStyle(fontSize: 12)),
+        pick('pair-a', _pairA, (v) => _pairA = v),
+        IconButton(
+          key: const ValueKey('pair-swap'),
+          tooltip: 'Swap A and B',
+          onPressed: () => setState(() {
+            final a = _pairA;
+            _pairA = _pairB;
+            _pairB = a;
+          }),
+          icon: const Icon(Icons.swap_horiz, size: 18),
+        ),
+        const Text('B ', style: TextStyle(fontSize: 12)),
+        pick('pair-b', _pairB, (v) => _pairB = v),
+        const SizedBox(width: 6),
+        FilledButton.tonal(
+          key: const ValueKey('pair-show'),
+          onPressed: () => showPair(_pairA, _pairB),
+          child: const Text('Show'),
+        ),
+      ],
+    );
   }
 
   // Right: selected country.
@@ -699,82 +1014,146 @@ class SignatureScreenState extends State<SignatureScreen> {
     final cell = _cells[cc];
     final override = p.overrides[cc];
     final hero = p.heroes[cc];
-    return ListView(padding: const EdgeInsets.all(12), children: [
-      Row(children: [
-        Expanded(
-          child: Text('${cc.toUpperCase()} ${widget.countryNames[cc] ?? ''}',
-              style: Theme.of(context).textTheme.titleMedium),
-        ),
-        IconButton(onPressed: () => setState(() => _selected = null), icon: const Icon(Icons.close)),
-      ]),
-      // The hero on every orderable garment.
-      SizedBox(
-        height: 300,
-        child: _inspectorImage == null
-            ? const Center(child: CircularProgressIndicator())
-            : Container(
-                color: QaThresholds.orderableGarments[_garment].$1,
-                child: RawImage(image: _inspectorImage, fit: BoxFit.contain),
-              ),
-      ),
-      const SizedBox(height: 6),
-      Wrap(spacing: 4, runSpacing: 4, children: [
-        for (var i = 0; i < QaThresholds.orderableGarments.length; i++)
-          Tooltip(
-            message: QaThresholds.orderableGarments[i].$2,
-            child: InkWell(
-              onTap: () => setState(() => _garment = i),
-              child: Container(
-                width: 58,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: QaThresholds.orderableGarments[i].$1,
-                  border: Border.all(color: i == _garment ? Colors.blueAccent : Colors.black26, width: i == _garment ? 2 : 1),
-                ),
-                child: cell?.image == null ? null : RawImage(image: cell!.image, fit: BoxFit.contain),
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${cc.toUpperCase()} ${_name(cc)}',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
+            if (p.isPair)
+              IconButton(
+                key: const ValueKey('inspect-swap'),
+                tooltip: 'Swap A and B',
+                onPressed: () {
+                  final pr = SignaturePair.parse(cc).swapped;
+                  showPair(pr.a, pr.b);
+                },
+                icon: const Icon(Icons.swap_horiz),
+              ),
+            IconButton(
+              onPressed: () => setState(() => _selected = null),
+              icon: const Icon(Icons.close),
+            ),
+          ],
+        ),
+        // The hero on every orderable garment.
+        SizedBox(
+          height: 300,
+          child: _inspectorImage == null
+              ? const Center(child: CircularProgressIndicator())
+              : Container(
+                  color: QaThresholds.orderableGarments[_garment].$1,
+                  child: RawImage(image: _inspectorImage, fit: BoxFit.contain),
+                ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            for (var i = 0; i < QaThresholds.orderableGarments.length; i++)
+              Tooltip(
+                message: QaThresholds.orderableGarments[i].$2,
+                child: InkWell(
+                  onTap: () => setState(() => _garment = i),
+                  child: Container(
+                    width: 58,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: QaThresholds.orderableGarments[i].$1,
+                      border: Border.all(
+                        color: i == _garment
+                            ? Colors.blueAccent
+                            : Colors.black26,
+                        width: i == _garment ? 2 : 1,
+                      ),
+                    ),
+                    child: cell?.image == null
+                        ? null
+                        : RawImage(image: cell!.image, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (cell != null) ...[
+          for (final f in cell.report.hard)
+            Text(
+              '✖ ${f.message}',
+              style: const TextStyle(color: Color(0xFFD7263D), fontSize: 12),
+            ),
+          for (final f in cell.report.soft)
+            Text(
+              '▲ ${f.message}',
+              style: const TextStyle(color: Color(0xFF9A6E00), fontSize: 12),
+            ),
+          if (cell.report.status == QaStatus.pass)
+            const Text(
+              '✔ All checks pass',
+              style: TextStyle(color: Color(0xFF2E9E4F), fontSize: 12),
+            ),
+          Text(
+            'recipeId ${cell.recipe.recipeId}',
+            style: const TextStyle(fontSize: 10, color: Colors.black45),
           ),
-      ]),
-      const SizedBox(height: 8),
-      if (cell != null) ...[
-        for (final f in cell.report.hard)
-          Text('✖ ${f.message}', style: const TextStyle(color: Color(0xFFD7263D), fontSize: 12)),
-        for (final f in cell.report.soft)
-          Text('▲ ${f.message}', style: const TextStyle(color: Color(0xFF9A6E00), fontSize: 12)),
-        if (cell.report.status == QaStatus.pass)
-          const Text('✔ All checks pass', style: TextStyle(color: Color(0xFF2E9E4F), fontSize: 12)),
-        Text('recipeId ${cell.recipe.recipeId}', style: const TextStyle(fontSize: 10, color: Colors.black45)),
+        ],
+        const Divider(),
+        Row(
+          children: [
+            Text('Variations', style: Theme.of(context).textTheme.titleSmall),
+            const Spacer(),
+            if (hero != null)
+              TextButton(
+                onPressed: () =>
+                    _apply((s) => SignatureEdit.setHero(s, cc, null)),
+                child: const Text('Reset hero'),
+              ),
+          ],
+        ),
+        if (p.envelope.isEmpty)
+          const Text(
+            'No parameter varies yet. Tick "Vary" on the left to give '
+            'this recipe variations.',
+            style: TextStyle(fontSize: 12),
+          )
+        else
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (var i = 1; i <= _variationCount; i++)
+                _variationTile(p, cc, i),
+            ],
+          ),
+        const Divider(),
+        Text(
+          p.isPair
+              ? 'Override for this pair (in this order)'
+              : 'Override for this country',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        if (p.isPair)
+          const Text(
+            'A fix for one country wherever it appears goes in the pack '
+            'file as a country override using {slot} (SIGNATURE.md).',
+            style: TextStyle(fontSize: 11, color: Colors.black54),
+          ),
+        _OverrideEditor(
+          key: ValueKey('override-$cc-${identityHashCode(p)}'),
+          paths: SignatureEdit.editablePaths(p),
+          current: override,
+          valueOf: (path) => SignatureEdit.baseValue(p, path),
+          onSave: (o) => _apply((s) => SignatureEdit.setOverride(s, cc, o)),
+          onError: _toast,
+        ),
       ],
-      const Divider(),
-      Row(children: [
-        Text('Variations', style: Theme.of(context).textTheme.titleSmall),
-        const Spacer(),
-        if (hero != null)
-          TextButton(
-            onPressed: () => _apply((s) => SignatureEdit.setHero(s, cc, null)),
-            child: const Text('Reset hero'),
-          ),
-      ]),
-      if (p.envelope.isEmpty)
-        const Text('No parameter varies yet. Tick "Vary" on the left to give '
-            'this recipe variations.', style: TextStyle(fontSize: 12))
-      else
-        Wrap(spacing: 6, runSpacing: 6, children: [
-          for (var i = 1; i <= _variationCount; i++)
-            _variationTile(p, cc, i),
-        ]),
-      const Divider(),
-      Text('Override for this country', style: Theme.of(context).textTheme.titleSmall),
-      _OverrideEditor(
-        key: ValueKey('override-$cc-${identityHashCode(p)}'),
-        paths: SignatureEdit.editablePaths(p),
-        current: override,
-        valueOf: (path) => SignatureEdit.baseValue(p, path),
-        onSave: (o) => _apply((s) => SignatureEdit.setOverride(s, cc, o)),
-        onError: _toast,
-      ),
-    ]);
+    );
   }
 
   Widget _variationTile(SignatureRecipe p, String cc, int i) {
@@ -782,28 +1161,51 @@ class SignatureScreenState extends State<SignatureScreen> {
     return Container(
       width: 112,
       decoration: BoxDecoration(border: Border.all(color: Colors.black12)),
-      child: Column(children: [
-        Container(
-          height: 130,
-          color: QaThresholds.orderableGarments[_garment].$1,
-          child: v?.image == null
-              ? const Center(child: SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)))
-              : Stack(children: [
-                  Positioned.fill(child: RawImage(image: v!.image, fit: BoxFit.contain)),
-                  Positioned(
-                    left: 3,
-                    top: 3,
-                    child: CircleAvatar(radius: 4, backgroundColor: SignatureSweep.statusColour(v.report.status)),
+      child: Column(
+        children: [
+          Container(
+            height: 130,
+            color: QaThresholds.orderableGarments[_garment].$1,
+            child: v?.image == null
+                ? const Center(
+                    child: SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : Stack(
+                    children: [
+                      Positioned.fill(
+                        child: RawImage(image: v!.image, fit: BoxFit.contain),
+                      ),
+                      Positioned(
+                        left: 3,
+                        top: 3,
+                        child: CircleAvatar(
+                          radius: 4,
+                          backgroundColor: SignatureSweep.statusColour(
+                            v.report.status,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ]),
-        ),
-        TextButton(
-          onPressed: v == null
-              ? null
-              : () => _apply((s) => SignatureEdit.setHero(s, cc, SignatureEdit.heroValuesOf(s, v.recipe))),
-          child: Text('v$i → hero', style: const TextStyle(fontSize: 11)),
-        ),
-      ]),
+          ),
+          TextButton(
+            onPressed: v == null
+                ? null
+                : () => _apply(
+                    (s) => SignatureEdit.setHero(
+                      s,
+                      cc,
+                      SignatureEdit.heroValuesOf(s, v.recipe),
+                    ),
+                  ),
+            child: Text('v$i → hero', style: const TextStyle(fontSize: 11)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -832,18 +1234,27 @@ class _ParamRow extends StatefulWidget {
 }
 
 class _ParamRowState extends State<_ParamRow> {
-  late final TextEditingController _value = TextEditingController(text: '${widget.value}');
-  late final TextEditingController _lo = TextEditingController(text: _rangeText(0));
-  late final TextEditingController _hi = TextEditingController(text: _rangeText(1));
+  late final TextEditingController _value = TextEditingController(
+    text: '${widget.value}',
+  );
+  late final TextEditingController _lo = TextEditingController(
+    text: _rangeText(0),
+  );
+  late final TextEditingController _hi = TextEditingController(
+    text: _rangeText(1),
+  );
   double? _drag;
 
   String _rangeText(int end) => switch (widget.range) {
-        NumRange(:final min, :final max) => '${end == 0 ? min : max}',
-        ValueSet(:final values) => end == 0 ? values.join(', ') : '',
-        null => '',
-      };
+    NumRange(:final min, :final max) => '${end == 0 ? min : max}',
+    ValueSet(:final values) => end == 0 ? values.join(', ') : '',
+    null => '',
+  };
 
-  bool get _unit => widget.value is double && (widget.value as double) >= 0 && (widget.value as double) <= 1;
+  bool get _unit =>
+      widget.value is double &&
+      (widget.value as double) >= 0 &&
+      (widget.value as double) <= 1;
 
   @override
   void dispose() {
@@ -885,65 +1296,103 @@ class _ParamRowState extends State<_ParamRow> {
     final range = widget.range;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(child: Text(widget.path, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-          const Text('Vary', style: TextStyle(fontSize: 11)),
-          Checkbox(
-            key: ValueKey('vary-${widget.path}'),
-            visualDensity: VisualDensity.compact,
-            value: range != null,
-            onChanged: (on) => widget.onRange(
-                on == true ? SignatureEdit.defaultRange(widget.path, widget.value) : null),
-          ),
-        ]),
-        if (widget.value is bool)
-          Switch(value: widget.value as bool, onChanged: (b) => widget.onValue(b))
-        else if (_unit)
-          Row(children: [
-            Expanded(
-              child: Slider(
-                value: _drag ?? (widget.value as double),
-                onChanged: (d) => setState(() => _drag = d),
-                onChangeEnd: (d) {
-                  _drag = null;
-                  widget.onValue((d * 1000).roundToDouble() / 1000);
-                },
-              ),
-            ),
-            SizedBox(width: 44, child: Text((_drag ?? widget.value as double).toStringAsFixed(3), style: const TextStyle(fontSize: 11))),
-          ])
-        else
-          TextField(
-            controller: _value,
-            decoration: const InputDecoration(isDense: true),
-            style: const TextStyle(fontSize: 12),
-            onSubmitted: _submitValue,
-          ),
-        if (range != null)
-          Row(children: [
-            const Text('range ', style: TextStyle(fontSize: 11, color: Colors.black54)),
-            Expanded(
-              child: TextField(
-                controller: _lo,
-                decoration: InputDecoration(isDense: true, hintText: range is ValueSet ? 'a, b, c' : 'min'),
-                style: const TextStyle(fontSize: 11),
-                onSubmitted: (_) => _submitRange(),
-              ),
-            ),
-            if (range is NumRange) ...[
-              const Text(' – '),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
               Expanded(
-                child: TextField(
-                  controller: _hi,
-                  decoration: const InputDecoration(isDense: true, hintText: 'max'),
-                  style: const TextStyle(fontSize: 11),
-                  onSubmitted: (_) => _submitRange(),
+                child: Text(
+                  widget.path,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Text('Vary', style: TextStyle(fontSize: 11)),
+              Checkbox(
+                key: ValueKey('vary-${widget.path}'),
+                visualDensity: VisualDensity.compact,
+                value: range != null,
+                onChanged: (on) => widget.onRange(
+                  on == true
+                      ? SignatureEdit.defaultRange(widget.path, widget.value)
+                      : null,
                 ),
               ),
             ],
-          ]),
-      ]),
+          ),
+          if (widget.value is bool)
+            Switch(
+              value: widget.value as bool,
+              onChanged: (b) => widget.onValue(b),
+            )
+          else if (_unit)
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: _drag ?? (widget.value as double),
+                    onChanged: (d) => setState(() => _drag = d),
+                    onChangeEnd: (d) {
+                      _drag = null;
+                      widget.onValue((d * 1000).roundToDouble() / 1000);
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    (_drag ?? widget.value as double).toStringAsFixed(3),
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+              ],
+            )
+          else
+            TextField(
+              controller: _value,
+              decoration: const InputDecoration(isDense: true),
+              style: const TextStyle(fontSize: 12),
+              onSubmitted: _submitValue,
+            ),
+          if (range != null)
+            Row(
+              children: [
+                const Text(
+                  'range ',
+                  style: TextStyle(fontSize: 11, color: Colors.black54),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _lo,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: range is ValueSet ? 'a, b, c' : 'min',
+                    ),
+                    style: const TextStyle(fontSize: 11),
+                    onSubmitted: (_) => _submitRange(),
+                  ),
+                ),
+                if (range is NumRange) ...[
+                  const Text(' – '),
+                  Expanded(
+                    child: TextField(
+                      controller: _hi,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        hintText: 'max',
+                      ),
+                      style: const TextStyle(fontSize: 11),
+                      onSubmitted: (_) => _submitRange(),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -973,8 +1422,9 @@ class _OverrideEditor extends StatefulWidget {
 class _OverrideEditorState extends State<_OverrideEditor> {
   String? _path;
   late final TextEditingController _value = TextEditingController();
-  late final TextEditingController _reason =
-      TextEditingController(text: widget.current?.reason ?? '');
+  late final TextEditingController _reason = TextEditingController(
+    text: widget.current?.reason ?? '',
+  );
 
   @override
   void dispose() {
@@ -988,10 +1438,12 @@ class _OverrideEditorState extends State<_OverrideEditor> {
     if (path == null) return;
     try {
       final v = SignatureEdit.parseLike(widget.valueOf(path), _value.text);
-      widget.onSave(CountryOverride(
-        params: {...?widget.current?.params, path: v},
-        reason: _reason.text,
-      ));
+      widget.onSave(
+        CountryOverride(
+          params: {...?widget.current?.params, path: v},
+          reason: _reason.text,
+        ),
+      );
     } on FormatException catch (e) {
       widget.onError(e.message);
     }
@@ -999,45 +1451,74 @@ class _OverrideEditorState extends State<_OverrideEditor> {
 
   void _remove(String path) {
     final rest = {...widget.current!.params}..remove(path);
-    widget.onSave(rest.isEmpty ? null : CountryOverride(params: rest, reason: widget.current!.reason));
+    widget.onSave(
+      rest.isEmpty
+          ? null
+          : CountryOverride(params: rest, reason: widget.current!.reason),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final current = widget.current;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      if (current != null)
-        for (final e in current.params.entries)
-          Row(children: [
-            Expanded(child: Text('${e.key} = ${e.value}', style: const TextStyle(fontSize: 12))),
-            IconButton(
-              tooltip: 'Remove',
-              visualDensity: VisualDensity.compact,
-              onPressed: () => _remove(e.key),
-              icon: const Icon(Icons.close, size: 16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (current != null)
+          for (final e in current.params.entries)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${e.key} = ${e.value}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Remove',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _remove(e.key),
+                  icon: const Icon(Icons.close, size: 16),
+                ),
+              ],
             ),
-          ]),
-      DropdownButton<String>(
-        isExpanded: true,
-        hint: const Text('Parameter', style: TextStyle(fontSize: 12)),
-        value: _path,
-        items: [for (final p in widget.paths) DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(fontSize: 12)))],
-        onChanged: (p) => setState(() {
-          _path = p;
-          if (p != null) _value.text = '${widget.valueOf(p)}';
-        }),
-      ),
-      TextField(controller: _value, decoration: const InputDecoration(labelText: 'Value', isDense: true)),
-      TextField(
-        controller: _reason,
-        decoration: const InputDecoration(labelText: 'Reason (required)', isDense: true),
-      ),
-      const SizedBox(height: 6),
-      Align(
-        alignment: Alignment.centerRight,
-        child: FilledButton.tonal(onPressed: _path == null ? null : _add, child: const Text('Save override')),
-      ),
-    ]);
+        DropdownButton<String>(
+          isExpanded: true,
+          hint: const Text('Parameter', style: TextStyle(fontSize: 12)),
+          value: _path,
+          items: [
+            for (final p in widget.paths)
+              DropdownMenuItem(
+                value: p,
+                child: Text(p, style: const TextStyle(fontSize: 12)),
+              ),
+          ],
+          onChanged: (p) => setState(() {
+            _path = p;
+            if (p != null) _value.text = '${widget.valueOf(p)}';
+          }),
+        ),
+        TextField(
+          controller: _value,
+          decoration: const InputDecoration(labelText: 'Value', isDense: true),
+        ),
+        TextField(
+          controller: _reason,
+          decoration: const InputDecoration(
+            labelText: 'Reason (required)',
+            isDense: true,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.tonal(
+            onPressed: _path == null ? null : _add,
+            child: const Text('Save override'),
+          ),
+        ),
+      ],
+    );
   }
 }
 

@@ -8,6 +8,7 @@ library design_forge;
 export 'src/determinism/deterministic_rng.dart';
 export 'src/generation/recipe_generator.dart';
 export 'src/geo/country_names.dart';
+export 'src/geo/flag_focus.dart';
 export 'src/geo/iso3.dart';
 export 'src/recipe/canonical_json.dart';
 export 'src/recipe/captions.dart';
@@ -24,6 +25,7 @@ export 'src/recipe/watercolour.dart';
 export 'src/library/design_library.dart';
 
 // Signature Recipes (ADR-181).
+export 'src/signature/pair_geometry.dart';
 export 'src/signature/recipe_path.dart';
 export 'src/signature/signature_pack_codec.dart';
 export 'src/signature/signature_recipe.dart';

@@ -17,6 +17,7 @@ export 'src/geometry/torn_mask.dart';
 export 'src/geometry/torn_strips_raster.dart';
 export 'src/geometry/watercolour_raster.dart';
 export 'src/geometry/wear_raster.dart';
+export 'src/qa/pair_qa.dart';
 export 'src/qa/signature_qa.dart';
 export 'src/render_target.dart';
 export 'src/renderer.dart';

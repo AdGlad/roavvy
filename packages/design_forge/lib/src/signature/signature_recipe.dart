@@ -19,6 +19,50 @@ enum SignatureStatus {
       };
 }
 
+/// An ordered pair of countries for a two-country signature (ADR-185):
+/// [a] is drawn left/top, [b] right/bottom. `(fr, jp)` and `(jp, fr)` are
+/// different designs. Its [key] (`"fr+jp"`) keys a pair pack's heroes, locks
+/// and pair overrides.
+class SignaturePair {
+  SignaturePair(String a, String b)
+      : a = a.toLowerCase(),
+        b = b.toLowerCase() {
+    if (this.a.isEmpty || this.b.isEmpty) {
+      throw const FormatException('A pair needs two countries');
+    }
+    if (this.a == this.b) {
+      throw FormatException('A pair needs two different countries ($a+$b)');
+    }
+  }
+
+  /// Parses `"a+b"`.
+  factory SignaturePair.parse(String key) {
+    final parts = key.split('+');
+    if (parts.length != 2) {
+      throw FormatException('"$key" is not a country pair (expected "a+b")');
+    }
+    return SignaturePair(parts[0].trim(), parts[1].trim());
+  }
+
+  static bool isPairKey(String key) => key.contains('+');
+
+  final String a;
+  final String b;
+
+  String get key => '$a+$b';
+  SignaturePair get swapped => SignaturePair(b, a);
+
+  @override
+  bool operator ==(Object other) =>
+      other is SignaturePair && other.a == a && other.b == b;
+
+  @override
+  int get hashCode => Object.hash(a, b);
+
+  @override
+  String toString() => key;
+}
+
 /// A parameter fix for one country, with the reason it is needed.
 ///
 /// Overrides may only change parameters; they never add a flag's anatomy to
@@ -87,9 +131,13 @@ class SignatureRecipe {
     Map<String, String> locks = const {},
     Map<String, String> tokens = const {},
     Map<String, Object?> layout = const {},
+    this.countries = 1,
+    List<String> samplePairs = const [],
     this.approvedAt,
     this.notes,
   })  : tokens = Map.unmodifiable(tokens),
+        samplePairs = List.unmodifiable(
+            [for (final p in samplePairs) SignaturePair.parse(p).key]),
         layout = Map.unmodifiable(deepCopyJson(layout) as Map<String, Object?>),
         base = Map.unmodifiable(deepCopyJson(base) as Map<String, Object?>),
         envelope = envelope ?? VariationEnvelope.empty,
@@ -109,7 +157,38 @@ class SignatureRecipe {
   /// Tokens every pack gets without declaring a default: `country` (the
   /// lowercase ISO code), `country3` (its 3-letter code, e.g. USA) and
   /// `countryName` (its display name, e.g. Greece).
-  static const Set<String> builtInTokens = {'country', 'country3', 'countryName'};
+  static const Set<String> builtInTokens = {
+    'country',
+    'country3',
+    'countryName',
+    ...pairTokens,
+  };
+
+  /// Tokens of a two-country pack ([countries] = 2): country A (left/top)
+  /// and country B (right/bottom), each as code, 3-letter code and name.
+  static const Set<String> pairTokens = {
+    'countryA',
+    'countryA3',
+    'countryAName',
+    'countryB',
+    'countryB3',
+    'countryBName',
+  };
+
+  static const Set<String> _singleTokens = {
+    'country',
+    'country3',
+    'countryName',
+  };
+
+  /// In a pair pack's country override params, this path segment stands for
+  /// the flag slot the overridden country occupies: `0` when it is country A,
+  /// `1` when it is country B. `content.flags.{slot}.weight` therefore only
+  /// touches that country's half. Paths without it apply to the whole design.
+  static const String slotSegment = '{slot}';
+
+  /// Pair used to validate a pair pack when it lists no [samplePairs].
+  static final SignaturePair defaultSamplePair = SignaturePair('us', 'co');
 
   /// Stable id, also the pack file name: `torn_flag` → `torn_flag.pack.json`.
   final String id;
@@ -150,7 +229,53 @@ class SignatureRecipe {
   /// recipe data, so it never changes a hero's `recipeId` or its lock.
   final Map<String, Object?> layout;
 
+  /// How many countries the design takes: 1 (the default; keys are country
+  /// codes) or 2 (a pair pack; keys are `"a+b"`, see [SignaturePair]).
+  final int countries;
+
+  /// Pair packs only: the fixed pairs the Lab sheets and QA run over
+  /// (`"a+b"` keys, order matters).
+  final List<String> samplePairs;
+
   bool get isApproved => status == SignatureStatus.approved;
+  bool get isPair => countries == 2;
+
+  /// The pair a pair pack is validated (and opened in the Lab) with.
+  SignaturePair get firstPair => samplePairs.isEmpty
+      ? defaultSamplePair
+      : SignaturePair.parse(samplePairs.first);
+
+  /// A pair pack's base with both countries' tokens filled in. A fresh
+  /// mutable copy every call.
+  Map<String, Object?> instantiatePair(String a, String b,
+      {Map<String, String> tokens = const {}}) {
+    final p = SignaturePair(a, b);
+    final all = {
+      ...this.tokens,
+      ...tokens,
+      'countryA': p.a,
+      'countryA3': countryAlpha3(p.a),
+      'countryAName': countryDisplayName(p.a),
+      'countryB': p.b,
+      'countryB3': countryAlpha3(p.b),
+      'countryBName': countryDisplayName(p.b),
+    };
+    return _substitute(deepCopyJson(base), all) as Map<String, Object?>;
+  }
+
+  /// [instantiate] or [instantiatePair] for a heroes/locks key: a country
+  /// code for single packs, `"a+b"` for pair packs.
+  Map<String, Object?> instantiateKey(String key,
+      {Map<String, String> tokens = const {}}) {
+    if (!isPair) return instantiate(key, tokens: tokens);
+    final p = SignaturePair.parse(key);
+    return instantiatePair(p.a, p.b, tokens: tokens);
+  }
+
+  /// A pair-pack override param [path] for the country in [slot] (0 = A,
+  /// 1 = B), with [slotSegment] filled in.
+  static String slotPath(String path, int slot) =>
+      path.replaceAll(slotSegment, '$slot');
 
   /// The base template with [countryToken] (and any extra `{{name}}` tokens)
   /// substituted. A fresh mutable copy every call.
@@ -177,6 +302,8 @@ class SignatureRecipe {
     Map<String, String>? locks,
     Map<String, String>? tokens,
     Map<String, Object?>? layout,
+    int? countries,
+    List<String>? samplePairs,
     String? approvedAt,
     String? notes,
   }) =>
@@ -192,6 +319,8 @@ class SignatureRecipe {
         locks: locks ?? this.locks,
         tokens: tokens ?? this.tokens,
         layout: layout ?? this.layout,
+        countries: countries ?? this.countries,
+        samplePairs: samplePairs ?? this.samplePairs,
         approvedAt: approvedAt ?? this.approvedAt,
         notes: notes ?? this.notes,
       );
@@ -208,10 +337,56 @@ class SignatureRecipe {
       throw const FormatException(
           'base must not carry recipeId/provenance (they are derived)');
     }
-    if (!_containsToken(base, countryToken) &&
-        !_containsToken(base, '{{country3}}')) {
-      throw const FormatException(
-          'base must use {{country}} so it works for every country');
+    if (countries != 1 && countries != 2) {
+      throw FormatException('countries must be 1 or 2 (got $countries)');
+    }
+    final usedTokens = RegExp(r'\{\{([a-zA-Z0-9_]+)\}\}')
+        .allMatches(_strings(base).join('\n'))
+        .map((m) => m.group(1)!)
+        .toSet();
+    if (isPair) {
+      final usesA = usedTokens.any((t) => t.startsWith('countryA'));
+      final usesB = usedTokens.any((t) => t.startsWith('countryB'));
+      if (!usesA || !usesB) {
+        throw const FormatException(
+            "a pair pack's base must use both {{countryA}} and {{countryB}}");
+      }
+      final single = usedTokens.intersection(_singleTokens);
+      if (single.isNotEmpty) {
+        throw FormatException('a pair pack must not use '
+            '${single.map((t) => '{{$t}}').join(', ')}; '
+            'use {{countryA}}/{{countryB}}');
+      }
+    } else {
+      if (samplePairs.isNotEmpty) {
+        throw const FormatException(
+            'samplePairs is only for pair packs (countries: 2)');
+      }
+      if (!_containsToken(base, countryToken) &&
+          !_containsToken(base, '{{country3}}')) {
+        throw const FormatException(
+            'base must use {{country}} so it works for every country');
+      }
+      final pair = usedTokens.intersection(pairTokens);
+      if (pair.isNotEmpty) {
+        throw FormatException('${pair.map((t) => '{{$t}}').join(', ')} '
+            'need a pair pack ("countries": 2)');
+      }
+    }
+    for (final k in heroes.keys) {
+      _checkKey(k, 'hero');
+    }
+    for (final k in locks.keys) {
+      _checkKey(k, 'lock');
+    }
+    for (final k in overrides.keys) {
+      if (SignaturePair.isPairKey(k)) {
+        if (!isPair) {
+          throw FormatException(
+              'override "$k" is a pair, but this is a single-country pack');
+        }
+        SignaturePair.parse(k);
+      }
     }
 
     // Every other token needs a default, so the Lab can always render.
@@ -227,7 +402,9 @@ class SignatureRecipe {
     }
 
     // The base must be a real recipe once a country is filled in.
-    final sample = instantiate('us');
+    Map<String, Object?> fill() =>
+        isPair ? instantiatePair(firstPair.a, firstPair.b) : instantiate('us');
+    final sample = fill();
     try {
       DesignRecipe.fromJson(sample);
     } catch (e) {
@@ -248,7 +425,7 @@ class SignatureRecipe {
         ValueSet(:final values) => values,
       };
       for (final v in probes) {
-        final probe = instantiate('us');
+        final probe = fill();
         path.write(probe, v);
         try {
           DesignRecipe.fromJson(probe);
@@ -258,8 +435,17 @@ class SignatureRecipe {
       }
     }
     for (final o in overrides.entries) {
+      final countryInPair = isPair && !SignaturePair.isPairKey(o.key);
       for (final p in o.value.params.entries) {
-        _checkValue(p.key, p.value, sample, 'override ${o.key}');
+        if (p.key.contains(slotSegment) && !countryInPair) {
+          throw FormatException('override ${o.key}: "${p.key}" uses '
+              '$slotSegment, which only a country override in a pair pack has');
+        }
+        // A {slot} path must be valid for either slot.
+        for (final slot in countryInPair ? const [0, 1] : const [-1]) {
+          final path = slot < 0 ? p.key : slotPath(p.key, slot);
+          _checkValue(path, p.value, sample, 'override ${o.key}');
+        }
       }
     }
     for (final h in heroes.entries) {
@@ -270,6 +456,19 @@ class SignatureRecipe {
         }
         _checkValue(p.key, p.value, sample, 'hero ${h.key}');
       }
+    }
+  }
+
+  void _checkKey(String key, String what) {
+    if (isPair) {
+      if (!SignaturePair.isPairKey(key)) {
+        throw FormatException(
+            '$what "$key" must be a country pair ("a+b") in a pair pack');
+      }
+      SignaturePair.parse(key);
+    } else if (SignaturePair.isPairKey(key)) {
+      throw FormatException(
+          '$what "$key" is a pair, but this is a single-country pack');
     }
   }
 
@@ -330,7 +529,8 @@ Object? _substitute(Object? node, Map<String, String> tokens) {
   }
   if (node is Map) {
     return <String, Object?>{
-      for (final e in node.entries) e.key.toString(): _substitute(e.value, tokens),
+      for (final e in node.entries)
+        e.key.toString(): _substitute(e.value, tokens),
     };
   }
   if (node is List) return [for (final v in node) _substitute(v, tokens)];
