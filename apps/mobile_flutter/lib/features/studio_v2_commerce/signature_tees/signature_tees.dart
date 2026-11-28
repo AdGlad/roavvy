@@ -110,6 +110,9 @@ List<SignatureTee> teesFor(
   final cc = countryCode.toLowerCase();
   final out = <SignatureTee>[];
   for (final pack in packs) {
+    // Two-country packs (Curtain Split, ADR-185) need a pair, not one
+    // country; they reach the app through the pair flow (M213).
+    if (pack.isPair) continue;
     final needsTrip = pack.tokens.keys.any(kTripTokens.contains);
     if (needsTrip && trip == null) continue;
     try {
