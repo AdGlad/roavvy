@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/country_names.dart';
-import 'torn_flag_tee_widgets.dart';
-import 'torn_flag_tees.dart';
+import 'signature_tee_widgets.dart';
+import 'signature_tees.dart';
 
-/// "My tees" (M200): one torn-flag tee for every country visited, the most
+/// "My tees" (M200): signature tees for every country visited, the most
 /// recently discovered first. Tapping one opens its product page.
 ///
 /// Opened only through `CommerceEntry.openMyTees`.
@@ -35,7 +35,7 @@ class MyTeesScreen extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Text(
-                  'Every country you visit gets its own torn flag tee. '
+                  'Every country you visit gets its own tees. '
                   'Scan your photos to find yours.',
                   textAlign: TextAlign.center,
                 ),
@@ -64,7 +64,7 @@ class MyTeesScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
-                        Expanded(child: TornFlagTeeArt(countryCode: cc)),
+                        Expanded(child: SignatureTeeArt(countryCode: cc)),
                         const SizedBox(height: 8),
                         Text(
                           kCountryNames[cc] ?? cc,

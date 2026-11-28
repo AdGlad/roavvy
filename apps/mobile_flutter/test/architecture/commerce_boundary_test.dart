@@ -88,7 +88,7 @@ void main() {
     expect(violations, isEmpty);
   });
 
-  test('torn-flag tee widgets are only reached through CommerceEntry', () {
+  test('signature tee widgets are only reached through CommerceEntry', () {
     // M200: the tee cards are not screens, so the rule above would let a
     // feature import one and show it ungated. They come from CommerceEntry
     // (which wraps each in CommerceGate) instead.
@@ -101,7 +101,7 @@ void main() {
       for (final line in file.readAsLinesSync()) {
         final m = importRe.firstMatch(line);
         if (m != null &&
-            m.group(1)!.contains('studio_v2_commerce/torn_flag/')) {
+            m.group(1)!.contains('studio_v2_commerce/signature_tees/')) {
           violations.add('$rel → ${m.group(1)}');
         }
       }
@@ -115,16 +115,16 @@ void main() {
       isCommerceRoute('features/studio_v2_commerce/studio_v2_entry.dart'),
       isTrue,
     );
-    // M200: the torn-flag tee product page and My tees are commerce screens.
+    // M200: the signature tee product page and My tees are commerce screens.
     expect(
       isCommerceRoute(
-        'features/studio_v2_commerce/torn_flag/torn_flag_tee_screen.dart',
+        'features/studio_v2_commerce/signature_tees/signature_tee_screen.dart',
       ),
       isTrue,
     );
     expect(
       isCommerceRoute(
-        'features/studio_v2_commerce/torn_flag/my_tees_screen.dart',
+        'features/studio_v2_commerce/signature_tees/my_tees_screen.dart',
       ),
       isTrue,
     );

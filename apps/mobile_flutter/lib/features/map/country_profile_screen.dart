@@ -348,7 +348,7 @@ class _Body extends StatelessWidget {
         _StatsStrip(stats: detail.stats, accentColor: accentColor),
         const SizedBox(height: 16),
         // Your torn flag tee — commerce only, hidden otherwise (ADR-180).
-        CommerceEntry.tornFlagTeeCard(isoCode),
+        CommerceEntry.signatureTeeCard(isoCode),
         // Region map with interactive visited-region polygons
         if (detail.totalRegions > 0)
           _InlineRegionMap(

@@ -29,23 +29,26 @@ import 'package:mobile_flutter/features/stats/stats_screen.dart';
 import 'package:mobile_flutter/features/studio_v2/commerce/garment_cart_request.dart';
 import 'package:mobile_flutter/features/studio_v2_commerce/studio_v2_cart_adapter.dart';
 import 'package:mobile_flutter/features/studio_v2_commerce/studio_v2_cart_service.dart';
-import 'package:mobile_flutter/features/studio_v2_commerce/torn_flag/my_tees_screen.dart';
-import 'package:mobile_flutter/features/studio_v2_commerce/torn_flag/torn_flag_tee_screen.dart';
-import 'package:mobile_flutter/features/studio_v2_commerce/torn_flag/torn_flag_tees.dart';
+import 'package:mobile_flutter/features/studio_v2_commerce/signature_tees/my_tees_screen.dart';
+import 'package:mobile_flutter/features/studio_v2_commerce/signature_tees/signature_tee_screen.dart';
+import 'package:mobile_flutter/features/studio_v2_commerce/signature_tees/signature_tees.dart';
 import 'package:mobile_flutter/features/travel_timeline/trip_detail_sheet.dart';
 import 'package:shared_models/shared_models.dart';
 
-/// M200 — the torn-flag tee in the app.
+/// M200 — signature tees in the app.
 ///
-/// The real `torn_flag` pack is read from the package so the recipes under
-/// test are the ones that ship. Nothing renders (the resolver refuses every
+/// The real `torn_flag` and `passport_stamp` packs are read from the package
+/// so the recipes under test are the ones that ship (passport_stamp is the
+/// one that needs a dated trip). Nothing renders (the resolver refuses every
 /// flag, so previews stay on their placeholder) and nothing reaches Firebase
 /// or Shopify: every provider that would is overridden.
-final SignatureRecipe _pack = SignaturePackCodec.decode(
+SignatureRecipe _load(String id) => SignaturePackCodec.decode(
   File(
-    '../../packages/design_studio/assets/signature/torn_flag.pack.json',
+    '../../packages/design_studio/assets/signature/$id.pack.json',
   ).readAsStringSync(),
 );
+final SignatureRecipe _pack = _load('torn_flag');
+final SignatureRecipe _stamp = _load('passport_stamp');
 
 class _NoRender implements AssetResolver {
   @override
@@ -77,18 +80,19 @@ List<Override> _overrides({
   required bool commerce,
   bool pack = true,
   List<EffectiveVisitedCountry> visits = const [],
+  List<TripRecord> trips = const [],
 }) => [
   commerceBuildProvider.overrideWithValue(commerce),
   commerceRemoteSwitchProvider.overrideWithValue(true),
   signatureCatalogProvider.overrideWith(
-    (ref) async => SignatureCatalog(pack ? [_pack] : const []),
+    (ref) async => SignatureCatalog(pack ? [_pack, _stamp] : const []),
   ),
-  tornFlagRenderServiceProvider.overrideWithValue(RenderService(_NoRender())),
+  signatureTeeRenderServiceProvider.overrideWithValue(RenderService(_NoRender())),
   shopifyPricingProvider.overrideWith(
     (ref) async => const MerchPrices(tshirtFromPrice: r'$39.00'),
   ),
   effectiveVisitsProvider.overrideWith((ref) async => visits),
-  tripListProvider.overrideWith((ref) async => const <TripRecord>[]),
+  tripListProvider.overrideWith((ref) async => trips),
   // Celebration globe.
   polygonsProvider.overrideWithValue(const []),
   countryVisualStatesProvider.overrideWithValue(const {}),
@@ -114,14 +118,17 @@ EffectiveVisitedCountry _visit(String cc, [DateTime? first]) =>
 void main() {
   setUpAll(() => driftRuntimeOptions.dontWarnAboutMultipleDatabases = true);
 
-  group('torn flag tees — model', () {
+  group('signature tees — model', () {
     test('a country gets the pack hero, lower-cased', () {
       final container = ProviderContainer(
         overrides: _overrides(commerce: true),
       );
       addTearDown(container.dispose);
       return container.read(signatureCatalogProvider.future).then((_) {
-        final r = container.read(tornFlagRecipeProvider('FR'));
+        final r =
+            container
+                .read(signatureTeeProvider((countryCode: 'FR', packId: null)))
+                ?.recipe;
         expect(r, isNotNull);
         expect(r!.recipeId, SignatureResolver.hero(_pack, 'fr').recipeId);
         expect(r.content.flags.single.code, 'fr');
@@ -134,11 +141,65 @@ void main() {
       );
       addTearDown(container.dispose);
       await container.read(signatureCatalogProvider.future);
-      expect(container.read(tornFlagRecipeProvider('FR')), isNull);
+      expect(
+        container.read(signatureTeeProvider((countryCode: 'FR', packId: null))),
+        isNull,
+      );
+      expect(container.read(signatureTeesProvider('FR')), isEmpty);
+    });
+
+    test('a trip-dated design needs a trip, and carries its dates', () {
+      final trip = TripRecord(
+        id: 'fr1',
+        countryCode: 'FR',
+        startedOn: DateTime(2019, 5, 1),
+        endedOn: DateTime(2019, 5, 9),
+        photoCount: 12,
+        isManual: false,
+      );
+      expect([for (final t in teesFor([_pack, _stamp], 'FR')) t.pack.id], [
+        'torn_flag',
+      ]);
+      final tees = teesFor([_pack, _stamp], 'FR', trip: trip);
+      expect([for (final t in tees) t.pack.id], ['torn_flag', 'passport_stamp']);
+      final stamp = tees.last.recipe;
+      expect(
+        stamp.recipeId,
+        SignatureResolver.hero(
+          _stamp,
+          'fr',
+          tokens: {'entry': '01 MAY 19', 'exit': '09 MAY 19'},
+        ).recipeId,
+      );
+      expect(
+        stamp.recipeId,
+        isNot(SignatureResolver.hero(_stamp, 'fr').recipeId),
+        reason: 'never the sample dates',
+      );
+    });
+
+    test('the latest trip to the country fills the dates', () {
+      TripRecord t(String cc, DateTime start) => TripRecord(
+        id: '$cc$start',
+        countryCode: cc,
+        startedOn: start,
+        endedOn: start.add(const Duration(days: 3)),
+        photoCount: 1,
+        isManual: false,
+      );
+      final trips = [
+        t('FR', DateTime(2017, 2, 3)),
+        t('fr', DateTime(2022, 11, 30)),
+        t('JP', DateTime(2024, 1, 1)),
+      ];
+      expect(latestTrip(trips, 'FR')!.startedOn, DateTime(2022, 11, 30));
+      expect(latestTrip(trips, 'IT'), isNull);
+      expect(stampDate(DateTime(2022, 11, 30)), '30 NOV 22');
+      expect(stampDate(DateTime(2005, 3, 4)), '04 MAR 05');
     });
 
     test('only orderable colours are offered', () {
-      final names = [for (final g in tornFlagGarments) g.$2];
+      final names = [for (final g in teeGarments) g.$2];
       expect(names, isNot(contains('Orange')));
       expect(names, isNot(contains('Royal')));
       expect(names, containsAll(['Black', 'White', 'Navy', 'Red']));
@@ -161,9 +222,9 @@ void main() {
 
     test('the cart request carries the approved recipe untouched', () {
       final recipe = SignatureResolver.hero(_pack, 'fr');
-      final r = buildTornFlagCartRequest(
+      final r = buildSignatureTeeCartRequest(
         service: RenderService(_NoRender()),
-        recipe: recipe,
+        tee: (pack: _pack, recipe: recipe),
         countryCode: 'FR',
         garment: ('#0F1830', 'Navy'),
         trips: [
@@ -195,7 +256,7 @@ void main() {
       expect(r.selectedCountryCodes, ['fr']);
       expect([for (final t in r.trips) t.countryCode], ['fr']);
       expect(r.aspectRatio, 4 / 5);
-      expect(r.title, 'France');
+      expect(r.title, 'France · Torn Flag');
       expect(StudioV2CartAdapter.map(r).colourName, 'Blue');
     });
   });
@@ -209,7 +270,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           _overrides(commerce: true),
-          TornFlagTeeScreen(
+          SignatureTeeScreen(
             countryCode: 'jp',
             onAddToCart: (context, r, o) async => sent.add((r, o)),
           ),
@@ -254,13 +315,90 @@ void main() {
       expect(o.size, 'L');
     });
 
+    testWidgets('switching design sends that design to the cart', (
+      tester,
+    ) async {
+      await _tall(tester);
+      final trip = TripRecord(
+        id: 'jp1',
+        countryCode: 'JP',
+        startedOn: DateTime(2024, 3, 12),
+        endedOn: DateTime(2024, 3, 26),
+        photoCount: 40,
+        isManual: false,
+      );
+      final sent = <GarmentCartRequest>[];
+      await tester.pumpWidget(
+        _app(
+          _overrides(commerce: true, trips: [trip]),
+          SignatureTeeScreen(
+            countryCode: 'JP',
+            onAddToCart: (context, r, o) async => sent.add(r),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Torn Flag · Japan'), findsOneWidget);
+      expect(find.byKey(const Key('tee-design-torn_flag')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('tee-design-passport_stamp')));
+      await tester.pump();
+      expect(find.text('Passport Stamp · Japan'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('tee-size-M')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('tee-add-to-cart')));
+      await tester.pumpAndSettle();
+      expect(
+        sent.single.garment.back!.recipeId,
+        SignatureResolver.hero(
+          _stamp,
+          'jp',
+          tokens: tripTokens(trip),
+        ).recipeId,
+      );
+      expect(sent.single.title, 'Japan · Passport Stamp');
+    });
+
+    testWidgets('opens on the requested design', (tester) async {
+      await _tall(tester);
+      final trip = TripRecord(
+        id: 'jp1',
+        countryCode: 'JP',
+        startedOn: DateTime(2024, 3, 12),
+        endedOn: DateTime(2024, 3, 26),
+        photoCount: 40,
+        isManual: false,
+      );
+      await tester.pumpWidget(
+        _app(
+          _overrides(commerce: true, trips: [trip]),
+          const SignatureTeeScreen(countryCode: 'JP', packId: 'passport_stamp'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Passport Stamp · Japan'), findsOneWidget);
+    });
+
+    testWidgets('a single design shows no design row', (tester) async {
+      await _tall(tester);
+      await tester.pumpWidget(
+        _app(
+          _overrides(commerce: true),
+          const SignatureTeeScreen(countryCode: 'JP', packId: 'passport_stamp'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // No trip: the stamp isn't offered, so the default design shows.
+      expect(find.text('Torn Flag · Japan'), findsOneWidget);
+      expect(find.byKey(const Key('tee-designs')), findsNothing);
+    });
+
     testWidgets('without the pack it says so instead of selling nothing', (
       tester,
     ) async {
       await tester.pumpWidget(
         _app(
           _overrides(commerce: true, pack: false),
-          const TornFlagTeeScreen(countryCode: 'JP'),
+          const SignatureTeeScreen(countryCode: 'JP'),
         ),
       );
       await tester.pumpAndSettle();
@@ -307,16 +445,16 @@ void main() {
       tester,
     ) async {
       await pump(tester, commerce: true);
-      expect(find.text('Your torn flag tee'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('torn-flag-tee-card-FR')));
+      expect(find.text('Your France tees'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('signature-tee-card-open-FR')));
       await tester.pumpAndSettle();
-      expect(find.byType(TornFlagTeeScreen), findsOneWidget);
+      expect(find.byType(SignatureTeeScreen), findsOneWidget);
     });
 
     testWidgets('shows nothing when commerce is off', (tester) async {
       await pump(tester, commerce: false);
-      expect(find.text('Your torn flag tee'), findsNothing);
-      expect(find.byKey(const Key('torn-flag-tee-card-FR')), findsNothing);
+      expect(find.text('Your France tees'), findsNothing);
+      expect(find.byKey(const Key('signature-tee-card-FR')), findsNothing);
     });
   });
 
@@ -363,18 +501,18 @@ void main() {
       tester,
     ) async {
       await pump(tester, commerce: true);
-      expect(find.byKey(const Key('torn-flag-tee-card-IT')), findsOneWidget);
-      await tester.tap(find.byKey(const Key('torn-flag-tee-card-IT')));
+      expect(find.byKey(const Key('signature-tee-card-IT')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('signature-tee-card-open-IT')));
       await tester.pumpAndSettle();
       expect(find.byType(TripDetailSheet), findsNothing);
-      expect(find.byType(TornFlagTeeScreen), findsOneWidget);
+      expect(find.byType(SignatureTeeScreen), findsOneWidget);
     });
 
     testWidgets('shows nothing when commerce is off', (tester) async {
       await pump(tester, commerce: false);
       expect(find.byType(TripDetailSheet), findsOneWidget);
-      expect(find.byKey(const Key('torn-flag-tee-card-IT')), findsNothing);
-      expect(find.text('Your torn flag tee'), findsNothing);
+      expect(find.byKey(const Key('signature-tee-card-IT')), findsNothing);
+      expect(find.text('Your Italy tees'), findsNothing);
     });
   });
 
@@ -400,7 +538,7 @@ void main() {
       await tester.tap(find.byKey(const Key('celebration-get-tee')));
       await drain(tester);
       await tester.pumpAndSettle();
-      expect(find.byType(TornFlagTeeScreen), findsOneWidget);
+      expect(find.byType(SignatureTeeScreen), findsOneWidget);
     });
 
     testWidgets('single country: nothing when commerce is off', (tester) async {
@@ -483,7 +621,7 @@ void main() {
           find.byKey(const Key('my-tees-card')),
           commerce ? findsOneWidget : findsNothing,
         );
-        if (commerce) expect(find.textContaining('3 torn flag tees'), findsOne);
+        if (commerce) expect(find.textContaining('all 3 countries'), findsOne);
       });
     }
 
@@ -518,7 +656,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('my-tee-BR')));
       await tester.pumpAndSettle();
-      expect(find.byType(TornFlagTeeScreen), findsOneWidget);
+      expect(find.byType(SignatureTeeScreen), findsOneWidget);
       expect(find.text('Brazil'), findsWidgets);
     });
 
@@ -542,7 +680,7 @@ void main() {
                   children: [
                     TextButton(
                       onPressed:
-                          () => CommerceEntry.openTornFlagTee(context, 'FR'),
+                          () => CommerceEntry.openSignatureTee(context, 'FR'),
                       child: const Text('tee'),
                     ),
                     TextButton(
@@ -558,7 +696,7 @@ void main() {
     for (final label in ['tee', 'tees']) {
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();
-      expect(find.byType(TornFlagTeeScreen), findsNothing);
+      expect(find.byType(SignatureTeeScreen), findsNothing);
       expect(find.byType(MyTeesScreen), findsNothing);
     }
   });

@@ -14,9 +14,9 @@ import '../merch/merch_orders_screen.dart';
 import '../merch/merch_shop_screen.dart';
 import '../merch/pulse_merch_option_screen.dart';
 import '../studio_v2_commerce/studio_v2_entry.dart';
-import '../studio_v2_commerce/torn_flag/my_tees_screen.dart';
-import '../studio_v2_commerce/torn_flag/torn_flag_tee_screen.dart';
-import '../studio_v2_commerce/torn_flag/torn_flag_tee_widgets.dart';
+import '../studio_v2_commerce/signature_tees/my_tees_screen.dart';
+import '../studio_v2_commerce/signature_tees/signature_tee_screen.dart';
+import '../studio_v2_commerce/signature_tees/signature_tee_widgets.dart';
 
 export '../merch/merch_cart_screen.dart' show merchCartCountProvider;
 
@@ -106,30 +106,37 @@ abstract final class CommerceEntry {
   static Future<void> openOrders(BuildContext context) =>
       _push(context, (_) => const MerchOrdersScreen());
 
-  /// The torn-flag tee product page for [countryCode] (M200).
-  static Future<void> openTornFlagTee(
+  /// The signature tee product page for [countryCode] (M200), opened on
+  /// design [packId] (null: the country's default design).
+  static Future<void> openSignatureTee(
     BuildContext context,
-    String countryCode,
-  ) => _push(
+    String countryCode, {
+    String? packId,
+  }) => _push(
     context,
-    (_) => TornFlagTeeScreen(countryCode: countryCode.toUpperCase()),
+    (_) => SignatureTeeScreen(
+      countryCode: countryCode.toUpperCase(),
+      packId: packId,
+    ),
   );
 
-  /// "My tees": one torn-flag tee per visited country (M200).
+  /// "My tees": signature tees for every visited country (M200).
   static Future<void> openMyTees(BuildContext context) =>
-      _push(context, (_) => const MyTeesScreen(onOpenTee: openTornFlagTee));
+      _push(context, (_) => const MyTeesScreen(onOpenTee: openSignatureTee));
 
-  /// The "Your torn flag tee" card for a visited country (country page, trip
-  /// sheet). Hidden when commerce is off or there is no tee for the country.
-  /// [onOpen] replaces the default tap (e.g. to close a sheet first); it
-  /// should still open the tee through [openTornFlagTee].
-  static Widget tornFlagTeeCard(
+  /// The "Your (country) tees" card for a visited country (country page,
+  /// trip sheet): every signature design, in a row. Hidden when commerce is
+  /// off or there is no tee for the country. [onOpen] replaces the default
+  /// tap (e.g. to close a sheet first); it should still open the tee through
+  /// [openSignatureTee].
+  static Widget signatureTeeCard(
     String countryCode, {
-    void Function(BuildContext context)? onOpen,
+    OpenTee? onOpen,
   }) => CommerceGate(
-    child: TornFlagTeeCard(
+    child: SignatureTeeCard(
       countryCode: countryCode,
-      onOpen: onOpen ?? (c) => openTornFlagTee(c, countryCode),
+      onOpen:
+          onOpen ?? (c, id) => openSignatureTee(c, countryCode, packId: id),
     ),
   );
 
@@ -137,7 +144,7 @@ abstract final class CommerceEntry {
   static Widget celebrationTee(String countryCode) => CommerceGate(
     child: CelebrationTee(
       countryCode: countryCode,
-      onOpen: (c) => openTornFlagTee(c, countryCode),
+      onOpen: (c, id) => openSignatureTee(c, countryCode, packId: id),
     ),
   );
 

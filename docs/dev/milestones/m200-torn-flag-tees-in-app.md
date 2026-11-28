@@ -1,4 +1,4 @@
-# M200 — Torn Flag tees in the app (country page, My tees, trip sheet, celebration)
+# M200 — Signature tees in the app (country page, My tees, trip sheet, celebration)
 
 **Phase:** v2 Signature T-shirts (M190–M199, follow-on)
 **Depends on:** M190 (Signature Recipe engine), M191 (Lab workbench), M192 work on `feat/m192-torn-flag-signature` (rotation, outline)
@@ -82,3 +82,28 @@ Rendering: `TornFlagTeeArt` → `ShirtPreview` (back face, `longSide` 600, trans
 - **Outline on the print file (flagged, not changed: package code).** The production print renderer (`design_studio/production_render.dart`) renders on a transparent background, and `Keyline.autoFor(transparent)` picks the *light* outline. If the pack later turns on `outlineWidth` with `outlineColour: auto`, a white or grey shirt's print file would get a light outline while the preview shows a dark one. Today the pack's `outlineWidth` is 0, so nothing is affected. When the outline is enabled, the production renderer needs the shirt colour (or the pack should pin a fixed outline colour).
 - **Garment identity.** The headless session's `GarmentDesign` carries no colour, because the hero's palette has none, so `garmentId` is the same across shirt colours. The cart's `configId` adds a timestamp, and the colour is recorded on the cart item, so orders stay distinct.
 - **Fulfilment gate unchanged.** Orders still stop at "Print files ready" while `studioV2FulfilmentEnabledProvider` is closed (M26.1).
+
+## 6. Generalised to every Signature design (2026-11-28)
+
+The torn flag was the first pack; there are now ten (Torn Flag, Passport Stamp, Watercolour Heart, Watercolour Splash, Flag Globe, Varsity Letters, Flag Star, I ♥ Country, Tie-Dye Flag, Spiral Tie-Dye). Every tee surface now offers every bundled pack, not just `torn_flag`.
+
+**Code moved/renamed:** `studio_v2_commerce/torn_flag/` → `studio_v2_commerce/signature_tees/` (`signature_tees.dart`, `signature_tee_widgets.dart`, `signature_tee_screen.dart`, `my_tees_screen.dart`). Seam: `CommerceEntry.openSignatureTee(context, cc, {packId})`, `signatureTeeCard`, `celebrationTee`, `myTeesCard`, `openMyTees`.
+
+**Model**
+- `signaturePacksProvider` — all bundled packs, in `index.json` order. Drafts are still dropped in release builds by `SignatureCatalog.load`, so a pack reaches users only once approved in the Lab.
+- `teesFor(packs, cc, {trip})` / `signatureTeesProvider(cc)` — the designs a country gets, in pack order. `signatureTeeProvider((countryCode, packId))` — one design; null packId = the default (first).
+- **Trip tokens.** Passport Stamp uses `{{entry}}`/`{{exit}}`. Its pack defaults are sample dates (`12 MAR 24`), which must never be printed on someone's shirt, so a pack using a trip token is only offered when the traveller has a dated trip to the country, and is filled from the most recent one (`tripTokens`, `stampDate` → `12 MAR 24`). Such a recipe's `recipeId` differs from the locked hero (the dates are part of it); untokenised packs keep the approved id exactly.
+- Cart title is `"<Country> · <Design>"`.
+
+**UI**
+- Country page / trip sheet card: "Your <Country> tees", "N designs · from $price", and a horizontal row of every design; tapping a design opens it, tapping the header opens the default.
+- Product page: a design row under the shirt (hidden when the country has one design); title "<Design> · <Country>"; colour, size, Add to cart unchanged.
+- Celebration and My tees show the default design; the product page offers the rest.
+
+**Fix found on the way:** the torn flag probes `official/<cc>` artwork (exists only for the US) on every render. The bundle resolver now answers a miss from the asset manifest, as an error future rather than a throw: throwing in an async continuation of the bundle's `SynchronousFuture` escaped as an unhandled error even though the caller catches it (a non-fatal error on every non-US torn-flag render).
+
+**Tests**
+- `signature_tees_test.dart` (+5): trip-dated design needs a trip and carries its dates; latest trip wins; switching design sends that design to the cart; opening on a requested design; single design hides the design row.
+- `signature_tees_render_test.dart` (new): every bundled pack renders a visible tee for US/JP/NP/BR/ZA through the app's own asset bundle (production resolver), and every pack produces its 1800×2400 print file through the real cart path (`buildSignatureTeeCartRequest` → `renderPrintFiles`) with the approved recipe id. Print render times on the test host: 0.6 s (Flag Star) to 12 s (Spiral Tie-Dye).
+
+**Known issue (design, not integration):** Passport Stamp prints black redaction boxes where the dates sit, and the trip date isn't visible — in the Lab too. To fix in the pack/engine before approving it.

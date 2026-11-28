@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:design_forge_render/design_forge_render.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show AssetManifest, rootBundle;
 
 /// Mobile-safe [AssetResolver] for the Studio V2 render pipeline.
 ///
@@ -21,7 +21,7 @@ import 'package:flutter/services.dart' show rootBundle;
 AssetResolver createBundleAssetResolver() {
   final stamps = BundledPassportStamps();
   return SvgFlagResolver(
-    (code) => rootBundle.loadString('assets/flags/svg/$code.svg'),
+    (code) => _loadFlag('assets/flags/svg/$code.svg'),
     silhouetteLookup:
         (slug) => rootBundle.loadString('assets/silhouettes/$slug.svg'),
     countryOutlineLookup:
@@ -86,4 +86,27 @@ class BundledPassportStamps {
     final data = await rootBundle.load('$_pngDir$name');
     return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
   }
+}
+
+Set<String>? _bundledAssets;
+
+/// Loads a flag SVG. Alternative artwork (`official/<code>`) exists for only
+/// a few countries and is probed for every render, so a missing one is
+/// answered from the asset manifest rather than by a failed bundle load.
+///
+/// Deliberately not `async`: the bundle may answer with a
+/// `SynchronousFuture`, and an exception thrown in an async continuation of
+/// one escapes as an unhandled error even when the caller catches it. Here a
+/// miss is returned as an error future instead of thrown.
+Future<String> _loadFlag(String path) {
+  if (!path.contains('/official/')) return rootBundle.loadString(path);
+  Future<String> answer(Set<String> assets) =>
+      assets.contains(path)
+          ? rootBundle.loadString(path)
+          : Future<String>.error(StateError('no bundled flag at $path'));
+  final known = _bundledAssets;
+  if (known != null) return answer(known);
+  return AssetManifest.loadFromAssetBundle(rootBundle).then(
+    (m) => answer(_bundledAssets = m.listAssets().toSet()),
+  );
 }

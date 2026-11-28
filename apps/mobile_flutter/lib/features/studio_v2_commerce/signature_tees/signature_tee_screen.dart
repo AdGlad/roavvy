@@ -9,8 +9,8 @@ import '../../merch/shopify_pricing_repository.dart'
 import '../../studio_v2/commerce/garment_cart_request.dart';
 import '../studio_v2_cart_adapter.dart';
 import '../studio_v2_cart_service.dart' show StudioV2PurchaseOptions;
-import 'torn_flag_tee_widgets.dart';
-import 'torn_flag_tees.dart';
+import 'signature_tee_widgets.dart';
+import 'signature_tees.dart';
 
 /// Puts a tee in the cart. The default is the Studio V2 cart adapter; tests
 /// inject a recorder.
@@ -27,42 +27,55 @@ Future<void> _studioCart(
   StudioV2PurchaseOptions options,
 ) => const StudioV2CartAdapter().addToCart(context, r, options: options);
 
-/// The torn-flag tee product page (M200): the shirt, its colour, a size, the
-/// price, Add to cart. Nothing about the design can be changed here — it is
-/// the approved Signature hero for [countryCode], exactly.
+/// The signature tee product page (M200): the design, the shirt colour, a
+/// size, the price, Add to cart. The traveller picks one of the country's
+/// signature designs, but nothing about a design can be changed here — each
+/// is the approved Signature hero for [countryCode], exactly.
 ///
-/// Opened only through `CommerceEntry.openTornFlagTee`.
-class TornFlagTeeScreen extends ConsumerStatefulWidget {
-  const TornFlagTeeScreen({
+/// Opened only through `CommerceEntry.openSignatureTee`.
+class SignatureTeeScreen extends ConsumerStatefulWidget {
+  const SignatureTeeScreen({
     super.key,
     required this.countryCode,
+    this.packId,
     this.onAddToCart = _studioCart,
   });
 
   final String countryCode;
+
+  /// The design shown first; null (or a design the country doesn't have)
+  /// shows the country's default design.
+  final String? packId;
   final TeeAddToCart onAddToCart;
 
   @override
-  ConsumerState<TornFlagTeeScreen> createState() => _TornFlagTeeScreenState();
+  ConsumerState<SignatureTeeScreen> createState() =>
+      _SignatureTeeScreenState();
 }
 
-class _TornFlagTeeScreenState extends ConsumerState<TornFlagTeeScreen> {
-  late (String, String) _garment = tornFlagGarments.first;
+class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
+  late (String, String) _garment = teeGarments.first;
+  late String? _packId = widget.packId;
   String? _size;
   bool _adding = false;
 
   String get _cc => widget.countryCode.toUpperCase();
 
+  /// The selected tee, falling back to the default design.
+  SignatureTee? _tee(WidgetRef ref) =>
+      ref.watch(signatureTeeProvider((countryCode: _cc, packId: _packId))) ??
+      ref.watch(signatureTeeProvider((countryCode: _cc, packId: null)));
+
   Future<void> _addToCart() async {
-    final recipe = ref.read(tornFlagRecipeProvider(_cc));
-    final service = ref.read(tornFlagRenderServiceProvider);
+    final tee = _tee(ref);
+    final service = ref.read(signatureTeeRenderServiceProvider);
     final size = _size;
-    if (recipe == null || service == null || size == null || _adding) return;
+    if (tee == null || service == null || size == null || _adding) return;
     setState(() => _adding = true);
     try {
-      final request = buildTornFlagCartRequest(
+      final request = buildSignatureTeeCartRequest(
         service: service,
-        recipe: recipe,
+        tee: tee,
         countryCode: _cc,
         garment: _garment,
         trips: ref.read(tripListProvider).valueOrNull ?? const [],
@@ -79,7 +92,8 @@ class _TornFlagTeeScreenState extends ConsumerState<TornFlagTeeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final recipe = ref.watch(tornFlagRecipeProvider(_cc));
+    final tee = _tee(ref);
+    final tees = ref.watch(signatureTeesProvider(_cc));
     final loading = ref.watch(signatureCatalogProvider).isLoading;
     final name = kCountryNames[_cc] ?? _cc;
     final price = ref
@@ -91,7 +105,7 @@ class _TornFlagTeeScreenState extends ConsumerState<TornFlagTeeScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(name)),
       body:
-          recipe == null
+          tee == null
               ? Center(
                 child:
                     loading
@@ -112,13 +126,37 @@ class _TornFlagTeeScreenState extends ConsumerState<TornFlagTeeScreen> {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                        child: TornFlagTeeArt(
-                          key: const Key('tee-preview'),
+                        child: SignatureTeeArt(
+                          key: Key('tee-preview-${tee.pack.id}'),
                           countryCode: _cc,
+                          packId: tee.pack.id,
                           garmentColour: _garment.$1,
                         ),
                       ),
                     ),
+                    if (tees.length > 1)
+                      SizedBox(
+                        height: 92,
+                        child: ListView.separated(
+                          key: const Key('tee-designs'),
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                          itemCount: tees.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, i) {
+                            final t = tees[i];
+                            return _DesignChoice(
+                              key: Key('tee-design-${t.pack.id}'),
+                              countryCode: _cc,
+                              packId: t.pack.id,
+                              title: t.pack.title,
+                              garmentColour: _garment.$1,
+                              selected: t.pack.id == tee.pack.id,
+                              onTap: () => setState(() => _packId = t.pack.id),
+                            );
+                          },
+                        ),
+                      ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                       child: Column(
@@ -126,7 +164,7 @@ class _TornFlagTeeScreenState extends ConsumerState<TornFlagTeeScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Torn flag · $name',
+                            '${tee.pack.title} · $name',
                             style: text.titleLarge?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
@@ -149,7 +187,7 @@ class _TornFlagTeeScreenState extends ConsumerState<TornFlagTeeScreen> {
                             spacing: 10,
                             runSpacing: 8,
                             children: [
-                              for (final g in tornFlagGarments)
+                              for (final g in teeGarments)
                                 _Swatch(
                                   key: Key('tee-colour-${g.$2}'),
                                   hex: g.$1,
@@ -234,6 +272,57 @@ class _Swatch extends StatelessWidget {
               color: selected ? cs.primary : cs.outlineVariant,
               width: selected ? 3 : 1,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One design in the product page's design row: a small shirt, outlined when
+/// selected.
+class _DesignChoice extends StatelessWidget {
+  const _DesignChoice({
+    super.key,
+    required this.countryCode,
+    required this.packId,
+    required this.title,
+    required this.garmentColour,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String countryCode;
+  final String packId;
+  final String title;
+  final String garmentColour;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: title,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 72,
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? cs.primary : cs.outlineVariant,
+              width: selected ? 2.5 : 1,
+            ),
+          ),
+          padding: const EdgeInsets.all(4),
+          child: SignatureTeeArt(
+            countryCode: countryCode,
+            packId: packId,
+            garmentColour: garmentColour,
           ),
         ),
       ),
