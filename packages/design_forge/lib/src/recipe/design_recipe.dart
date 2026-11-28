@@ -6,6 +6,7 @@ import 'globe.dart';
 import 'split_pair.dart';
 import 'recipe_parts.dart';
 import 'torn_strips.dart';
+import 'heart_pair.dart';
 import 'watercolour.dart';
 import 'versions.dart';
 
@@ -466,6 +467,7 @@ class DesignRecipe {
     this.watercolour,
     this.globe,
     this.brushStroke,
+    this.heartPair,
     this.captions,
     this.splitPair,
     this.motifs = const [],
@@ -510,6 +512,9 @@ class DesignRecipe {
   /// The flag painted as one dry-brush stroke (Brush Flag); null = none.
   final BrushStroke? brushStroke;
 
+  /// Two flags in brushed hearts (Shared Heart / Twin Hearts); null = none.
+  final HeartPair? heartPair;
+
   /// Text above / below the artwork; null = none.
   final Captions? captions;
 
@@ -549,6 +554,7 @@ class DesignRecipe {
         if (watercolour != null) 'watercolour': watercolour!.toJson(),
         if (globe != null) 'globe': globe!.toJson(),
         if (brushStroke != null) 'brushStroke': brushStroke!.toJson(),
+        if (heartPair != null) 'heartPair': heartPair!.toJson(),
         if (captions != null) 'captions': captions!.toJson(),
         if (splitPair != null) 'splitPair': splitPair!.toJson(),
         if (motifs.isNotEmpty)
@@ -615,6 +621,7 @@ class DesignRecipe {
         watercolour: _obj(json['watercolour'], Watercolour.fromJson),
         globe: _obj(json['globe'], Globe.fromJson),
         brushStroke: _obj(json['brushStroke'], BrushStroke.fromJson),
+        heartPair: _obj(json['heartPair'], HeartPair.fromJson),
         captions: _obj(json['captions'], Captions.fromJson),
         splitPair: _obj(json['splitPair'], SplitPair.fromJson),
         motifs: [
@@ -642,6 +649,7 @@ class DesignRecipe {
     Watercolour? watercolour,
     Globe? globe,
     BrushStroke? brushStroke,
+    HeartPair? heartPair,
     Captions? captions,
     SplitPair? splitPair,
     List<Motif>? motifs,
@@ -662,6 +670,7 @@ class DesignRecipe {
         watercolour: watercolour ?? this.watercolour,
         globe: globe ?? this.globe,
         brushStroke: brushStroke ?? this.brushStroke,
+        heartPair: heartPair ?? this.heartPair,
         captions: captions ?? this.captions,
         splitPair: splitPair ?? this.splitPair,
         motifs: motifs ?? this.motifs,

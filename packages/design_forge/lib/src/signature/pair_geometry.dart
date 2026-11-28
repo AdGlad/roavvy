@@ -1,5 +1,6 @@
 import '../geo/flag_focus.dart';
 import '../recipe/design_recipe.dart';
+import 'heart_pair_layout.dart';
 import '../recipe/split_pair.dart';
 
 /// The part of one flag a two-country design shows (ADR-185 §4), in the
@@ -103,12 +104,17 @@ class PairGeometry {
 
   /// The geometry [recipe] draws, or null when its composition does not
   /// report one (single-flag designs, and pair compositions not yet wired).
-  static PairGeometry? of(DesignRecipe recipe) =>
-      switch (recipe.composition.family) {
-        DesignFamily.splitPair => _splitPair(recipe),
-        // Further pair compositions (M211 pairRow) add a case here.
-        _ => null,
-      };
+  static PairGeometry? of(DesignRecipe recipe) {
+    // Shared Heart / Twin Hearts (M210/M211).
+    final hearts = HeartPairLayout.ofRecipe(recipe);
+    if (hearts != null) {
+      return hearts.toPairGeometry(scale: recipe.composition.sizeClass.scale);
+    }
+    return switch (recipe.composition.family) {
+      DesignFamily.splitPair => _splitPair(recipe),
+      _ => null,
+    };
+  }
 
   /// [SplitPairLayout] on a unit-height canvas of the recipe's shape. Only
   /// unrotated designs report (a turned design's seam is not vertical-ish).

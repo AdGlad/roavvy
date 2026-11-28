@@ -1,0 +1,89 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "composition": {
+      "family": "singleHero",
+      "orientation": "square",
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{countryA}}",
+          "weight": 1.0
+        },
+        {
+          "code": "{{countryB}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "heartPair": {
+      "crossHatch": 0.0,
+      "frayed": false,
+      "gap": 0.05,
+      "hatchAngle": -38.0,
+      "hatchWidth": 0.065,
+      "heartScale": 0.8,
+      "layout": "shared",
+      "scratches": 0.85,
+      "seamCurve": 0.35,
+      "seamLean": 0.0,
+      "seamPosition": 0.5,
+      "spill": 0.45,
+      "squeeze": 0.35,
+      "streaks": 0.4,
+      "tails": 0.9,
+      "tilt": 8.0
+    },
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "countries": 2,
+  "envelope": {
+    "heartPair.hatchAngle": {
+      "max": -32,
+      "min": -48
+    },
+    "heartPair.scratches": {
+      "max": 1.0,
+      "min": 0.7
+    },
+    "heartPair.seamCurve": {
+      "max": 0.6,
+      "min": -0.6
+    },
+    "heartPair.seamLean": {
+      "max": 0.4,
+      "min": -0.4
+    },
+    "heartPair.spill": {
+      "max": 0.8,
+      "min": 0.5
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "shared_heart",
+  "locks": {
+    "fr+it": "1de6e8d6f1397cf1",
+    "id+mc": "611bf0a44e08089f",
+    "jp+kr": "22388dfa9fcfe147",
+    "mx+pt": "0b495c5a5222a593",
+    "np+ch": "2c8b36341d3f6b91",
+    "us+co": "3f800aa66409f198"
+  },
+  "notes": "Two countries in one heart (M210, ADR-185): A in the left lobe, B in the right, scribbled dry-brush edge, light scratches. Style reference only: ~/Downloads/1-heart-2-countries.jpg.",
+  "overrides": {},
+  "status": "draft",
+  "title": "Shared Heart",
+  "version": 1
+}

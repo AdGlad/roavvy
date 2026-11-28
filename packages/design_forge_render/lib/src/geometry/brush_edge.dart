@@ -295,6 +295,237 @@ class BrushEdge {
     return out;
   }
 
+  /// Paints [shape] as hatched dry-brush strokes (the scribbled-heart look,
+  /// M210/M211): parallel strokes [width] px thick at [angleDeg] (0 =
+  /// horizontal) that overlap to cover the inside solidly, while their round
+  /// ends spill past the outline or stop just short of it ([spill]). Thin
+  /// bristle tails trail from some ends ([tails]); dry streaks — thin unpainted
+  /// lines — run in from others ([streaks], drawn with `dstOut`, so call this
+  /// inside its own `saveLayer`). White on transparent: use it as a mask.
+  ///
+  /// Where a stroke line leaves the shape and re-enters it (a heart's top
+  /// notch), its ends never bridge more than a third of the gap, so concave
+  /// parts stay open. Seeded; sizes scale with [width].
+  static void paintHatch(
+    ui.Canvas canvas,
+    ui.Path shape, {
+    required double angleDeg,
+    required double width,
+    double spill = 0.5,
+    double tails = 0.5,
+    double streaks = 0.3,
+    bool frayed = false,
+    required int seed,
+  }) {
+    final b = shape.getBounds();
+    if (b.isEmpty || width <= 0) return;
+    final s0 = seed & 0x7FFFFFFF;
+    final a = angleDeg * math.pi / 180;
+    // Frayed ends: square-cut strokes whose ends break into a fan of
+    // bristles of different lengths (Twin Hearts); otherwise round ends
+    // (the scalloped Shared Heart look).
+    final dir = ui.Offset(math.cos(a), math.sin(a));
+    final nrm = ui.Offset(-dir.dy, dir.dx);
+    final c = b.center;
+    // Extent of the shape's box along the stroke and across it.
+    double proj(ui.Offset p, ui.Offset axis) =>
+        (p.dx - c.dx) * axis.dx + (p.dy - c.dy) * axis.dy;
+    final corners = [b.topLeft, b.topRight, b.bottomLeft, b.bottomRight];
+    final along = corners.map((p) => proj(p, dir)).toList();
+    final across = corners.map((p) => proj(p, nrm)).toList();
+    final aMin = along.reduce(math.min) - width,
+        aMax = along.reduce(math.max) + width;
+    final cMin = across.reduce(math.min) - width,
+        cMax = across.reduce(math.max) + width;
+
+    final unit = math.max(b.width, b.height);
+    final spillLen = unit * 0.045 * spill.clamp(0.0, 1.5);
+    final step = math.max(0.5, width * 0.12);
+    final spacing = width * 0.62;
+    final white = ui.Paint()
+      ..color = const ui.Color(0xFFFFFFFF)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeCap = frayed ? ui.StrokeCap.butt : ui.StrokeCap.round
+      ..isAntiAlias = true;
+    final bristle = ui.Paint()
+      ..color = const ui.Color(0xFFFFFFFF)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeCap = ui.StrokeCap.round
+      ..isAntiAlias = true;
+    final cut = ui.Paint()
+      ..style = ui.PaintingStyle.stroke
+      ..strokeCap = ui.StrokeCap.round
+      ..blendMode = ui.BlendMode.dstOut
+      ..isAntiAlias = true;
+    final gaps = <(ui.Offset, ui.Offset, double, double)>[];
+
+    var k = 0;
+    for (var o = cMin; o <= cMax; o += spacing, k++) {
+      final off = o + spacing * 0.3 * (_hash(s0 ^ 0x4A7C, k) - 0.5);
+      final base = c + nrm * off;
+      bool inside(double t) => shape.contains(base + dir * t);
+      // Runs of the line inside the shape.
+      final runs = <(double, double)>[];
+      double? start;
+      var prev = false;
+      for (var t = aMin; t <= aMax; t += step) {
+        final now = inside(t);
+        if (now && !prev) start = _edge(inside, t - step, t);
+        if (!now && prev && start != null) {
+          runs.add((start, _edge(inside, t, t - step)));
+          start = null;
+        }
+        prev = now;
+      }
+      if (prev && start != null) runs.add((start, aMax));
+      for (var r = 0; r < runs.length; r++) {
+        var (t0, t1) = runs[r];
+        final room0 = r == 0 ? double.infinity : (t0 - runs[r - 1].$2) / 3;
+        final room1 =
+            r == runs.length - 1 ? double.infinity : (runs[r + 1].$1 - t1) / 3;
+        // Each end spills out (most) or stops short (some).
+        double ext(int salt, double room) => math.min(
+            room, spillLen * (1.5 * _hash(s0 ^ salt, k * 31 + r) - 0.45));
+        t0 -= ext(0x5E01, room0);
+        t1 += ext(0x5E02, room1);
+        final wk = width * (0.85 + 0.3 * _hash(s0 ^ 0x5E03, k * 31 + r));
+        if (t1 - t0 < wk * 0.2) continue;
+        // A whisker of angle jitter so strokes don't look ruled.
+        final jitter = (_hash(s0 ^ 0x5E04, k * 31 + r) - 0.5) * wk * 0.5;
+        final p0 = base + dir * t0 - nrm * (jitter * 0.5);
+        final p1 = base + dir * t1 + nrm * (jitter * 0.5);
+        canvas.drawLine(p0, p1, white..strokeWidth = wk);
+        // Bristle tails and dry streaks at either end (sign: inward).
+        for (final (end, sign, salt) in [
+          (p0, 1.0, 0x7A11),
+          (p1, -1.0, 0x7A21),
+        ]) {
+          final h0 = _hash(s0 ^ salt, k * 31 + r);
+          if (frayed) {
+            // A fan of bristles across the whole stroke width.
+            final nTail = 4 + (_hash(s0 ^ (salt + 1), k * 31 + r) * 4).floor();
+            for (var q = 0; q < nTail; q++) {
+              final id = k * 97 + r * 7 + q;
+              final hq = _hash(s0 ^ (salt + 2), id);
+              final off2 = ((q + 0.3 + 0.4 * hq) / nTail - 0.5) * wk;
+              final len = spillLen *
+                  (0.1 + 1.1 * math.pow(_hash(s0 ^ (salt + 3), id), 1.5)) *
+                  (0.4 + tails);
+              final from = end + nrm * off2 + dir * (sign * wk * 0.2);
+              canvas.drawLine(from, from - dir * (sign * len),
+                  bristle..strokeWidth = wk / nTail * (0.9 + 0.8 * hq));
+            }
+          } else if (h0 < tails * 0.8) {
+            final nTail = 1 + (_hash(s0 ^ (salt + 1), k) * 2.5).floor();
+            for (var q = 0; q < nTail; q++) {
+              final hq = _hash(s0 ^ (salt + 2), k * 97 + r * 7 + q);
+              final off2 = (hq - 0.5) * wk * 0.8;
+              final len = spillLen *
+                  (0.3 + 1.2 * _hash(s0 ^ (salt + 3), k * 97 + r * 7 + q));
+              final from = end + nrm * off2;
+              canvas.drawLine(from, from - dir * (sign * len),
+                  bristle..strokeWidth = wk * (0.1 + 0.18 * hq));
+            }
+          }
+          // Dry streaks: thin unpainted lines along the stroke, mostly
+          // starting at (or just inside) its end.
+          final run = t1 - t0;
+          for (var q = 0; q < 3; q++) {
+            final id = k * 97 + r * 7 + q;
+            final h1 = _hash(s0 ^ (salt + 4), id);
+            if (h1 >= streaks * (q == 0 ? 0.9 : 0.5)) continue;
+            final hq = _hash(s0 ^ (salt + 5), id);
+            final off2 = (hq - 0.5) * wk * 0.85;
+            final inset = run * 0.25 * math.pow(_hash(s0 ^ (salt + 7), id), 2);
+            final len = math.min(
+                run * 0.45,
+                unit *
+                    (0.03 + 0.12 * _hash(s0 ^ (salt + 6), id)) *
+                    (0.5 + streaks));
+            final from = end + nrm * off2 + dir * (sign * inset);
+            gaps.add((
+              from,
+              from + dir * (sign * len),
+              wk * (0.04 + 0.1 * hq),
+              0.6 + 0.4 * _hash(s0 ^ (salt + 8), id),
+            ));
+          }
+        }
+      }
+    }
+    for (final (p0, p1, w, alpha) in gaps) {
+      canvas.drawLine(
+          p0,
+          p1,
+          cut
+            ..strokeWidth = w
+            ..color = ui.Color.fromARGB(
+                (alpha.clamp(0.0, 1.0) * 255).round(), 255, 255, 255));
+    }
+  }
+
+  /// Scratches across a painted [shape] (distress): thin, slightly bent
+  /// knockout lines mostly along [angleDeg]; [amount] 0..1 sets how many.
+  /// Drawn with `dstOut`, so call inside the artwork's own `saveLayer`.
+  static void paintScratches(
+    ui.Canvas canvas,
+    ui.Path shape, {
+    required double angleDeg,
+    required double amount,
+    required int seed,
+  }) {
+    final a = amount.clamp(0.0, 1.0);
+    if (a <= 0) return;
+    final b = shape.getBounds();
+    if (b.isEmpty) return;
+    final s0 = seed & 0x7FFFFFFF;
+    final unit = math.max(b.width, b.height);
+    // Mostly short grain (worn-print scuffs), a few longer scratches; half
+    // run with the brush, half near-vertical.
+    final count = (a * 420).round();
+    final paint = ui.Paint()
+      ..style = ui.PaintingStyle.stroke
+      ..strokeCap = ui.StrokeCap.round
+      ..blendMode = ui.BlendMode.dstOut
+      ..isAntiAlias = true;
+    for (var i = 0; i < count; i++) {
+      final p = ui.Offset(b.left + b.width * _hash(s0 ^ 0x5C01, i),
+          b.top + b.height * _hash(s0 ^ 0x5C02, i));
+      if (!shape.contains(p)) continue;
+      final base = _hash(s0 ^ 0x5C08, i) < 0.5 ? angleDeg : 90.0;
+      final ang = (base + 30 * (_hash(s0 ^ 0x5C03, i) - 0.5)) * math.pi / 180;
+      final len = unit * (0.006 + 0.07 * math.pow(_hash(s0 ^ 0x5C04, i), 3));
+      final d = ui.Offset(math.cos(ang), math.sin(ang)) * len;
+      final bend =
+          ui.Offset(-d.dy, d.dx) * (0.12 * (_hash(s0 ^ 0x5C05, i) - 0.5));
+      final path = ui.Path()
+        ..moveTo(p.dx - d.dx / 2, p.dy - d.dy / 2)
+        ..quadraticBezierTo(
+            p.dx + bend.dx, p.dy + bend.dy, p.dx + d.dx / 2, p.dy + d.dy / 2);
+      canvas.drawPath(
+          path,
+          paint
+            ..strokeWidth = unit * (0.0015 + 0.004 * _hash(s0 ^ 0x5C06, i))
+            ..color = ui.Color.fromARGB(
+                (150 + 105 * _hash(s0 ^ 0x5C07, i)).round(), 255, 255, 255));
+    }
+  }
+
+  /// Bisects the boundary between [outside] and [insideAt] (5 steps).
+  static double _edge(
+      bool Function(double) inside, double outside, double insideAt) {
+    var lo = outside, hi = insideAt;
+    for (var i = 0; i < 5; i++) {
+      final m = (lo + hi) / 2;
+      if (inside(m)) {
+        hi = m;
+      } else {
+        lo = m;
+      }
+    }
+    return hi;
+  }
+
   /// How far the shape extends from [pos] in direction (dx, dy).
   static double _inward(
       ui.Path shape, ui.Offset pos, double dx, double dy, double unit) {
