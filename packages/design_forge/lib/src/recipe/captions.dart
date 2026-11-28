@@ -23,8 +23,8 @@ class Captions {
   final String? top;
   final String? bottom;
 
-  /// 'brush' (embedded Permanent Marker), 'varsity' (embedded Graduate) or
-  /// null (platform bold sans).
+  /// 'brush' (embedded Permanent Marker), 'varsity' (embedded Graduate),
+  /// 'handwritten' (embedded Kalam Regular) or null (platform bold sans).
   final String? font;
 
   /// [flagColour], 'auto' (legible on the garment) or `#RRGGBB`.

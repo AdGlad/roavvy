@@ -108,7 +108,10 @@ class SignatureSweep {
   static bool dependsOnGarment(DesignRecipe r) =>
       (r.composition.outlineWidth > 0 &&
           r.composition.outlineColour == Composition.autoOutline) ||
-      r.inkIsAdaptive;
+      r.inkIsAdaptive ||
+      // Captions are inked for the shirt they print on (ADR-183), as the app
+      // does (`inkFollowsShirt`).
+      r.captions != null;
 
   static bool _isLight(ui.Color c) => c.computeLuminance() >= 0.3;
 

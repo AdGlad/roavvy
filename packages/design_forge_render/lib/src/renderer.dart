@@ -10,6 +10,7 @@ import 'render_target.dart';
 import 'stages/render_stage.dart';
 import 'stages/composition_stage.dart';
 import 'stages/clip_stage.dart';
+import 'stages/brush_flag_stage.dart';
 import 'stages/globe_stage.dart';
 import 'stages/edge_treatment_stage.dart';
 import 'stages/effects_stage.dart';
@@ -45,6 +46,7 @@ class CanvasRenderer implements Renderer {
         CompositionStage(),
         GlobeStage(),
         ClipStage(),
+        BrushFlagStage(),
         WatercolourStage(),
         EdgeTreatmentStage(),
         EffectsStage(),
