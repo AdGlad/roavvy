@@ -1907,3 +1907,23 @@ Several Signature packs were tuned with the owner this session, and one engine d
 **Consequences:**
 - Locks of packs using WearRaster effects changed once; future engine changes that move them must go through Lab re-approval (ADR-181 §6).
 - Known open items: Passport Stamp shows black boxes where trip dates sit (also in the Lab) and must be fixed before approval; Varsity's four special codes (EU, IC, PC, XX) are just under the 15% minimum span (pre-existing).
+
+## ADR-185 — Two-country (pair) Signature packs
+
+**Status:** Proposed (2026-11-28, M206–M214)
+
+**Context:**
+The owner wants signature T-shirts that combine two countries: split flags, a shared heart, twin hearts and a diagonal split. Signature packs (ADR-181) are single-country (`{{country}}`); locks, overrides and the QA sheet are all keyed by one country, and 272² pairs cannot be swept.
+
+**Decision:**
+1. **Arity is pack data.** The new optional pack field is `countries` (default 1). Pair packs use `{{countryA}}`/`{{countryB}}` (+Name, +3) and must not use `{{country}}`. `formatVersion` stays 1, and single-country packs are unchanged byte-for-byte.
+2. **Order matters.** A is on the left/top. (a,b) and (b,a) are distinct, deterministic designs; the variation key is `id|version|a+b|i`. The UI offers a swap.
+3. **Overrides stay per country** (and apply to that country's half). A rare **pair override** `"a+b"` with a reason covers clashes. Locks and heroes are keyed by pair over a fixed **sample pair set** chosen to break designs (look-alikes, emblems, canton flags on the B side, non-rectangular).
+4. **Flag focus is shared engine data, not per pack.** A per-flag focus point (canton/centre/hoist, emblem box) lets any half-crop keep the recognisable part of the flag. Pair QA adds checks for seam legibility, emblem not cut, half balance, and swap sanity.
+5. **One split composition.** `splitPair` (seam `straight` | `curtain` | `diagonal`, position, curve, gap) serves Curtain Split, Shared Heart and Diagonal Split. Twin Hearts uses `pairRow`. The dry-brush mask from Brush Flag (M208) is the shared edge treatment.
+6. **The print path is unchanged.** A pair design is still one `DesignRecipe`, so print layout, mockups, the cart and `renderPrintFiles` need no pair awareness beyond titles.
+
+**Consequences:**
+- The Lab and app need pair pickers (M207, M213).
+- More than two countries (Heart Wall) extends the same arity field to `n` later (M214, backlog).
+- The app has no home country, so "home + destination" pairs need a new setting if the owner wants them.
