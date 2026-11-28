@@ -105,13 +105,12 @@ class _LabShirtPanelState extends State<LabShirtPanel> {
           ),
         ),
         Expanded(
-          child: Container(
-            color: const Color(0xFF1A1C21),
-            padding: const EdgeInsets.all(8),
+          child: TeeBackdrop(
+            garmentColour: _hex,
             child: recipe == null
                 ? const Center(
                     child: Text('Nothing selected',
-                        style: TextStyle(color: Colors.white38)))
+                        style: TextStyle(color: Colors.grey)))
                 : TeeSidesPreview(
                     service: widget.service,
                     recipe: recipe,

@@ -186,6 +186,23 @@ void main() {
     });
   });
 
+  group('the shirt backdrop', () {
+    test('dark shirts sit on light, light shirts on dark', () {
+      for (final (hex, name) in StudioController.garments) {
+        final shirt = StudioGarments.parseHex(hex)!;
+        final back = teeBackdropFor(hex);
+        final contrast = (shirt.computeLuminance() + 0.05) /
+            (back.computeLuminance() + 0.05);
+        final ratio = contrast < 1 ? 1 / contrast : contrast;
+        expect(ratio, greaterThan(1.9), reason: '$name on $back');
+      }
+      expect(teeBackdropFor('#0E0E0E'), TeeBackdrop.light);
+      expect(teeBackdropFor('#0F1830'), TeeBackdrop.light);
+      expect(teeBackdropFor('#FFFFFF'), TeeBackdrop.dark);
+      expect(teeBackdropFor(null), TeeBackdrop.dark);
+    });
+  });
+
   group('PrintLayoutControls', () {
     Future<List<PrintLayout>> pump(
       WidgetTester tester,

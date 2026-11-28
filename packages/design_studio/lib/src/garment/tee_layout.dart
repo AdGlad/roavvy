@@ -463,3 +463,48 @@ class PrintLayoutControls extends StatelessWidget {
     );
   }
 }
+
+/// The backdrop a shirt is shown on, chosen against the shirt so every
+/// colour reads: a light stone behind dark shirts (black, navy, forest),
+/// a deep charcoal behind light ones (white, sand, light grey).
+///
+/// Null (no colour known) is the dark backdrop.
+Color teeBackdropFor(String? garmentHex) {
+  final shirt = garmentHex == null ? null : StudioGarments.parseHex(garmentHex);
+  if (shirt == null) return TeeBackdrop.dark;
+  return shirt.computeLuminance() < 0.22 ? TeeBackdrop.light : TeeBackdrop.dark;
+}
+
+/// Shows [child] (a shirt preview) on [teeBackdropFor] its shirt colour,
+/// easing between backdrops as the colour changes.
+class TeeBackdrop extends StatelessWidget {
+  const TeeBackdrop({
+    super.key,
+    required this.garmentColour,
+    required this.child,
+    this.padding = const EdgeInsets.all(8),
+    this.borderRadius = BorderRadius.zero,
+  });
+
+  static const Color light = Color(0xFFE4E1DB);
+  static const Color dark = Color(0xFF1A1C21);
+
+  /// `#RRGGBB` of the shirt being shown.
+  final String? garmentColour;
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final BorderRadius borderRadius;
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    key: const Key('tee-backdrop'),
+    duration: const Duration(milliseconds: 250),
+    curve: Curves.easeOut,
+    padding: padding,
+    decoration: BoxDecoration(
+      color: teeBackdropFor(garmentColour),
+      borderRadius: borderRadius,
+    ),
+    child: child,
+  );
+}

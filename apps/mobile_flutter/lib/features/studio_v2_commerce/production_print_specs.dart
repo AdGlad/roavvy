@@ -89,12 +89,7 @@ abstract final class TshirtPrintProfile {
                 ? leftChestCentreInches
                 : rightChestCentreInches) *
             d.dpi;
-        return Rect.fromLTWH(
-          centre - px / 2,
-          logoTopInches * d.dpi,
-          px,
-          px,
-        );
+        return Rect.fromLTWH(centre - px / 2, logoTopInches * d.dpi, px, px);
       case PrintPlacement.backUpper:
         return zoneArea(const ZonePrint(PrintZone.upperBack));
       case PrintPlacement.backNeck:

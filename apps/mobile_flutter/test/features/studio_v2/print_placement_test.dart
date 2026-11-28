@@ -47,7 +47,10 @@ void main() {
 
     test('the chest logos keep the M167 geometry the pipeline prints to', () {
       for (final (placement, centreIn) in [
-        (PrintPlacement.frontLeftChest, TshirtPrintProfile.leftChestCentreInches),
+        (
+          PrintPlacement.frontLeftChest,
+          TshirtPrintProfile.leftChestCentreInches,
+        ),
         (
           PrintPlacement.frontRightChest,
           TshirtPrintProfile.rightChestCentreInches,
@@ -127,12 +130,15 @@ void main() {
     });
 
     test('a zone at a smaller size prints smaller, from the same top line', () {
-      final full = TshirtPrintProfile.zoneArea(const ZonePrint(PrintZone.upperBack));
+      final full = TshirtPrintProfile.zoneArea(
+        const ZonePrint(PrintZone.upperBack),
+      );
       expect(full, const ui.Rect.fromLTWH(150, 112.5, 1500, 750));
-      final small = tshirtPrintSpec(
-        PrintPlacement.backUpper,
-        zone: const ZonePrint(PrintZone.upperBack, scale: 0.6),
-      )!;
+      final small =
+          tshirtPrintSpec(
+            PrintPlacement.backUpper,
+            zone: const ZonePrint(PrintZone.upperBack, scale: 0.6),
+          )!;
       expect(small.artworkArea.top, full.top);
       expect(small.artworkArea.width, closeTo(900, 1e-6));
       expect(small.artworkArea.center.dx, closeTo(900, 1e-6));
@@ -146,12 +152,13 @@ void main() {
     ) async {
       final c = studio();
       addTearDown(c.dispose);
-      final spec = tshirtPrintSpec(
-        PrintPlacement.backFull,
-        zone: const ZonePrint(PrintZone.fullBack),
-        layout: PrintLayout.standard,
-        garmentHex: '#0E0E0E',
-      )!;
+      final spec =
+          tshirtPrintSpec(
+            PrintPlacement.backFull,
+            zone: const ZonePrint(PrintZone.fullBack),
+            layout: PrintLayout.standard,
+            garmentHex: '#0E0E0E',
+          )!;
       expect(spec.artworkArea, const ui.Rect.fromLTRB(0, 210, 1800, 2400));
       final mark = spec.marks.single;
       expect(mark.rect, const ui.Rect.fromLTWH(712.5, 67.5, 375, 82.5));
@@ -160,10 +167,9 @@ void main() {
 
       late List<int> px;
       await tester.runAsync(() async {
-        final art = await ProductionRenderer(c.service.renderer).render(
-          c.hero,
-          spec,
-        );
+        final art = await ProductionRenderer(
+          c.service.renderer,
+        ).render(c.hero, spec);
         final img =
             (await (await ui.instantiateImageCodec(art.bytes)).getNextFrame())
                 .image;
@@ -194,13 +200,17 @@ void main() {
         isEmpty,
       );
       final off = PrintLayout.standard.withBrandMark(false);
-      final spec = tshirtPrintSpec(
-        PrintPlacement.backFull,
-        zone: const ZonePrint(PrintZone.fullBack),
-        layout: off,
-      )!;
+      final spec =
+          tshirtPrintSpec(
+            PrintPlacement.backFull,
+            zone: const ZonePrint(PrintZone.fullBack),
+            layout: off,
+          )!;
       expect(spec.marks, isEmpty);
-      expect(spec.artworkArea, TshirtPrintProfile.artworkArea(PrintPlacement.backFull));
+      expect(
+        spec.artworkArea,
+        TshirtPrintProfile.artworkArea(PrintPlacement.backFull),
+      );
     });
   });
 
@@ -266,11 +276,12 @@ void main() {
     ) async {
       late List<int> corners;
       await tester.runAsync(() async {
-        final sheet = await PrintCalibration.sheet(PrintPlacement.frontLeftChest);
+        final sheet = await PrintCalibration.sheet(
+          PrintPlacement.frontLeftChest,
+        );
         final img =
-            (await (await ui.instantiateImageCodec(
-              sheet.bytes,
-            )).getNextFrame()).image;
+            (await (await ui.instantiateImageCodec(sheet.bytes)).getNextFrame())
+                .image;
         final px = (await img.toByteData())!.buffer.asUint8List();
         int alpha(int x, int y) => px[(y * img.width + x) * 4 + 3];
         corners = [
@@ -294,10 +305,7 @@ void main() {
 
       await tester.runAsync(() async => calibrationSheets());
 
-      expect(
-        (c.hero.recipeId, c.frontFace.recipeId, c.history.length),
-        before,
-      );
+      expect((c.hero.recipeId, c.frontFace.recipeId, c.history.length), before);
     });
 
     testWidgets('a calibration sheet is never mistaken for a design', (
@@ -305,7 +313,8 @@ void main() {
     ) async {
       late ProductionArtwork sheet;
       await tester.runAsync(
-        () async => sheet = await PrintCalibration.sheet(PrintPlacement.backFull),
+        () async =>
+            sheet = await PrintCalibration.sheet(PrintPlacement.backFull),
       );
       expect(sheet.recipeId, startsWith('calibration:'));
       expect(sheet.engineVersion, 'calibration');

@@ -235,9 +235,10 @@ class StudioV2CartService {
     PrintPlacement.frontFull => 'front',
     PrintPlacement.frontLeftChest => 'front_left',
     PrintPlacement.frontRightChest => 'front_right',
-    PrintPlacement.none => throw ArgumentError(
-      'PrintPlacement.none has no Printful placement — send no file instead',
-    ),
+    PrintPlacement.none =>
+      throw ArgumentError(
+        'PrintPlacement.none has no Printful placement — send no file instead',
+      ),
   };
 
   /// Where a face's print file is uploaded. Front and back can never collide,
@@ -275,7 +276,7 @@ class StudioV2CartService {
       return StudioV2CartFailed(
         StudioV2CartStage.colour,
         "${request.garmentColourName} isn't available to order yet — "
-            'pick another shirt colour.',
+        'pick another shirt colour.',
       );
     }
     final String variantId;
@@ -333,7 +334,8 @@ class StudioV2CartService {
     }
 
     // ── Upload, all of it or none of it ──────────────────────────────────
-    final configId = '${request.garment.garmentId}-${now().millisecondsSinceEpoch}';
+    final configId =
+        '${request.garment.garmentId}-${now().millisecondsSinceEpoch}';
     final faces = <StudioV2PrintedFace>[];
     try {
       for (final f in files) {
@@ -382,24 +384,24 @@ class StudioV2CartService {
     final Map<String, dynamic> result;
     try {
       result = await _createMerchCart({
-            'variantId': variantId,
-            'selectedCountryCodes': request.selectedCountryCodes,
-            'buyerCountry': buyerCountry,
-            'quantity': options.quantity,
-            'clientConfigId': configId,
-            // Placement travels as Printful's own name, derived from the
-            // explicit model. A face that prints nothing sends no path and no
-            // placement, so a blank face cannot become a blank image.
-            for (final f in faces)
-              if (f.placement.side == PrintSide.back) ...{
-                'backPrintStoragePath': f.storagePath,
-                'backPosition': printfulPlacement(f.placement),
-              },
-            for (final f in faces)
-              if (f.placement.side == PrintSide.front) ...{
-                'frontPrintStoragePath': f.storagePath,
-                'frontPosition': printfulPlacement(f.placement),
-              },
+        'variantId': variantId,
+        'selectedCountryCodes': request.selectedCountryCodes,
+        'buyerCountry': buyerCountry,
+        'quantity': options.quantity,
+        'clientConfigId': configId,
+        // Placement travels as Printful's own name, derived from the
+        // explicit model. A face that prints nothing sends no path and no
+        // placement, so a blank face cannot become a blank image.
+        for (final f in faces)
+          if (f.placement.side == PrintSide.back) ...{
+            'backPrintStoragePath': f.storagePath,
+            'backPosition': printfulPlacement(f.placement),
+          },
+        for (final f in faces)
+          if (f.placement.side == PrintSide.front) ...{
+            'frontPrintStoragePath': f.storagePath,
+            'frontPosition': printfulPlacement(f.placement),
+          },
       });
     } catch (e) {
       return StudioV2CartFailed(

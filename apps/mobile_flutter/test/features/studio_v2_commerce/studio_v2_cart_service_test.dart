@@ -164,8 +164,9 @@ void main() {
         final bytes = uploader.uploaded[f.storagePath]!;
         late ui.Image img;
         await tester.runAsync(() async {
-          img = (await (await ui.instantiateImageCodec(bytes)).getNextFrame())
-              .image;
+          img =
+              (await (await ui.instantiateImageCodec(bytes)).getNextFrame())
+                  .image;
         });
         expect((img.width, img.height), (1800, 2400));
         img.dispose();
@@ -360,10 +361,7 @@ void main() {
 
       await prepare(tester, c);
 
-      expect(
-        (c.hero.recipeId, c.frontFace.recipeId, c.history.length),
-        before,
-      );
+      expect((c.hero.recipeId, c.frontFace.recipeId, c.history.length), before);
     });
 
     testWidgets('retrying prints the same design, not a new one', (
@@ -529,10 +527,7 @@ void main() {
       expect(payload['frontPosition'], 'front');
       expect(payload['quantity'], 2);
       expect(payload['buyerCountry'], 'AU');
-      expect(
-        payload['backPrintStoragePath'],
-        startsWith('back_print_files/'),
-      );
+      expect(payload['backPrintStoragePath'], startsWith('back_print_files/'));
       expect(
         payload['frontPrintStoragePath'],
         startsWith('front_print_files/'),
@@ -574,10 +569,7 @@ void main() {
       expect(out, isA<StudioV2CartPrepared>());
       // The pipeline really ran…
       expect(uploader.uploaded, isNotEmpty);
-      expect(
-        (out as StudioV2CartPrepared).metadata.variantId,
-        isNotEmpty,
-      );
+      expect((out as StudioV2CartPrepared).metadata.variantId, isNotEmpty);
       // …and nothing was ordered.
       final cart =
           await firestore

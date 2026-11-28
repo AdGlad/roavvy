@@ -334,7 +334,10 @@ void main() {
       await _tapKey(tester, 'tee-colour-White');
       await _tapKey(tester, 'tee-size-L');
       await tester.pump();
-      expect(find.text(r'Add to cart · $39.00', skipOffstage: false), findsOneWidget);
+      expect(
+        find.text(r'Add to cart · $39.00', skipOffstage: false),
+        findsOneWidget,
+      );
       await _tapKey(tester, 'tee-add-to-cart');
       await tester.pumpAndSettle();
 
@@ -446,37 +449,41 @@ void main() {
       expect(r.layout!.printsMark, isTrue);
     });
 
-    testWidgets('the Roavvy mark can be switched off and that reaches the cart', (
-      tester,
-    ) async {
-      await _tall(tester);
-      final sent = <GarmentCartRequest>[];
-      await tester.pumpWidget(
-        _app(
-          _overrides(commerce: true),
-          SignatureTeeScreen(
-            countryCode: 'jp',
-            onAddToCart: (context, r, o) async => sent.add(r),
+    testWidgets(
+      'the Roavvy mark can be switched off and that reaches the cart',
+      (tester) async {
+        await _tall(tester);
+        final sent = <GarmentCartRequest>[];
+        await tester.pumpWidget(
+          _app(
+            _overrides(commerce: true),
+            SignatureTeeScreen(
+              countryCode: 'jp',
+              onAddToCart: (context, r, o) async => sent.add(r),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await _tapKey(tester, 'layout-mark');
-      await tester.pump();
-      expect(find.byKey(const Key('tee-brand-mark')), findsNothing);
-      await _tapKey(tester, 'tee-size-M');
-      await tester.pump();
-      await _tapKey(tester, 'tee-add-to-cart');
-      await tester.pumpAndSettle();
-      expect(sent.single.layout!.brandMark, isFalse);
-    });
+        );
+        await tester.pumpAndSettle();
+        await _tapKey(tester, 'layout-mark');
+        await tester.pump();
+        expect(find.byKey(const Key('tee-brand-mark')), findsNothing);
+        await _tapKey(tester, 'tee-size-M');
+        await tester.pump();
+        await _tapKey(tester, 'tee-add-to-cart');
+        await tester.pumpAndSettle();
+        expect(sent.single.layout!.brandMark, isFalse);
+      },
+    );
 
     testWidgets('Both shows the two faces; a swipe turns the shirt', (
       tester,
     ) async {
       await _tall(tester);
       await tester.pumpWidget(
-        _app(_overrides(commerce: true), const SignatureTeeScreen(countryCode: 'jp')),
+        _app(
+          _overrides(commerce: true),
+          const SignatureTeeScreen(countryCode: 'jp'),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.fling(
@@ -504,10 +511,11 @@ void main() {
     ) async {
       await _tall(tester);
       final crest = _pack.copyWith(
-        layout: const PrintLayout(
-          front: ZonePrint(PrintZone.leftChest),
-          back: ZonePrint(PrintZone.upperBack, scale: 0.8),
-        ).toJson(),
+        layout:
+            const PrintLayout(
+              front: ZonePrint(PrintZone.leftChest),
+              back: ZonePrint(PrintZone.upperBack, scale: 0.8),
+            ).toJson(),
       );
       final sent = <GarmentCartRequest>[];
       await tester.pumpWidget(
@@ -530,7 +538,10 @@ void main() {
       await tester.pump();
       await _tapKey(tester, 'tee-add-to-cart');
       await tester.pumpAndSettle();
-      expect(sent.single.layout!.back, const ZonePrint(PrintZone.upperBack, scale: 0.8));
+      expect(
+        sent.single.layout!.back,
+        const ZonePrint(PrintZone.upperBack, scale: 0.8),
+      );
       expect(sent.single.backPosition, 'upper_back');
     });
 

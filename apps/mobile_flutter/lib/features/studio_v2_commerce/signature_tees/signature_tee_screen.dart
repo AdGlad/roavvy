@@ -1,6 +1,12 @@
 import 'package:design_studio/design_studio.dart' show PrintLayout, PrintSide;
 import 'package:design_studio/garment_mockup.dart'
-    show PrintLayoutControls, TeeSidesPreview, TeeView, TeeViewSwitcher;
+    show
+        PrintLayoutControls,
+        TeeBackdrop,
+        teeBackdropFor,
+        TeeSidesPreview,
+        TeeView,
+        TeeViewSwitcher;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -169,22 +175,28 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
                             ),
                             const SizedBox(height: 6),
                             Expanded(
-                              child:
-                                  service == null
-                                      ? const TeePlaceholder()
-                                      : TeeSidesPreview(
-                                        key: Key('tee-preview-${tee.pack.id}'),
-                                        service: service,
-                                        recipe: teeRecipe(tee, _garment.$1),
-                                        layout: _layoutFor(tee),
-                                        view: _viewFor(tee),
-                                        onViewChanged:
-                                            (v) => setState(() => _view = v),
-                                        garmentColour: _garment.$1,
-                                        longSide: kTeePreviewLongSide,
-                                        showGuides: _guides,
-                                        placeholder: const TeePlaceholder(),
-                                      ),
+                              child: TeeBackdrop(
+                                garmentColour: _garment.$1,
+                                borderRadius: BorderRadius.circular(16),
+                                child:
+                                    service == null
+                                        ? const TeePlaceholder()
+                                        : TeeSidesPreview(
+                                          key: Key(
+                                            'tee-preview-${tee.pack.id}',
+                                          ),
+                                          service: service,
+                                          recipe: teeRecipe(tee, _garment.$1),
+                                          layout: _layoutFor(tee),
+                                          view: _viewFor(tee),
+                                          onViewChanged:
+                                              (v) => setState(() => _view = v),
+                                          garmentColour: _garment.$1,
+                                          longSide: kTeePreviewLongSide,
+                                          showGuides: _guides,
+                                          placeholder: const TeePlaceholder(),
+                                        ),
+                              ),
                             ),
                           ],
                         ),
@@ -385,7 +397,8 @@ class _DesignChoice extends StatelessWidget {
         child: Container(
           width: 72,
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHigh,
+            // The same backdrop as the big shirt, so dark shirts read here too.
+            color: teeBackdropFor(garmentColour),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? cs.primary : cs.outlineVariant,

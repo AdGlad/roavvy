@@ -52,8 +52,7 @@ final signatureCatalogProvider = FutureProvider<SignatureCatalog?>((ref) async {
 /// The bundled packs in feed order (`index.json`). Empty while loading or
 /// when unavailable.
 final signaturePacksProvider = Provider<List<SignatureRecipe>>(
-  (ref) =>
-      ref.watch(signatureCatalogProvider).valueOrNull?.packs ?? const [],
+  (ref) => ref.watch(signatureCatalogProvider).valueOrNull?.packs ?? const [],
 );
 
 /// Tokens a pack fills from a trip rather than from the country. A pack
@@ -68,8 +67,18 @@ Map<String, String> tripTokens(TripRecord trip) => {
 };
 
 const _months = [
-  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+  'JAN',
+  'FEB',
+  'MAR',
+  'APR',
+  'MAY',
+  'JUN',
+  'JUL',
+  'AUG',
+  'SEP',
+  'OCT',
+  'NOV',
+  'DEC',
 ];
 
 /// A passport-stamp date: `12 MAR 24`.
@@ -159,7 +168,8 @@ DesignRecipe teeRecipe(SignatureTee tee, String garmentHex) {
 
 /// Where [tee] prints by default: the layout its pack was approved with in
 /// the Lab, else a full back print.
-PrintLayout teeLayout(SignatureTee tee) => PrintLayout.fromJson(tee.pack.layout);
+PrintLayout teeLayout(SignatureTee tee) =>
+    PrintLayout.fromJson(tee.pack.layout);
 
 /// Renders tee previews. One for the whole app so every surface shares the
 /// [RenderService] image cache — a design rendered on the celebration is not
@@ -252,11 +262,7 @@ GarmentCartRequest buildSignatureTeeCartRequest({
         )
         ..setFrontFit(FrontFit.none)
         ..loadGarment(
-          GarmentDesign(
-            front: recipe,
-            back: recipe,
-            garmentColour: garment.$1,
-          ),
+          GarmentDesign(front: recipe, back: recipe, garmentColour: garment.$1),
         );
   final name = kCountryNames[cc.toUpperCase()] ?? cc.toUpperCase();
   return buildGarmentCartRequest(

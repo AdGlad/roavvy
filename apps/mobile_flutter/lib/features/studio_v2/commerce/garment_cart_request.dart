@@ -176,9 +176,7 @@ GarmentCartRequest buildGarmentCartRequest(
               FrontFit.none => 'none',
             },
     backPosition:
-        layout != null
-            ? cartPositionOf(layout.back?.zone.placement)
-            : 'center',
+        layout != null ? cartPositionOf(layout.back?.zone.placement) : 'center',
     aspectRatio: switch (hero.composition.canvasOrientation) {
       Orientation.portrait => 4 / 5,
       Orientation.landscape => 5 / 4,
