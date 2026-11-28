@@ -299,7 +299,7 @@ void main() {
       for (final f in packs) {
         final text = f.readAsStringSync();
         final s = SignaturePackCodec.decode(text);
-        expect(s.isPair, isFalse, reason: f.path);
+        // (Pair packs ship from M210 on; they are held to the same rule.)
         expect(SignaturePackCodec.encode(s), text, reason: f.path);
         expect(SignatureResolver.driftedLocks(s), isEmpty, reason: f.path);
       }

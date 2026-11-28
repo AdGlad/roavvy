@@ -187,3 +187,58 @@ across the trailing edge (3–40), `dryness` = wobble and nicks, `liftFray` =
 spike length, `taper` = how much the stroke thins and leans towards its end,
 `spill` = band stagger, `leadClean` = calm leading edge. `scale`, `centerY` and
 the aspect range only matter to `BrushFlagStage`.
+
+### Hatched scribble edge (`BrushEdge.paintHatch`, M210/M211)
+
+For a scribbled outline that follows any shape (a heart), the shape is painted
+as parallel brush strokes instead of moving its outline:
+
+```dart
+canvas.saveLayer(null, Paint());                       // streaks cut with dstOut
+BrushEdge.paintHatch(canvas, heartPath,
+    angleDeg: -38, width: 0.065 * heartSize,           // stroke direction, thickness
+    spill: 0.45, tails: 0.9, streaks: 0.4,             // ends past/short of the outline,
+    frayed: false, seed: seed);                        // bristle tails, dry streaks
+// … then draw the artwork with BlendMode.srcIn, and
+BrushEdge.paintScratches(canvas, heartPath, angleDeg: -38, amount: 0.5, seed: s);
+```
+
+Strokes overlap so the inside is solid; their ends spill past the outline or
+stop just short of it (`spill`, a fraction of the shape's size), with thin
+bristle `tails` and dry `streaks` running in from the ends. `frayed: true`
+square-cuts the strokes and breaks each end into a fan of bristles (Twin
+Hearts); otherwise the ends are round (Shared Heart's scalloped look). Where a
+stroke line leaves and re-enters the shape (a heart's top notch) its ends never
+bridge more than a third of the gap, so concave parts stay open.
+`paintScratches` adds worn-print grain (short knock-out scuffs, half along the
+brush, half near-vertical).
+
+## Heart pairs: Shared Heart and Twin Hearts (`heartPair`, M210/M211)
+
+`DesignRecipe.heartPair` (`HeartPair`) paints the two flags of a pair pack
+into brushed hearts (`HeartPairStage`, after the Brush Flag stage; it replaces
+whatever the composition drew):
+
+| `layout` | Pack | Design |
+|---|---|---|
+| `shared` | `shared_heart` (square) | One heart: A fills the left lobe, B the right, meeting along a slightly bowed seam (`seamPosition`, `seamCurve`, `seamLean`). |
+| `twin` | `twin_hearts` (landscape) | Two hearts side by side, one flag each, leaning apart by `tilt`° with their tips toward each other, `gap` apart. |
+
+Shared fields: `heartScale`, `squeeze` (0 = crop the flag at its true
+proportions, 1 = stretch it in), `hatchAngle`, `hatchWidth`, `spill`, `tails`,
+`streaks`, `scratches`, `frayed`, `crossHatch` (a second, crossing pass of
+strokes; 0 = off).
+
+**Geometry is pure Dart** (`HeartPairLayout`, design_forge): the renderer and
+pair QA (`PairGeometry.of`) compute the same hearts, seam, crops and flag
+placement. All bundled flags are 4:3, so no image is needed. Each flag is fitted
+around its `FlagFocus`; when the heart's curves would hide more than 20% of its
+emblem/canton box, the flag is shrunk (to 55% at most) and its focus slid toward
+the roomiest part of the heart (`fitInHeart`), and the flag's edge colours are
+extended past it (clamped image shader) so the heart stays full. Every bundled
+flag keeps at least 75% of its emblem in both slots and layouts (test).
+Non-rectangular flags (Nepal) sit on white; each raster's 1.5% rim is trimmed
+first (some flag art has a baked-in white margin, e.g. Panama).
+
+Regenerate the two draft packs (base, envelope, layout, locks) with
+`dart run tool/heart_pair_packs.dart` from `packages/design_forge`.

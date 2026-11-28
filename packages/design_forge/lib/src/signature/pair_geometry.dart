@@ -1,5 +1,6 @@
 import '../geo/flag_focus.dart';
 import '../recipe/design_recipe.dart';
+import 'heart_pair_layout.dart';
 
 /// The part of one flag a two-country design shows (ADR-185 §4), in the
 /// flag's own normalised space (see [FlagBox]).
@@ -102,9 +103,15 @@ class PairGeometry {
 
   /// The geometry [recipe] draws, or null when its composition does not
   /// report one (single-flag designs, and pair compositions not yet wired).
-  static PairGeometry? of(DesignRecipe recipe) =>
-      switch (recipe.composition.family) {
-        // Pair compositions (M209 splitPair, M211 pairRow) add a case here.
-        _ => null,
-      };
+  static PairGeometry? of(DesignRecipe recipe) {
+    // Shared Heart / Twin Hearts (M210/M211).
+    final hearts = HeartPairLayout.ofRecipe(recipe);
+    if (hearts != null) {
+      return hearts.toPairGeometry(scale: recipe.composition.sizeClass.scale);
+    }
+    return switch (recipe.composition.family) {
+      // Other pair compositions (M209 splitPair) add a case here.
+      _ => null,
+    };
+  }
 }
