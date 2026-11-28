@@ -1,6 +1,7 @@
 import 'canonical_json.dart';
 import 'captions.dart';
 import 'design_axis.dart';
+import 'brush_stroke.dart';
 import 'globe.dart';
 import 'recipe_parts.dart';
 import 'torn_strips.dart';
@@ -459,6 +460,7 @@ class DesignRecipe {
     this.tornStrips,
     this.watercolour,
     this.globe,
+    this.brushStroke,
     this.captions,
     this.motifs = const [],
     this.axisSeeds = const {},
@@ -499,6 +501,9 @@ class DesignRecipe {
   /// The flag wrapped onto a ball; null = none.
   final Globe? globe;
 
+  /// The flag painted as one dry-brush stroke (Brush Flag); null = none.
+  final BrushStroke? brushStroke;
+
   /// Text above / below the artwork; null = none.
   final Captions? captions;
   final List<Motif> motifs;
@@ -533,6 +538,7 @@ class DesignRecipe {
         if (tornStrips != null) 'tornStrips': tornStrips!.toJson(),
         if (watercolour != null) 'watercolour': watercolour!.toJson(),
         if (globe != null) 'globe': globe!.toJson(),
+        if (brushStroke != null) 'brushStroke': brushStroke!.toJson(),
         if (captions != null) 'captions': captions!.toJson(),
         if (motifs.isNotEmpty)
           'motifs': [for (final m in motifs) m.toJson()],
@@ -597,6 +603,7 @@ class DesignRecipe {
         tornStrips: _obj(json['tornStrips'], TornStrips.fromJson),
         watercolour: _obj(json['watercolour'], Watercolour.fromJson),
         globe: _obj(json['globe'], Globe.fromJson),
+        brushStroke: _obj(json['brushStroke'], BrushStroke.fromJson),
         captions: _obj(json['captions'], Captions.fromJson),
         motifs: [
           for (final m in (json['motifs'] as List? ?? const []))
@@ -622,6 +629,7 @@ class DesignRecipe {
     TornStrips? tornStrips,
     Watercolour? watercolour,
     Globe? globe,
+    BrushStroke? brushStroke,
     Captions? captions,
     List<Motif>? motifs,
     Map<String, int>? axisSeeds,
@@ -640,6 +648,7 @@ class DesignRecipe {
         tornStrips: tornStrips ?? this.tornStrips,
         watercolour: watercolour ?? this.watercolour,
         globe: globe ?? this.globe,
+        brushStroke: brushStroke ?? this.brushStroke,
         captions: captions ?? this.captions,
         motifs: motifs ?? this.motifs,
         axisSeeds: axisSeeds ?? this.axisSeeds,

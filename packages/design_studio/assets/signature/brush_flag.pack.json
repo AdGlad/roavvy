@@ -1,0 +1,87 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "brushStroke": {
+      "bristles": 72.0,
+      "centerY": 0.6,
+      "dryness": 0.55,
+      "leadClean": 0.85,
+      "liftFray": 0.5,
+      "maxAspect": 2.0,
+      "minAspect": 1.3,
+      "scale": 0.84,
+      "skew": 0.0,
+      "spill": 0.35,
+      "taper": 0.3
+    },
+    "captions": {
+      "bottomSize": 0.13,
+      "colour": "auto",
+      "font": "handwritten",
+      "grit": 0.0,
+      "top": "{{countryName}}",
+      "topSize": 0.17,
+      "upperCase": true
+    },
+    "composition": {
+      "family": "singleHero",
+      "orientation": "landscape",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "envelope": {
+    "brushStroke.dryness": {
+      "max": 0.7,
+      "min": 0.4
+    },
+    "brushStroke.liftFray": {
+      "max": 0.7,
+      "min": 0.35
+    },
+    "brushStroke.skew": {
+      "max": 3.0,
+      "min": -3.0
+    },
+    "captions.topSize": {
+      "max": 0.18,
+      "min": 0.15
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "brush_flag",
+  "locks": {
+    "br": "38b4a7b3e68480e9",
+    "fr": "79aee1b120334378",
+    "jp": "56addc6ac93ad4c3",
+    "sc": "522e3cdf1dc18ce6",
+    "us": "648d148b93c56136",
+    "za": "08ff7a5ce9d84ddb"
+  },
+  "notes": "The flag painted as one broad dry-brush stroke (bristle streaks along the top and bottom, a frayed lift-off at the right end, a cleaner leading edge) with the country's name above in a casual handwritten marker (embedded Kalam Bold, OFL), inked for the shirt. Style reference: Greece / Costa Rica brush-flag prints (stock; generic format, nothing reproduced).",
+  "overrides": {},
+  "status": "draft",
+  "title": "Brush Flag",
+  "version": 1
+}

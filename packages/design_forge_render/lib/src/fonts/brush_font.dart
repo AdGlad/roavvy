@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'brush_font_data.dart';
+import 'handwritten_font.dart';
 import 'varsity_font.dart';
 
 /// The embedded brush-marker typeface ("Permanent Marker", Apache 2.0) for
@@ -24,6 +25,9 @@ Future<String?> embeddedFontFamily(String? id) async {
     case BrushFont.id:
       await BrushFont.ensureLoaded();
       return BrushFont.family;
+    case HandwrittenFont.id:
+      await HandwrittenFont.ensureLoaded();
+      return HandwrittenFont.family;
     case VarsityFont.id:
       await VarsityFont.ensureLoaded();
       return VarsityFont.family;

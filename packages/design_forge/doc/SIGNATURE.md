@@ -97,3 +97,28 @@ dart run tool/pack_from_preset.dart \
   torn_flag "Torn Flag" ../design_studio/assets/signature/torn_flag.pack.json
 ```
 Then add the id to `assets/signature/index.json`.
+
+## Shared dry-brush edge (`BrushEdge`, M208)
+
+The Brush Flag pack (`brush_flag`) paints the flag as one dry-brush stroke:
+`DesignRecipe.brushStroke` (`BrushStroke`: `bristles`, `dryness`, `liftFray`,
+`leadClean`, `taper`, `spill`, `skew`, `scale`, `centerY`, `minAspect`,
+`maxAspect`) drives `BrushFlagStage`, and the caption uses the embedded
+handwritten font (`captions.font: "handwritten"`, Kalam Bold, OFL).
+
+The edge itself is reusable by any stage or pack (Shared Heart, Twin Hearts,
+Diagonal Split…). It roughens the edge of **any shape** given as alpha, as one
+brush moving left → right (`vertical: true` = top → bottom), and never touches
+the middle of the shape (emblems survive):
+
+```dart
+// design_forge_render
+art  = await BrushEdge.brushArtwork(art, brush, seed);          // the artwork's own shape
+mask = await BrushEdge.maskForPath(heartPath, w, h, brush, seed); // white = keep; dstIn it
+mask = await BrushEdge.maskForRect(rect, w, h, brush, seed, vertical: true);
+rgba = BrushEdge.paint(premultipliedRgba, w, h, brush, seed);  // pure Dart, isolate-safe
+```
+
+`scale`, `centerY` and the aspect range only matter to `BrushFlagStage`; the
+edge reads `bristles`, `dryness`, `liftFray`, `leadClean`, `taper` and `spill`,
+all as fractions of the shape's own bounding box.

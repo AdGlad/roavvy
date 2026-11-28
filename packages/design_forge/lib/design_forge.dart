@@ -9,6 +9,7 @@ export 'src/determinism/deterministic_rng.dart';
 export 'src/generation/recipe_generator.dart';
 export 'src/geo/country_names.dart';
 export 'src/geo/iso3.dart';
+export 'src/recipe/brush_stroke.dart';
 export 'src/recipe/canonical_json.dart';
 export 'src/recipe/captions.dart';
 export 'src/recipe/design_axis.dart';
