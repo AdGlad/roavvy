@@ -1,5 +1,7 @@
 import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
+import 'package:design_studio/garment_mockup.dart' show inkFollowsShirt;
+export 'package:design_studio/garment_mockup.dart' show inkFollowsShirt;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart'
@@ -140,18 +142,6 @@ final signatureTeeProvider = Provider.family<SignatureTee?, TeeKey>((ref, key) {
   }
   return null;
 });
-
-/// Whether [recipe]'s ink adapts to the shirt: a garment-aware design whose
-/// ink is not the flag (Passport Stamp in black ink), or one with captions
-/// (I ♥ Country). Its ink is chosen against the shirt colour — never black on
-/// a black tee or red on a red one — so the shirt colour is part of the
-/// design.
-bool inkFollowsShirt(DesignRecipe recipe) =>
-    (recipe.palette?.strategy == ColourStrategy.garmentAware &&
-        recipe.inkIsAdaptive) ||
-    // Captions (I ♥ Country) keep their colour only while it contrasts with
-    // the shirt, so they too must know it.
-    recipe.captions != null;
 
 /// The recipe that prints [tee] on the shirt [garmentHex] (`#RRGGBB`).
 ///

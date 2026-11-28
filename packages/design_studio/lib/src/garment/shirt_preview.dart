@@ -129,9 +129,16 @@ class _ShirtPreviewState extends State<ShirtPreview> {
   /// overrides the recipe's and the design carries an outline that picks its
   /// colour from the shirt. Otherwise null (the recipe decides), so a colour
   /// change costs no re-render.
+  ///
+  /// Also for a design whose ink is chosen against the shirt ([inkFollowsShirt]:
+  /// Passport Stamp's black/white ink, I ♥ Country's captions) — without the
+  /// shirt it renders as if on a light one, black on every colour.
   static ui.Color? _artworkBackground(ShirtPreview w) {
-    final hex = w.garmentColour;
-    if (hex == null || w.recipe.composition.outlineWidth <= 0) return null;
+    final hex = w.garmentColour ?? w.recipe.palette?.garmentColour;
+    if (hex == null) return null;
+    if (w.recipe.composition.outlineWidth <= 0 && !inkFollowsShirt(w.recipe)) {
+      return null;
+    }
     return StudioGarments.parseHex(hex);
   }
 
@@ -282,3 +289,13 @@ class _ShirtPreviewState extends State<ShirtPreview> {
     );
   }
 }
+
+/// Whether [recipe]'s ink is chosen against the shirt it prints on: a
+/// garment-aware design with adaptive ink (Passport Stamp in black ink — white
+/// on dark cloth, black on light) or one with captions (kept in their colour
+/// only while it contrasts with the shirt). Such a design must be rendered
+/// knowing the shirt colour, on screen and in the print file.
+bool inkFollowsShirt(DesignRecipe recipe) =>
+    (recipe.palette?.strategy == ColourStrategy.garmentAware &&
+        recipe.inkIsAdaptive) ||
+    recipe.captions != null;
