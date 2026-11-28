@@ -1,3 +1,4 @@
+import 'package:design_studio/garment_mockup.dart' show TeeBackdrop;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -44,15 +45,22 @@ class SignatureTeeArt extends ConsumerWidget {
     final service = ref.watch(signatureTeeRenderServiceProvider);
     if (service == null) return const TeePlaceholder();
     final shirt = garmentColour ?? teeGarments.first.$1;
-    return ShirtPreview(
-      service: service,
-      // The shirt's own ink for a design whose ink follows it (Passport
-      // Stamp: white on a dark shirt); the approved recipe otherwise.
-      recipe: teeRecipe(tee, shirt),
-      front: false,
-      longSide: kTeePreviewLongSide,
+    // On a backdrop chosen against the shirt, so a black or navy shirt
+    // doesn't vanish into a dark card.
+    return TeeBackdrop(
       garmentColour: shirt,
-      placeholder: const TeePlaceholder(),
+      padding: const EdgeInsets.all(4),
+      borderRadius: BorderRadius.circular(10),
+      child: ShirtPreview(
+        service: service,
+        // The shirt's own ink for a design whose ink follows it (Passport
+        // Stamp: white on a dark shirt); the approved recipe otherwise.
+        recipe: teeRecipe(tee, shirt),
+        front: false,
+        longSide: kTeePreviewLongSide,
+        garmentColour: shirt,
+        placeholder: const TeePlaceholder(),
+      ),
     );
   }
 }

@@ -36,7 +36,13 @@ class GarmentCartRequest {
     required this.aspectRatio,
     this.title,
     this.onOrdered,
+    this.layout,
   });
+
+  /// Where each face prints, when the design was sold with a print layout (a
+  /// Signature tee). Null is the Studio's own arrangement: a full back plus
+  /// the session's front choice. The print files follow it exactly.
+  final PrintLayout? layout;
 
   /// The live session this request was built from.
   ///
@@ -75,7 +81,7 @@ class GarmentCartRequest {
 
   /// Print placement intent, in the existing commerce vocabulary:
   ///   front: `'left_chest' | 'center' | 'right_chest' | 'none'`
-  ///   back:  `'center' | 'none'`
+  ///   back:  `'center' | 'upper_back' | 'back_neck' | 'none'`
   /// The V2 hero is the main artwork → it prints on the BACK; the front face is
   /// the chest ribbon.
   final String frontPosition;
@@ -127,11 +133,13 @@ GarmentCartRequest buildGarmentCartRequest(
   MockupTransform backPlacement = MockupTransform.identity,
   (String, String)? garmentColour,
   String? title,
+  PrintLayout? layout,
 }) {
   final hero = c.hero;
   final service = c.service;
   final frontFace = c.frontFace;
-  final hasFrontPrint = c.frontFit != FrontFit.none;
+  final hasFrontPrint =
+      layout == null ? c.frontFit != FrontFit.none : layout.front != null;
   return GarmentCartRequest(
     session: c,
     garment: c.garment,
@@ -159,12 +167,16 @@ GarmentCartRequest buildGarmentCartRequest(
     garmentColourName: garmentColour?.$2 ?? c.garmentName,
     selectedCountryCodes: c.selectedCountryCodes.toList(),
     trips: c.context.trips,
-    frontPosition: switch (c.frontFit) {
-      FrontFit.full => 'center',
-      FrontFit.chest => c.chestRight ? 'right_chest' : 'left_chest',
-      FrontFit.none => 'none',
-    },
-    backPosition: 'center',
+    frontPosition:
+        layout != null
+            ? cartPositionOf(layout.front?.zone.placement)
+            : switch (c.frontFit) {
+              FrontFit.full => 'center',
+              FrontFit.chest => c.chestRight ? 'right_chest' : 'left_chest',
+              FrontFit.none => 'none',
+            },
+    backPosition:
+        layout != null ? cartPositionOf(layout.back?.zone.placement) : 'center',
     aspectRatio: switch (hero.composition.canvasOrientation) {
       Orientation.portrait => 4 / 5,
       Orientation.landscape => 5 / 4,
@@ -172,5 +184,16 @@ GarmentCartRequest buildGarmentCartRequest(
     },
     title: title ?? (c.currentTitle.isEmpty ? null : c.currentTitle),
     onOrdered: c.markOrdered,
+    layout: layout,
   );
 }
+
+/// The cart's word for where a face prints (`'none'` when it doesn't).
+String cartPositionOf(PrintPlacement? p) => switch (p) {
+  PrintPlacement.backFull || PrintPlacement.frontFull => 'center',
+  PrintPlacement.frontLeftChest => 'left_chest',
+  PrintPlacement.frontRightChest => 'right_chest',
+  PrintPlacement.backUpper => 'upper_back',
+  PrintPlacement.backNeck => 'back_neck',
+  PrintPlacement.none || null => 'none',
+};

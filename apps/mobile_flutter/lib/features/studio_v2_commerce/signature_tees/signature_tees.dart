@@ -52,8 +52,7 @@ final signatureCatalogProvider = FutureProvider<SignatureCatalog?>((ref) async {
 /// The bundled packs in feed order (`index.json`). Empty while loading or
 /// when unavailable.
 final signaturePacksProvider = Provider<List<SignatureRecipe>>(
-  (ref) =>
-      ref.watch(signatureCatalogProvider).valueOrNull?.packs ?? const [],
+  (ref) => ref.watch(signatureCatalogProvider).valueOrNull?.packs ?? const [],
 );
 
 /// Tokens a pack fills from a trip rather than from the country. A pack
@@ -68,8 +67,18 @@ Map<String, String> tripTokens(TripRecord trip) => {
 };
 
 const _months = [
-  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+  'JAN',
+  'FEB',
+  'MAR',
+  'APR',
+  'MAY',
+  'JUN',
+  'JUL',
+  'AUG',
+  'SEP',
+  'OCT',
+  'NOV',
+  'DEC',
 ];
 
 /// A passport-stamp date: `12 MAR 24`.
@@ -157,6 +166,11 @@ DesignRecipe teeRecipe(SignatureTee tee, String garmentHex) {
   return r.copyWith(palette: palette.copyWith(garmentColour: garmentHex));
 }
 
+/// Where [tee] prints by default: the layout its pack was approved with in
+/// the Lab, else a full back print.
+PrintLayout teeLayout(SignatureTee tee) =>
+    PrintLayout.fromJson(tee.pack.layout);
+
 /// Renders tee previews. One for the whole app so every surface shares the
 /// [RenderService] image cache — a design rendered on the celebration is not
 /// rendered again on the country page.
@@ -213,8 +227,8 @@ List<String> orderTees(List<EffectiveVisitedCountry> visits) {
 /// renders the print files from the request's session ([renderPrintFiles]),
 /// so a request needs a real session anyway, and going through the shared
 /// builder keeps the tee on exactly the path every Studio order takes. The
-/// session holds the design as its back face, prints nothing on the front,
-/// and is never shown or edited.
+/// session holds the design on both faces and is never shown or edited;
+/// [layout] (default: the pack's own, [teeLayout]) decides where it prints.
 ///
 /// The recipe is passed through untouched — for an untokenised pack its
 /// `recipeId` is the one the Lab approved — so the shirt colour rides beside
@@ -226,6 +240,7 @@ GarmentCartRequest buildSignatureTeeCartRequest({
   required String countryCode,
   required (String, String) garment,
   List<TripRecord> trips = const [],
+  PrintLayout? layout,
 }) {
   final cc = countryCode.toLowerCase();
   final scope = '${tee.pack.id}:$cc';
@@ -247,16 +262,13 @@ GarmentCartRequest buildSignatureTeeCartRequest({
         )
         ..setFrontFit(FrontFit.none)
         ..loadGarment(
-          GarmentDesign(
-            front: recipe,
-            back: recipe,
-            garmentColour: garment.$1,
-          ),
+          GarmentDesign(front: recipe, back: recipe, garmentColour: garment.$1),
         );
   final name = kCountryNames[cc.toUpperCase()] ?? cc.toUpperCase();
   return buildGarmentCartRequest(
     session,
     garmentColour: garment,
     title: '$name · ${tee.pack.title}',
+    layout: layout ?? teeLayout(tee),
   );
 }

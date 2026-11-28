@@ -86,9 +86,11 @@ class SignatureRecipe {
     Map<String, Map<String, Object?>> heroes = const {},
     Map<String, String> locks = const {},
     Map<String, String> tokens = const {},
+    Map<String, Object?> layout = const {},
     this.approvedAt,
     this.notes,
   })  : tokens = Map.unmodifiable(tokens),
+        layout = Map.unmodifiable(deepCopyJson(layout) as Map<String, Object?>),
         base = Map.unmodifiable(deepCopyJson(base) as Map<String, Object?>),
         envelope = envelope ?? VariationEnvelope.empty,
         overrides = Map.unmodifiable(_lowerKeys(overrides)),
@@ -142,6 +144,12 @@ class SignatureRecipe {
   /// uses (besides [countryToken]) must have a default.
   final Map<String, String> tokens;
 
+  /// Where the design prints on the t-shirt by default — front/back zones and
+  /// their sizes, as `design_studio`'s `PrintLayout` JSON. Empty means the
+  /// app's default (a full back print). Opaque here: it is garment data, not
+  /// recipe data, so it never changes a hero's `recipeId` or its lock.
+  final Map<String, Object?> layout;
+
   bool get isApproved => status == SignatureStatus.approved;
 
   /// The base template with [countryToken] (and any extra `{{name}}` tokens)
@@ -168,6 +176,7 @@ class SignatureRecipe {
     Map<String, Map<String, Object?>>? heroes,
     Map<String, String>? locks,
     Map<String, String>? tokens,
+    Map<String, Object?>? layout,
     String? approvedAt,
     String? notes,
   }) =>
@@ -182,6 +191,7 @@ class SignatureRecipe {
         heroes: heroes ?? this.heroes,
         locks: locks ?? this.locks,
         tokens: tokens ?? this.tokens,
+        layout: layout ?? this.layout,
         approvedAt: approvedAt ?? this.approvedAt,
         notes: notes ?? this.notes,
       );

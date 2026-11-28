@@ -89,6 +89,22 @@ void main() {
       expect(text.endsWith('\n'), isTrue);
     });
 
+    test('carries a print layout without touching the hero', () {
+      final layout = {
+        'front': {'zone': 'leftChest', 'scale': 0.9},
+        'back': {'zone': 'fullBack'},
+      };
+      final s = _draft().copyWith(layout: layout);
+      final text = SignaturePackCodec.encode(s);
+      final back = SignaturePackCodec.decode(text);
+      expect(back.layout, layout);
+      expect(SignaturePackCodec.encode(back), text);
+      expect(SignatureResolver.hero(back, 'us').recipeId,
+          SignatureResolver.hero(_draft(), 'us').recipeId);
+      // No layout → no field, so existing packs stay byte-identical.
+      expect(SignaturePackCodec.encode(_draft()), isNot(contains('"layout"')));
+    });
+
     test('rejects unknown fields and future format versions', () {
       final text = SignaturePackCodec.encode(_draft());
       expect(

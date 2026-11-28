@@ -60,4 +60,50 @@ void main() {
       });
     }
   });
+
+  testWidgets('the panel edits the print layout with the app\'s controls', (tester) async {
+    final source = FlagSource.locate()!;
+    LabShirtPanel.useMobileAssets(source.dir.parent.parent);
+    final service = RenderService(source.resolver());
+    final recipe = portraitTornFlagRecipe(flagCode: 'us', seed: 1);
+    tester.view.physicalSize = const Size(380, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var layout = PrintLayout.standard;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: StatefulBuilder(
+          builder: (context, setState) => LabShirtPanel(
+            service: service,
+            recipe: recipe,
+            layout: layout,
+            onLayoutChanged: (l) => setState(() => layout = l),
+          ),
+        ),
+      ),
+    ));
+    expect(find.byType(PrintLayoutControls), findsOneWidget);
+    expect(find.byKey(const Key('tee-face-back')), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('layout-preset-front')));
+    await tester.tap(find.byKey(const Key('layout-preset-front')));
+    await tester.pump();
+    expect(layout, PrintLayoutPreset.front.layout);
+    // The back no longer prints, so the panel turned to the front.
+    expect(find.byKey(const Key('tee-face-front')), findsOneWidget);
+    expect(find.byKey(const Key('tee-guide-front')), findsOneWidget);
+  });
+
+  testWidgets('without an editor the panel has no layout controls', (tester) async {
+    final source = FlagSource.locate()!;
+    final service = RenderService(source.resolver());
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: LabShirtPanel(service: service, recipe: null),
+      ),
+    ));
+    expect(find.byType(PrintLayoutControls), findsNothing);
+    expect(find.byType(TeeViewSwitcher), findsOneWidget);
+  });
 }

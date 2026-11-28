@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:design_forge_render/design_forge_render.dart';
 import 'package:design_studio/design_studio.dart';
+import 'package:design_studio/garment_mockup.dart' show TeeView;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -326,15 +327,18 @@ void main() {
 
       // No size yet: nothing can be added.
       expect(find.text('Choose a size'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('tee-add-to-cart')));
+      await _tapKey(tester, 'tee-add-to-cart');
       await tester.pump();
       expect(sent, isEmpty);
 
-      await tester.tap(find.byKey(const Key('tee-colour-White')));
-      await tester.tap(find.byKey(const Key('tee-size-L')));
+      await _tapKey(tester, 'tee-colour-White');
+      await _tapKey(tester, 'tee-size-L');
       await tester.pump();
-      expect(find.text(r'Add to cart · $39.00'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('tee-add-to-cart')));
+      expect(
+        find.text(r'Add to cart · $39.00', skipOffstage: false),
+        findsOneWidget,
+      );
+      await _tapKey(tester, 'tee-add-to-cart');
       await tester.pumpAndSettle();
 
       expect(sent, hasLength(1));
@@ -379,9 +383,9 @@ void main() {
       await tester.tap(find.byKey(const Key('tee-design-passport_stamp')));
       await tester.pump();
       expect(find.text('Passport Stamp · Japan'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('tee-size-M')));
+      await _tapKey(tester, 'tee-size-M');
       await tester.pump();
-      await tester.tap(find.byKey(const Key('tee-add-to-cart')));
+      await _tapKey(tester, 'tee-add-to-cart');
       await tester.pumpAndSettle();
       final stamp = (
         pack: _stamp,
@@ -393,6 +397,152 @@ void main() {
         teeRecipe(stamp, teeGarments.first.$1).recipeId,
       );
       expect(sent.single.title, 'Japan · Passport Stamp');
+    });
+
+    testWidgets('opens on the full back; Crest + back reaches the cart', (
+      tester,
+    ) async {
+      await _tall(tester);
+      final sent = <GarmentCartRequest>[];
+      await tester.pumpWidget(
+        _app(
+          _overrides(commerce: true),
+          SignatureTeeScreen(
+            countryCode: 'jp',
+            onAddToCart: (context, r, o) async => sent.add(r),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // The pack has no layout: a full back print (below the Roavvy mark),
+      // shown from the back.
+      expect(find.text('12″ × 14.5″', skipOffstage: false), findsOneWidget);
+      expect(find.byKey(const Key('tee-brand-mark')), findsOneWidget);
+      final back = tester.widget<SegmentedButton<TeeView>>(
+        find.byKey(const Key('tee-view')),
+      );
+      expect(back.selected, {TeeView.back});
+      expect(find.byKey(const Key('tee-guide-back')), findsNothing);
+
+      await _tapKey(tester, 'layout-preset-crestAndBack');
+      await tester.pump();
+      // A preset keeps the primary (back) design in view; turn to the front
+      // to see the crest, with its size limit outlined.
+      final after = tester.widget<SegmentedButton<TeeView>>(
+        find.byKey(const Key('tee-view')),
+      );
+      expect(after.selected, {TeeView.back});
+      await tester.tap(find.byKey(const Key('tee-view-front')));
+      await tester.pump();
+      expect(find.byKey(const Key('tee-guide-front')), findsOneWidget);
+      expect(find.text('3.5″ × 3.5″', skipOffstage: false), findsOneWidget);
+
+      await _tapKey(tester, 'tee-size-M');
+      await tester.pump();
+      await _tapKey(tester, 'tee-add-to-cart');
+      await tester.pumpAndSettle();
+      final r = sent.single;
+      expect(r.layout, PrintLayoutPreset.crestAndBack.layout);
+      expect(r.frontPosition, 'left_chest');
+      expect(r.backPosition, 'center');
+      expect(r.renderFrontArtwork, isNotNull);
+      expect(r.layout!.printsMark, isTrue);
+    });
+
+    testWidgets(
+      'the Roavvy mark can be switched off and that reaches the cart',
+      (tester) async {
+        await _tall(tester);
+        final sent = <GarmentCartRequest>[];
+        await tester.pumpWidget(
+          _app(
+            _overrides(commerce: true),
+            SignatureTeeScreen(
+              countryCode: 'jp',
+              onAddToCart: (context, r, o) async => sent.add(r),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await _tapKey(tester, 'layout-mark');
+        await tester.pump();
+        expect(find.byKey(const Key('tee-brand-mark')), findsNothing);
+        await _tapKey(tester, 'tee-size-M');
+        await tester.pump();
+        await _tapKey(tester, 'tee-add-to-cart');
+        await tester.pumpAndSettle();
+        expect(sent.single.layout!.brandMark, isFalse);
+      },
+    );
+
+    testWidgets('Both shows the two faces; a swipe turns the shirt', (
+      tester,
+    ) async {
+      await _tall(tester);
+      await tester.pumpWidget(
+        _app(
+          _overrides(commerce: true),
+          const SignatureTeeScreen(countryCode: 'jp'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.fling(
+        find.byKey(const Key('tee-swipe')),
+        const Offset(-300, 0),
+        1000,
+      );
+      await tester.pump();
+      expect(
+        tester
+            .widget<SegmentedButton<TeeView>>(find.byKey(const Key('tee-view')))
+            .selected,
+        {TeeView.front},
+      );
+      await tester.tap(find.byKey(const Key('tee-view-both')));
+      await tester.pump();
+      expect(find.byKey(const Key('tee-face-front')), findsOneWidget);
+      expect(find.byKey(const Key('tee-face-back')), findsOneWidget);
+      expect(find.text('Front · blank'), findsOneWidget);
+      expect(find.text('Back · Full back'), findsOneWidget);
+    });
+
+    testWidgets('a layout approved in the Lab is the one the page opens on', (
+      tester,
+    ) async {
+      await _tall(tester);
+      final crest = _pack.copyWith(
+        layout:
+            const PrintLayout(
+              front: ZonePrint(PrintZone.leftChest),
+              back: ZonePrint(PrintZone.upperBack, scale: 0.8),
+            ).toJson(),
+      );
+      final sent = <GarmentCartRequest>[];
+      await tester.pumpWidget(
+        _app(
+          [
+            ..._overrides(commerce: true),
+            signatureCatalogProvider.overrideWith(
+              (ref) async => SignatureCatalog([crest]),
+            ),
+          ],
+          SignatureTeeScreen(
+            countryCode: 'jp',
+            onAddToCart: (context, r, o) async => sent.add(r),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Upper back', skipOffstage: false), findsWidgets);
+      await _tapKey(tester, 'tee-size-S');
+      await tester.pump();
+      await _tapKey(tester, 'tee-add-to-cart');
+      await tester.pumpAndSettle();
+      expect(
+        sent.single.layout!.back,
+        const ZonePrint(PrintZone.upperBack, scale: 0.8),
+      );
+      expect(sent.single.backPosition, 'upper_back');
     });
 
     testWidgets('opens on the requested design', (tester) async {
@@ -771,4 +921,13 @@ void main() {
       });
     }
   });
+}
+
+/// Taps [key] after scrolling it into view — the product page's controls
+/// scroll under the shirt.
+Future<void> _tapKey(WidgetTester tester, String key) async {
+  final f = find.byKey(Key(key), skipOffstage: false);
+  await tester.ensureVisible(f);
+  await tester.pump();
+  await tester.tap(f);
 }

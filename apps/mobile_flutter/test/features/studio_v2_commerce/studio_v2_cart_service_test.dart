@@ -164,8 +164,9 @@ void main() {
         final bytes = uploader.uploaded[f.storagePath]!;
         late ui.Image img;
         await tester.runAsync(() async {
-          img = (await (await ui.instantiateImageCodec(bytes)).getNextFrame())
-              .image;
+          img =
+              (await (await ui.instantiateImageCodec(bytes)).getNextFrame())
+                  .image;
         });
         expect((img.width, img.height), (1800, 2400));
         img.dispose();
@@ -360,10 +361,7 @@ void main() {
 
       await prepare(tester, c);
 
-      expect(
-        (c.hero.recipeId, c.frontFace.recipeId, c.history.length),
-        before,
-      );
+      expect((c.hero.recipeId, c.frontFace.recipeId, c.history.length), before);
     });
 
     testWidgets('retrying prints the same design, not a new one', (
@@ -400,8 +398,9 @@ void main() {
 
     Future<StudioV2CartOutcome> order(
       WidgetTester tester,
-      StudioController c,
-    ) async {
+      StudioController c, {
+      PrintLayout? layout,
+    }) async {
       late StudioV2CartOutcome out;
       await tester.runAsync(() async {
         out = await StudioV2CartService(
@@ -418,7 +417,7 @@ void main() {
             };
           },
         ).addToCart(
-          request: buildGarmentCartRequest(c),
+          request: buildGarmentCartRequest(c, layout: layout),
           options: options,
           uid: 'uid-alice',
           buyerCountry: 'AU',
@@ -435,6 +434,57 @@ void main() {
                 .collection('cartItems')
                 .get())
             .docs;
+
+    testWidgets('a print layout decides the faces: front-only sends no back', (
+      tester,
+    ) async {
+      final c = studio();
+      addTearDown(c.dispose);
+      final out = await order(
+        tester,
+        c,
+        layout: const PrintLayout(front: ZonePrint(PrintZone.leftChest)),
+      );
+      expect(out, isA<StudioV2CartAdded>());
+      final call = calls.single;
+      expect(call.containsKey('backPrintStoragePath'), isFalse);
+      expect(call.containsKey('backPosition'), isFalse);
+      expect(call['frontPosition'], 'front_left');
+      expect(uploader.uploaded.keys.single, startsWith('front_print_files/'));
+      final data = (await cart()).single.data();
+      expect(data['frontPosition'], 'left_chest');
+      expect(data['backPosition'], 'none');
+    });
+
+    testWidgets('an upper-back layout prints on the back file as "back"', (
+      tester,
+    ) async {
+      final c = studio();
+      addTearDown(c.dispose);
+      final out = await order(
+        tester,
+        c,
+        layout: const PrintLayout(
+          front: ZonePrint(PrintZone.fullFront),
+          back: ZonePrint(PrintZone.upperBack),
+        ),
+      );
+      expect(out, isA<StudioV2CartAdded>());
+      final call = calls.single;
+      expect(call['backPosition'], 'back');
+      expect(call['frontPosition'], 'front');
+      final faces = (out as StudioV2CartAdded).metadata.faces;
+      expect(faces.map((f) => f.placement).toSet(), {
+        PrintPlacement.backUpper,
+        PrintPlacement.frontFull,
+      });
+      // Every face is still the full 12"×16" print file — the zone is in
+      // the pixels.
+      for (final f in faces) {
+        expect((f.widthPx, f.heightPx), (1800, 2400));
+      }
+      expect((await cart()).single.data()['backPosition'], 'upper_back');
+    });
 
     testWidgets('the item lands in the existing cart, once', (tester) async {
       final c = studio();
@@ -477,10 +527,7 @@ void main() {
       expect(payload['frontPosition'], 'front');
       expect(payload['quantity'], 2);
       expect(payload['buyerCountry'], 'AU');
-      expect(
-        payload['backPrintStoragePath'],
-        startsWith('back_print_files/'),
-      );
+      expect(payload['backPrintStoragePath'], startsWith('back_print_files/'));
       expect(
         payload['frontPrintStoragePath'],
         startsWith('front_print_files/'),
@@ -522,10 +569,7 @@ void main() {
       expect(out, isA<StudioV2CartPrepared>());
       // The pipeline really ran…
       expect(uploader.uploaded, isNotEmpty);
-      expect(
-        (out as StudioV2CartPrepared).metadata.variantId,
-        isNotEmpty,
-      );
+      expect((out as StudioV2CartPrepared).metadata.variantId, isNotEmpty);
       // …and nothing was ordered.
       final cart =
           await firestore

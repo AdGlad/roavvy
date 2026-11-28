@@ -1,3 +1,12 @@
+import 'package:design_studio/design_studio.dart' show PrintLayout, PrintSide;
+import 'package:design_studio/garment_mockup.dart'
+    show
+        PrintLayoutControls,
+        TeeBackdrop,
+        teeBackdropFor,
+        TeeSidesPreview,
+        TeeView,
+        TeeViewSwitcher;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,10 +36,15 @@ Future<void> _studioCart(
   StudioV2PurchaseOptions options,
 ) => const StudioV2CartAdapter().addToCart(context, r, options: options);
 
-/// The signature tee product page (M200): the design, the shirt colour, a
-/// size, the price, Add to cart. The traveller picks one of the country's
-/// signature designs, but nothing about a design can be changed here — each
-/// is the approved Signature hero for [countryCode], exactly.
+/// The signature tee product page (M200): the design, where it prints, the
+/// shirt colour, a size, the price, Add to cart. The traveller picks one of
+/// the country's signature designs, but nothing about a design can be changed
+/// here — each is the approved Signature hero for [countryCode], exactly.
+///
+/// Where it prints can: a print layout (presets such as Crest + back, or a
+/// zone and size per face), opening on the layout the pack was approved with.
+/// The shirt turns with Front / Back / Both or a sideways swipe, and the
+/// zone's largest printable area is outlined once the layout is being edited.
 ///
 /// Opened only through `CommerceEntry.openSignatureTee`.
 class SignatureTeeScreen extends ConsumerStatefulWidget {
@@ -49,8 +63,7 @@ class SignatureTeeScreen extends ConsumerStatefulWidget {
   final TeeAddToCart onAddToCart;
 
   @override
-  ConsumerState<SignatureTeeScreen> createState() =>
-      _SignatureTeeScreenState();
+  ConsumerState<SignatureTeeScreen> createState() => _SignatureTeeScreenState();
 }
 
 class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
@@ -58,6 +71,30 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
   late String? _packId = widget.packId;
   String? _size;
   bool _adding = false;
+
+  /// The traveller's layout per design, once they change it.
+  final Map<String, PrintLayout> _layouts = {};
+  TeeView? _view;
+  bool _guides = false;
+
+  PrintLayout _layoutFor(SignatureTee tee) =>
+      _layouts[tee.pack.id] ?? teeLayout(tee);
+
+  TeeView _viewFor(SignatureTee tee) =>
+      _view ?? TeeView.forLayout(_layoutFor(tee));
+
+  void _setLayout(SignatureTee tee, PrintLayout l) => setState(() {
+    _layouts[tee.pack.id] = l;
+    _guides = true;
+    // Keep looking at a face that prints.
+    final side = _viewFor(tee).side;
+    if (side != null && !l.prints(side)) _view = TeeView.forLayout(l);
+  });
+
+  void _focus(PrintSide side) => setState(() {
+    _guides = true;
+    if (_view != TeeView.both) _view = TeeView.of(side);
+  });
 
   String get _cc => widget.countryCode.toUpperCase();
 
@@ -79,6 +116,7 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
         countryCode: _cc,
         garment: _garment,
         trips: ref.read(tripListProvider).valueOrNull ?? const [],
+        layout: _layoutFor(tee),
       );
       await widget.onAddToCart(
         context,
@@ -101,6 +139,7 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
         .whenOrNull(data: (p) => p.tshirtFromPrice);
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final service = ref.watch(signatureTeeRenderServiceProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(name)),
@@ -124,13 +163,42 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
                   children: [
                     // The shirt stays in view; the controls scroll under it.
                     Expanded(
+                      flex: 5,
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                        child: SignatureTeeArt(
-                          key: Key('tee-preview-${tee.pack.id}'),
-                          countryCode: _cc,
-                          packId: tee.pack.id,
-                          garmentColour: _garment.$1,
+                        child: Column(
+                          children: [
+                            TeeViewSwitcher(
+                              view: _viewFor(tee),
+                              layout: _layoutFor(tee),
+                              onChanged: (v) => setState(() => _view = v),
+                            ),
+                            const SizedBox(height: 6),
+                            Expanded(
+                              child: TeeBackdrop(
+                                garmentColour: _garment.$1,
+                                borderRadius: BorderRadius.circular(16),
+                                child:
+                                    service == null
+                                        ? const TeePlaceholder()
+                                        : TeeSidesPreview(
+                                          key: Key(
+                                            'tee-preview-${tee.pack.id}',
+                                          ),
+                                          service: service,
+                                          recipe: teeRecipe(tee, _garment.$1),
+                                          layout: _layoutFor(tee),
+                                          view: _viewFor(tee),
+                                          onViewChanged:
+                                              (v) => setState(() => _view = v),
+                                          garmentColour: _garment.$1,
+                                          longSide: kTeePreviewLongSide,
+                                          showGuides: _guides,
+                                          placeholder: const TeePlaceholder(),
+                                        ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -152,83 +220,101 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
                               title: t.pack.title,
                               garmentColour: _garment.$1,
                               selected: t.pack.id == tee.pack.id,
-                              onTap: () => setState(() => _packId = t.pack.id),
+                              onTap:
+                                  () => setState(() {
+                                    _packId = t.pack.id;
+                                    _view = null;
+                                    _guides = false;
+                                  }),
                             );
                           },
                         ),
                       ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${tee.pack.title} · $name',
-                            style: text.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            key: const Key('tee-price'),
-                            price ?? 'Price confirmed at checkout',
-                            style: text.titleMedium?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            'Colour · ${_garment.$2}',
-                            style: text.labelLarge,
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 8,
-                            children: [
-                              for (final g in teeGarments)
-                                _Swatch(
-                                  key: Key('tee-colour-${g.$2}'),
-                                  hex: g.$1,
-                                  name: g.$2,
-                                  selected: g == _garment,
-                                  onTap: () => setState(() => _garment = g),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          Text('Size', style: text.labelLarge),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              for (final s in tshirtSizes)
-                                ChoiceChip(
-                                  key: Key('tee-size-$s'),
-                                  label: Text(s),
-                                  selected: _size == s,
-                                  onSelected: (_) => setState(() => _size = s),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              key: const Key('tee-add-to-cart'),
-                              onPressed:
-                                  _size == null || _adding ? null : _addToCart,
-                              child: Text(
-                                _size == null
-                                    ? 'Choose a size'
-                                    : price == null
-                                    ? 'Add to cart'
-                                    : 'Add to cart · $price',
+                    Flexible(
+                      flex: 6,
+                      child: SingleChildScrollView(
+                        key: const Key('tee-controls'),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${tee.pack.title} · $name',
+                              style: text.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            Text(
+                              key: const Key('tee-price'),
+                              price ?? 'Price confirmed at checkout',
+                              style: text.titleMedium?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                            PrintLayoutControls(
+                              key: const Key('tee-layout'),
+                              layout: _layoutFor(tee),
+                              onChanged: (l) => _setLayout(tee, l),
+                              onFocus: _focus,
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Colour · ${_garment.$2}',
+                              style: text.labelLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 8,
+                              children: [
+                                for (final g in teeGarments)
+                                  _Swatch(
+                                    key: Key('tee-colour-${g.$2}'),
+                                    hex: g.$1,
+                                    name: g.$2,
+                                    selected: g == _garment,
+                                    onTap: () => setState(() => _garment = g),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Text('Size', style: text.labelLarge),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 8,
+                              children: [
+                                for (final s in tshirtSizes)
+                                  ChoiceChip(
+                                    key: Key('tee-size-$s'),
+                                    label: Text(s),
+                                    selected: _size == s,
+                                    onSelected:
+                                        (_) => setState(() => _size = s),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                key: const Key('tee-add-to-cart'),
+                                onPressed:
+                                    _size == null || _adding
+                                        ? null
+                                        : _addToCart,
+                                child: Text(
+                                  _size == null
+                                      ? 'Choose a size'
+                                      : price == null
+                                      ? 'Add to cart'
+                                      : 'Add to cart · $price',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -311,7 +397,8 @@ class _DesignChoice extends StatelessWidget {
         child: Container(
           width: 72,
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHigh,
+            // The same backdrop as the big shirt, so dark shirts read here too.
+            color: teeBackdropFor(garmentColour),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? cs.primary : cs.outlineVariant,

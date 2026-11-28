@@ -227,13 +227,18 @@ class StudioV2CartService {
   /// provider's vocabulary happens HERE and nowhere else, so no ambiguous word
   /// can travel through the app carrying a decision with it.
   static String printfulPlacement(PrintPlacement p) => switch (p) {
-    PrintPlacement.backFull => 'back',
+    // Every back zone is a position on the one back print file — the zone is
+    // baked into its pixels, exactly as a chest logo is on the front.
+    PrintPlacement.backFull ||
+    PrintPlacement.backUpper ||
+    PrintPlacement.backNeck => 'back',
     PrintPlacement.frontFull => 'front',
     PrintPlacement.frontLeftChest => 'front_left',
     PrintPlacement.frontRightChest => 'front_right',
-    PrintPlacement.none => throw ArgumentError(
-      'PrintPlacement.none has no Printful placement — send no file instead',
-    ),
+    PrintPlacement.none =>
+      throw ArgumentError(
+        'PrintPlacement.none has no Printful placement — send no file instead',
+      ),
   };
 
   /// Where a face's print file is uploaded. Front and back can never collide,
@@ -271,7 +276,7 @@ class StudioV2CartService {
       return StudioV2CartFailed(
         StudioV2CartStage.colour,
         "${request.garmentColourName} isn't available to order yet — "
-            'pick another shirt colour.',
+        'pick another shirt colour.',
       );
     }
     final String variantId;
@@ -296,6 +301,7 @@ class StudioV2CartService {
         request.session,
         frontPlacement: frontPlacement,
         backPlacement: backPlacement,
+        layout: request.layout,
       );
     } catch (e) {
       return StudioV2CartFailed(
@@ -304,17 +310,32 @@ class StudioV2CartService {
         cause: e,
       );
     }
-    final back = files.where((f) => f.placement == PrintPlacement.backFull);
-    if (back.length != 1) {
+    // At most one file per face, and at least one face. Without a print
+    // layout the back is the primary design and must be there; a layout may
+    // leave it blank (a front-only tee).
+    final backs = files.where((f) => f.placement.side == PrintSide.back);
+    final fronts = files.where((f) => f.placement.side == PrintSide.front);
+    final malformed =
+        backs.length > 1 ||
+        fronts.length > 1 ||
+        files.isEmpty ||
+        (request.layout == null && backs.length != 1) ||
+        (request.layout != null &&
+            (backs.length != (request.layout!.back == null ? 0 : 1) ||
+                fronts.length != (request.layout!.front == null ? 0 : 1)));
+    if (malformed) {
       return StudioV2CartFailed(
         StudioV2CartStage.render,
         "We couldn't prepare your design for printing. Try again.",
-        cause: StateError('expected one back print file, got ${back.length}'),
+        cause: StateError(
+          'unexpected print files: ${files.map((f) => f.placement.name)}',
+        ),
       );
     }
 
     // ── Upload, all of it or none of it ──────────────────────────────────
-    final configId = '${request.garment.garmentId}-${now().millisecondsSinceEpoch}';
+    final configId =
+        '${request.garment.garmentId}-${now().millisecondsSinceEpoch}';
     final faces = <StudioV2PrintedFace>[];
     try {
       for (final f in files) {
@@ -363,22 +384,24 @@ class StudioV2CartService {
     final Map<String, dynamic> result;
     try {
       result = await _createMerchCart({
-            'variantId': variantId,
-            'selectedCountryCodes': request.selectedCountryCodes,
-            'buyerCountry': buyerCountry,
-            'quantity': options.quantity,
-            'clientConfigId': configId,
-            'backPrintStoragePath':
-                metadata.faceAt(PrintPlacement.backFull)!.storagePath,
-            // Placement travels as Printful's own name, derived from the
-            // explicit model. A front that prints nothing sends no path and no
-            // placement, so a blank front cannot become a blank image.
-            'backPosition': printfulPlacement(PrintPlacement.backFull),
-            for (final f in faces)
-              if (f.placement.side == PrintSide.front) ...{
-                'frontPrintStoragePath': f.storagePath,
-                'frontPosition': printfulPlacement(f.placement),
-              },
+        'variantId': variantId,
+        'selectedCountryCodes': request.selectedCountryCodes,
+        'buyerCountry': buyerCountry,
+        'quantity': options.quantity,
+        'clientConfigId': configId,
+        // Placement travels as Printful's own name, derived from the
+        // explicit model. A face that prints nothing sends no path and no
+        // placement, so a blank face cannot become a blank image.
+        for (final f in faces)
+          if (f.placement.side == PrintSide.back) ...{
+            'backPrintStoragePath': f.storagePath,
+            'backPosition': printfulPlacement(f.placement),
+          },
+        for (final f in faces)
+          if (f.placement.side == PrintSide.front) ...{
+            'frontPrintStoragePath': f.storagePath,
+            'frontPosition': printfulPlacement(f.placement),
+          },
       });
     } catch (e) {
       return StudioV2CartFailed(
@@ -399,10 +422,10 @@ class StudioV2CartService {
       templateType: 'grid',
       colour: colour,
       size: options.size,
-      // The cart's own placement vocabulary, kept truthful: a V2 back is
-      // always a full back print, and the front says which of the three it is.
-      frontPosition: _cartFrontPosition(faces),
-      backPosition: 'center',
+      // The cart's own placement vocabulary, kept truthful: each face says
+      // which zone it prints in, or 'none'.
+      frontPosition: _cartPosition(faces, PrintSide.front),
+      backPosition: _cartPosition(faces, PrintSide.back),
       imageSize: ImageSize.large,
       selectedCountryCodes: request.selectedCountryCodes,
       createdAt: now().toUtc(),
@@ -427,21 +450,11 @@ class StudioV2CartService {
     );
   }
 
-  /// The existing cart's word for where the front print sits. Derived from the
+  /// The existing cart's word for where [side]'s print sits. Derived from the
   /// explicit placement, never chosen independently of it.
-  static String _cartFrontPosition(List<StudioV2PrintedFace> faces) {
+  static String _cartPosition(List<StudioV2PrintedFace> faces, PrintSide side) {
     for (final f in faces) {
-      switch (f.placement) {
-        case PrintPlacement.frontFull:
-          return 'center';
-        case PrintPlacement.frontLeftChest:
-          return 'left_chest';
-        case PrintPlacement.frontRightChest:
-          return 'right_chest';
-        case PrintPlacement.backFull:
-        case PrintPlacement.none:
-          continue;
-      }
+      if (f.placement.side == side) return cartPositionOf(f.placement);
     }
     return 'none';
   }
