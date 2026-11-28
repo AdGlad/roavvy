@@ -71,3 +71,51 @@ PACK=torn_flag flutter test test/signature_qa_cli_test.dart
 ```
 Writes the same sheet + report as the UI to `design_studio/contact_sheets/signature/<pack>/<label>/`
 (PNGs are git-ignored). All 271 heroes take about 50 s.
+
+## Two-country (pair) packs (ADR-185)
+
+A pack with `"countries": 2` is one design for two countries: A (left/top) and B
+(right/bottom). The order matters: `us+co` and `co+us` are different designs.
+
+- **Sheet:** shows the pack's `samplePairs`, not all 271 countries. If the pack lists
+  none, it shows the default set of 32 pairs in `SignatureSweep.defaultSamplePairs`:
+  - look-alikes: `id+mc`, `ro+td`, `nl+lu`, `ie+ci`;
+  - same-colour neighbours: `fr+it`, `us+gb`, `co+ec`, `de+be`;
+  - emblems: `mx+pt`, `es+cr`, `py+dz`, `br+ar`, `sa+ae`;
+  - non-rectangular: `np+ch`, `bt+np`;
+  - cantons and hoist triangles on the B side: `co+us`, `hu+us`, `mx+us`, `ca+us`,
+    `gr+cy`, `au+nz`, `jm+cu`;
+  - dark, light and disc flags: `ly+cy`, `jp+kr`, `pk+in`;
+  - your references: `ve+pr`, `us+co`, `dz+py`, `gb-eng+pt`;
+  - crosses and regression flags: `fi+se`, `za+gb`, `sc+mu`.
+- **A / B picker:** in the sheet toolbar, pick country A and country B, use ⇄ to swap
+  them, and press **Show** to add that pair to the sheet and inspect it. The inspector
+  also has a ⇄ button that opens the same pair in the other order.
+- **Overrides:** the inspector's override box sets a **pair override** for that ordered
+  pair. A fix for one country wherever it appears goes in the pack file as a country
+  override using `{slot}` (see `SIGNATURE.md`).
+- **Shirt panel and print layout** work as for single packs.
+- **Approve** asks for lock pairs (`a+b`, default
+  `us+co, fr+it, mx+pt, jp+kr, np+ch, id+mc`).
+
+### Pair checks (in addition to the usual ones)
+
+| Code | Level | Fires when |
+|---|---|---|
+| `pair_seam` | warn | The two flags have nearly the same colour where they meet (median RGB distance under 60), so the seam disappears. Never fires when the seam has a gap. |
+| `pair_emblem` | fail | A flag shows less than 70% of its emblem, canton or symbol (from `FlagFocus`). |
+| `pair_balance` | warn | One side holds less than 40% of the ink. |
+| `pair_swap` | fail | The same pair in the other order fails a hard check (heroes only). |
+
+The seam and the flag crops come from the composition (`PairGeometry.of`). A
+composition that doesn't report them yet (anything before M209's `splitPair`) is judged
+against a vertical seam through the middle, with no emblem check. This makes the seam
+check noisy for layouts that aren't side by side.
+
+### Headless
+
+```sh
+PACK=<pair_pack> flutter test test/signature_qa_cli_test.dart
+# optional: PAIRS=us+co,fr+it  VARIATIONS=8  LABEL=…
+# a pack not in the bundle yet: PACK_FILE=/path/to/x.pack.json
+```

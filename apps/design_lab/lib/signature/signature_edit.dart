@@ -40,11 +40,13 @@ class SignatureEdit {
     }
 
     walk(pack.base, '');
-    out.sort((a, b) => a == 'seed'
-        ? -1
-        : b == 'seed'
-            ? 1
-            : a.compareTo(b));
+    out.sort(
+      (a, b) => a == 'seed'
+          ? -1
+          : b == 'seed'
+          ? 1
+          : a.compareTo(b),
+    );
     return out;
   }
 
@@ -52,7 +54,10 @@ class SignatureEdit {
       RecipePath(path).read(pack.base);
 
   static SignatureRecipe setBase(
-      SignatureRecipe pack, String path, Object? value) {
+    SignatureRecipe pack,
+    String path,
+    Object? value,
+  ) {
     final base = deepCopyJson(pack.base) as Map<String, Object?>;
     RecipePath(path).write(base, value);
     return _edit(pack, base: base);
@@ -61,7 +66,10 @@ class SignatureEdit {
   /// Sets (or with null, removes) the envelope range for [path]. Removing a
   /// range also drops hero values for that path.
   static SignatureRecipe setRange(
-      SignatureRecipe pack, String path, ParamRange? range) {
+    SignatureRecipe pack,
+    String path,
+    ParamRange? range,
+  ) {
     final ranges = {...pack.envelope.ranges};
     if (range == null) {
       ranges.remove(path);
@@ -76,7 +84,10 @@ class SignatureEdit {
   }
 
   static SignatureRecipe setOverride(
-      SignatureRecipe pack, String country, CountryOverride? override) {
+    SignatureRecipe pack,
+    String country,
+    CountryOverride? override,
+  ) {
     final overrides = {...pack.overrides};
     if (override == null) {
       overrides.remove(country.toLowerCase());
@@ -87,7 +98,10 @@ class SignatureEdit {
   }
 
   static SignatureRecipe setHero(
-      SignatureRecipe pack, String country, Map<String, Object?>? values) {
+    SignatureRecipe pack,
+    String country,
+    Map<String, Object?>? values,
+  ) {
     final heroes = {...pack.heroes};
     if (values == null || values.isEmpty) {
       heroes.remove(country.toLowerCase());
@@ -100,7 +114,9 @@ class SignatureEdit {
   /// The envelope values [variation] was drawn with — saving them as the
   /// country's hero makes that exact variation the hero.
   static Map<String, Object?> heroValuesOf(
-      SignatureRecipe pack, DesignRecipe variation) {
+    SignatureRecipe pack,
+    DesignRecipe variation,
+  ) {
     final json = variation.toJson();
     return {
       for (final p in pack.envelope.ranges.keys) p: RecipePath(p).read(json),
@@ -108,10 +124,13 @@ class SignatureEdit {
   }
 
   /// The approved pack: status approved, [approvedAt], locks recomputed for
-  /// [lockCountries]. Keeps the version, so the variations the owner reviewed
+  /// [lockCountries] (country codes, or `"a+b"` pairs for a pair pack). Keeps the version, so the variations the owner reviewed
   /// are exactly the ones that ship.
-  static SignatureRecipe approve(SignatureRecipe pack,
-      {required List<String> lockCountries, required DateTime approvedAt}) {
+  static SignatureRecipe approve(
+    SignatureRecipe pack, {
+    required List<String> lockCountries,
+    required DateTime approvedAt,
+  }) {
     final locks = SignatureResolver.lockFor(pack, lockCountries);
     return SignatureRecipe(
       id: pack.id,
@@ -126,6 +145,9 @@ class SignatureEdit {
       heroes: pack.heroes,
       locks: locks,
       tokens: pack.tokens,
+      layout: pack.layout,
+      countries: pack.countries,
+      samplePairs: pack.samplePairs,
     );
   }
 
@@ -150,6 +172,9 @@ class SignatureEdit {
       heroes: heroes ?? pack.heroes,
       locks: pack.locks,
       tokens: pack.tokens,
+      layout: pack.layout,
+      countries: pack.countries,
+      samplePairs: pack.samplePairs,
     );
   }
 
@@ -162,10 +187,12 @@ class SignatureEdit {
       throw FormatException('"$t" is not true/false');
     }
     if (current is int) {
-      return int.tryParse(t) ?? (throw FormatException('"$t" is not a whole number'));
+      return int.tryParse(t) ??
+          (throw FormatException('"$t" is not a whole number'));
     }
     if (current is num) {
-      return double.tryParse(t) ?? (throw FormatException('"$t" is not a number'));
+      return double.tryParse(t) ??
+          (throw FormatException('"$t" is not a number'));
     }
     if (current == null && t == 'null') return null;
     return t;
