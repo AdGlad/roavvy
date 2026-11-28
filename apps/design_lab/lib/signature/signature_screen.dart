@@ -5,6 +5,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_forge_render/design_forge_render.dart';
 import 'package:flutter/material.dart' hide Orientation;
 
+import '../lab_shirt_panel.dart';
 import '../render_service.dart';
 import 'signature_edit.dart';
 import 'signature_io.dart';
@@ -477,6 +478,8 @@ class SignatureScreenState extends State<SignatureScreen> {
                 const VerticalDivider(width: 1),
                 SizedBox(width: 400, child: _inspector(p, _selected!)),
               ],
+              const VerticalDivider(width: 1),
+              _shirtPanel(p),
             ]),
     );
   }
@@ -495,6 +498,22 @@ class SignatureScreenState extends State<SignatureScreen> {
         backgroundColor: p.isApproved ? const Color(0xFFD6F0DC) : const Color(0xFFFFF1C9),
         label: Text('${p.status.name} v${p.version}${_dirty ? ' · unsaved' : ''}'),
       );
+
+  // Far right: the selected (else US) hero on the actual shirt, through the
+  // app's own mockup.
+  Widget _shirtPanel(SignatureRecipe p) {
+    final cc = _selected ?? (widget.codes.contains('us') ? 'us' : widget.codes.firstOrNull);
+    DesignRecipe? hero;
+    try {
+      if (cc != null) hero = SignatureResolver.hero(p, cc);
+    } catch (_) {}
+    return LabShirtPanel(
+      service: widget.service,
+      recipe: hero,
+      title: cc == null ? null : '${cc.toUpperCase()} ${widget.countryNames[cc] ?? ''}',
+      width: 340,
+    );
+  }
 
   // Left: parameters.
   Widget _paramsPanel(SignatureRecipe p) {

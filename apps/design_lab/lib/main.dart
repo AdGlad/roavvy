@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'flag_source.dart';
 import 'lab_generator.dart';
+import 'lab_shirt_panel.dart';
 import 'lab_styles.dart';
 import 'preference_survey.dart';
 import 'recipe_editor.dart';
@@ -14,8 +15,6 @@ import 'render_service.dart';
 import 'studio_canvas_screen.dart';
 import 'signature/signature_io.dart';
 import 'signature/signature_screen.dart';
-import 'torn_flag/torn_flag_io.dart';
-import 'torn_flag/torn_flag_screen.dart';
 
 void main() => runApp(const DesignLabApp());
 
@@ -120,6 +119,8 @@ class _LabHomeState extends State<LabHome> {
     }
     _source = source;
     _service = RenderService(source.resolver());
+    // The shirt panel reads the app's own garment photos from the repo.
+    LabShirtPanel.useMobileAssets(source.dir.parent.parent);
     _allCodes = source.codes();
     // Simulated "visited countries" universe (macOS has no real travel history):
     // a deterministic roster with trips across the year range. The Trips slider
@@ -517,21 +518,6 @@ class _LabHomeState extends State<LabHome> {
             )),
             icon: const Icon(Icons.brush, size: 16),
             label: const Text('Studio Canvas'),
-          ),
-          // Standalone review studio for the portrait_torn_flag recipe.
-          TextButton.icon(
-            onPressed: _service == null
-                ? null
-                : () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => TornFlagScreen(
-                        service: _service!,
-                        io: TornFlagIO.fromFlagDir(_source!.dir),
-                        codes: _allCodes,
-                        countryNames: _countryNames,
-                      ),
-                    )),
-            icon: const Icon(Icons.flag_outlined, size: 16),
-            label: const Text('Torn Flag'),
           ),
           // Signature Recipes (ADR-181): tune + approve against every country.
           TextButton.icon(
