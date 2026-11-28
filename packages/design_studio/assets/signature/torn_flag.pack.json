@@ -65,7 +65,15 @@
     "us": "748dc73163b8ec40"
   },
   "notes": "Seeded from us-classic.preset.json (US Classic). Tuned against the distressed torn-flag reference (design_studio/reference_images/liked/us-flag-torn.jpg) on official 1.9:1 artwork; torn along the flag's own 13 stripes. Awaiting approval.",
-  "overrides": {},
+  "overrides": {
+    "sc": {
+      "params": {
+        "tornStrips.blockHeight": 0.0,
+        "tornStrips.blockWidth": 0.0
+      },
+      "reason": "Seychelles has no canton: no solid block (carried over from the Torn Flag screen's Seychelles Starter preset)."
+    }
+  },
   "status": "draft",
   "title": "Torn Flag",
   "version": 1
