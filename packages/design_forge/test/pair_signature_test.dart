@@ -299,7 +299,8 @@ void main() {
       for (final f in packs) {
         final text = f.readAsStringSync();
         final s = SignaturePackCodec.decode(text);
-        expect(s.isPair, isFalse, reason: f.path);
+        // Only packs that declare two countries are pairs (Curtain Split).
+        expect(s.isPair, text.contains('"countries": 2'), reason: f.path);
         expect(SignaturePackCodec.encode(s), text, reason: f.path);
         expect(SignatureResolver.driftedLocks(s), isEmpty, reason: f.path);
       }

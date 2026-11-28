@@ -51,6 +51,12 @@ void main() {
     expect(r.soft.map((f) => f.code), isNot(contains('pair_seam')));
   });
 
+  test('a channel drawn by the renderer counts as a seam, unreported', () {
+    final r = PairQa.analyse(
+        _pair([_red, _white], [_red, _white], gap: 2), _w, _h);
+    expect(r.soft.map((f) => f.code), isNot(contains('pair_seam')));
+  });
+
   test('the seam follows reported geometry', () {
     // Ink split at x = 30: with the default centre seam the halves are
     // unbalanced, with the real seam the colours are judged correctly.

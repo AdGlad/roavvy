@@ -104,6 +104,43 @@ countries, A (left/top) and B (right/bottom). Order matters: `fr+jp` and
   `PairGeometry.of(recipe)` (`FlagCrop` per flag, plus `PairSeam`) so pair QA
   can check it.
 
+### `splitPair` — two flags along a seam (M209)
+
+Family `splitPair` + a `splitPair` group (`SplitPair`,
+`design_forge/lib/src/recipe/split_pair.dart`). Flag A is left of the seam,
+B right; both cover the block height and are cropped around their focus.
+Layout maths is `SplitPairLayout` (pure), shared by the renderer
+(`SplitPairComposer`) and `PairGeometry.of`, so QA checks what is drawn.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `seam` | `curtain` | `straight` \| `curtain` (eased sweep) \| `diagonal` |
+| `seamPosition` | 0.47 | seam x at mid height (fraction of block width) |
+| `seamSlant` | 0.27 | x travel top→bottom; sign set by the focus rule |
+| `seamCurve` | 0.6 | curtain ease-out |
+| `seamFlip` | false | slant direction when no flag needs the top |
+| `seamGap` | 0 | garment-colour channel (fraction of block width) |
+| `autoGap` | 0.012 | channel used when the flags look alike at the seam |
+| `blockAspect` | 0.86 | block width/height |
+| `margin` | 0.04 | block to canvas edge |
+| `rotateFlags` | false | quarter-turn both flags (Diagonal Split) |
+| `shadow` | 0.3 | shade on A along the seam |
+| `edge` | `torn` | `clean` \| `torn` \| `brush` (brush = M208 hook, drawn torn for now) |
+| `edgeWear`, `distress`, `distressScale`, `scratches`, `fade` | 0.6, 0.6, 0.5, 0.5, 0.15 | `WearRaster.grunge` |
+
+Shared rules (engine, not pack): the top of the block goes to the flag whose
+focus is high (a canton) — so the US keeps its stars on either side; two such
+flags straighten the seam and widen the block; a wide canton widens the block
+just enough; a protected box that cannot fit its half (Swiss cross, Nepal's
+pennant, Bhutan's dragon) shrinks the flag and each one-colour edge is
+extended to fill the half; vertical-stripe flags with no emblem (France) are
+narrowed so all stripes show; look-alike flags get `autoGap` (pair QA
+recognises a drawn channel even when `seamGap` is 0).
+
+Diagonal Split (M212) should use `seam: diagonal`, `seamSlant` ≈ 0.7–0.9
+(corner to corner), `seamGap` > 0, `rotateFlags: true`, `edge: brush` once
+`BrushEdge` is wired into `SplitPairComposer._brushEdge`.
+
 ## Resolving
 
 ```dart

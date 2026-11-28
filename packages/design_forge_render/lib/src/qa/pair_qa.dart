@@ -114,15 +114,21 @@ class PairQa {
     if (seam.gap > 0) return null;
     final band = math.max(2, (width * 0.03).round());
     final distances = <double>[];
+    // A channel the renderer drew along the seam (e.g. Curtain Split's
+    // automatic gap for look-alike flags) counts as a drawn seam.
+    var inkedRows = 0, channelRows = 0;
     for (var y = 0; y < height; y++) {
       final sx = (seam.xAt((y + 0.5) / height) * width).round();
       final l = _meanInk(rgba, width, y, sx - 1 - band, sx - 1);
       final r = _meanInk(rgba, width, y, sx + 1, sx + 1 + band);
       if (l == null || r == null) continue;
+      inkedRows++;
+      if (_isChannel(rgba, width, y, sx)) channelRows++;
       final dr = l.$1 - r.$1, dg = l.$2 - r.$2, db = l.$3 - r.$3;
       distances.add(math.sqrt(dr * dr + dg * dg + db * db));
     }
     if (distances.length < math.max(4, height * 0.1)) return null;
+    if (channelRows > inkedRows * 0.6) return null;
     distances.sort();
     return distances[distances.length ~/ 2];
   }
@@ -140,6 +146,16 @@ class PairQa {
       }
     }
     return total == 0 ? null : left / total;
+  }
+
+  /// True when the pixels at the seam (±1) are bare garment.
+  static bool _isChannel(Uint8List rgba, int width, int y, int sx) {
+    var bare = 0;
+    for (var x = sx - 1; x <= sx + 1; x++) {
+      if (x < 0 || x >= width) continue;
+      if (rgba[(y * width + x) * 4 + 3] < _inkAlpha) bare++;
+    }
+    return bare >= 2;
   }
 
   static (double, double, double)? _meanInk(

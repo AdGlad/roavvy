@@ -16,6 +16,7 @@ export 'src/recipe/design_axis.dart';
 export 'src/recipe/design_recipe.dart';
 export 'src/recipe/garment_design.dart';
 export 'src/recipe/globe.dart';
+export 'src/recipe/split_pair.dart';
 export 'src/recipe/procedural_recipe_codec.dart';
 export 'src/recipe/recipe_parts.dart';
 export 'src/recipe/shape_catalog.dart';

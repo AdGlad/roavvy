@@ -565,6 +565,7 @@ class StudioController extends ChangeNotifier {
       DesignFamily.singleHero => 'Single flag',
       DesignFamily.duoBlend => 'Two flags',
       DesignFamily.portraitTornFlag => 'Torn flag',
+      DesignFamily.splitPair => 'Split flags',
       _ => 'Flag grid',
     };
   }
