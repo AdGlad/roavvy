@@ -4,6 +4,7 @@ import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
 import 'package:flutter/material.dart';
 
+import '../../shared/garment_mockup/fabric_print.dart';
 import '../../shared/garment_mockup/garment_mockup_canvas.dart';
 import '../../shared/garment_mockup/garment_mockup_spec.dart';
 import '../../shared/garment_mockup/mockup_transform.dart';
@@ -35,7 +36,15 @@ class ShirtPreview extends StatefulWidget {
     this.placeholder,
     this.interactive = false,
     this.transformController,
+    this.garmentColour,
   });
+
+  /// The shirt colour (`#RRGGBB`) to show, when it is not the recipe's own.
+  ///
+  /// For a design whose recipe must not change with the shirt — a Signature
+  /// hero whose `recipeId` is locked (M200). Null uses
+  /// `recipe.palette.garmentColour`, as the Studio does.
+  final String? garmentColour;
 
   final RenderService service;
   final DesignRecipe recipe;
@@ -70,6 +79,15 @@ class _ShirtPreviewState extends State<ShirtPreview> {
   ui.Image? _artwork;
   ui.Image? _garment;
   ui.Image? _shading;
+
+  /// [_artwork] printed into the fabric ([FabricPrint]); null until baked, or
+  /// when the design can be moved (the bake assumes the default placement).
+  ui.Image? _printed;
+  String? _printedKey;
+
+  /// Identifies the design [_artwork] was rendered from (it can lag the
+  /// widget's recipe while a new one renders).
+  String? _artworkKey;
   String? _garmentKey;
   String? _shadingKey;
 
@@ -77,7 +95,7 @@ class _ShirtPreviewState extends State<ShirtPreview> {
   bool get _blank => widget.printArea == Rect.zero;
 
   GarmentMockupSpec get _spec => StudioGarments.specFor(
-    garmentColour: widget.recipe.palette?.garmentColour,
+    garmentColour: widget.garmentColour ?? widget.recipe.palette?.garmentColour,
     front: widget.front,
     printArea: _blank ? null : widget.printArea,
   );
@@ -96,14 +114,31 @@ class _ShirtPreviewState extends State<ShirtPreview> {
     // The artwork only re-renders when the design identity changes — a stage
     // change or a garment swap must not trigger an expensive re-render.
     if (old.recipe.recipeId != widget.recipe.recipeId ||
-        old.longSide != widget.longSide) {
+        old.longSide != widget.longSide ||
+        _artworkBackground(old) != _artworkBackground(widget)) {
       _loadArtwork();
     }
     if (_spec.garmentKey != _garmentKey) _loadGarment();
     if (_spec.shadingAssetPath != _shadingKey) _loadShading();
+    // A new print area (or a still preview that was editable) needs its own
+    // bake; an unchanged key returns at once.
+    _bakePrint();
+  }
+
+  /// The tone the artwork is drawn against, when [ShirtPreview.garmentColour]
+  /// overrides the recipe's and the design carries an outline that picks its
+  /// colour from the shirt. Otherwise null (the recipe decides), so a colour
+  /// change costs no re-render.
+  static ui.Color? _artworkBackground(ShirtPreview w) {
+    final hex = w.garmentColour;
+    if (hex == null || w.recipe.composition.outlineWidth <= 0) return null;
+    return StudioGarments.parseHex(hex);
   }
 
   Future<void> _loadArtwork() async {
+    final key =
+        '${widget.recipe.recipeId}@${widget.longSide}|'
+        '${_artworkBackground(widget)}';
     try {
       // The artwork LAYER, with nothing behind it: anything opaque would show
       // as a card around the design instead of printing onto the fabric.
@@ -111,8 +146,15 @@ class _ShirtPreviewState extends State<ShirtPreview> {
         widget.recipe,
         widget.longSide,
         transparent: true,
+        background: _artworkBackground(widget),
       );
-      if (mounted) setState(() => _artwork = img);
+      if (mounted) {
+        setState(() {
+          _artwork = img;
+          _artworkKey = key;
+        });
+        _bakePrint();
+      }
     } catch (_) {
       // A transient render failure must never take the shell down; the next
       // recipe change retries.
@@ -136,10 +178,45 @@ class _ShirtPreviewState extends State<ShirtPreview> {
     _shadingKey = key;
     try {
       final img = await StudioGarments.loadShading(spec);
-      if (mounted && _shadingKey == key) setState(() => _shading = img);
+      if (mounted && _shadingKey == key) {
+        setState(() => _shading = img);
+        _bakePrint();
+      }
     } catch (_) {
       // Losing the folds costs realism, never the preview: the shirt and the
       // print still render, just flat.
+    }
+  }
+
+  /// Whether the print can be baked into the fabric: a still preview at the
+  /// default placement. An editable one keeps the live shading pass, which
+  /// follows the design as it moves.
+  bool get _bakes => !widget.interactive && widget.transformController == null;
+
+  /// The artwork that was rendered, on this shading map and print area.
+  String get _bakeKey =>
+      '$_artworkKey|${_spec.shadingAssetPath}|${_spec.printAreaNorm}';
+
+  Future<void> _bakePrint() async {
+    final artwork = _artwork, shading = _shading;
+    if (!_bakes || _blank || artwork == null || shading == null) return;
+    if (_artworkKey == null) return;
+    final key = _bakeKey;
+    if (key == _printedKey && _printed != null) return;
+    _printedKey = key;
+    try {
+      final img = await FabricPrint.bake(
+        artwork: artwork,
+        shading: shading,
+        spec: _spec,
+        cacheKey: _artworkKey!,
+      );
+      // A slower earlier bake must not overwrite a newer design.
+      if (mounted && _printedKey == key && identical(_artwork, artwork)) {
+        setState(() => _printed = img);
+      }
+    } catch (_) {
+      // Realism, not correctness: the live shading pass still renders.
     }
   }
 
@@ -147,6 +224,9 @@ class _ShirtPreviewState extends State<ShirtPreview> {
   Widget build(BuildContext context) {
     final garment = _garment;
     final artwork = _blank ? null : _artwork;
+    // Only the bake of THIS design and print area; a stale one is ignored.
+    final printed =
+        _bakes && _printedKey == _bakeKey && !_blank ? _printed : null;
     if (garment != null && _blank) {
       // A blank front is a real choice, not a missing render.
       return GarmentMockupCanvas(
@@ -182,8 +262,11 @@ class _ShirtPreviewState extends State<ShirtPreview> {
       // must supply folds — a luminance — and nothing else. Passing the tinted
       // shirt here is what put a red wash over the flags and swallowed the
       // lettering on a red tee.
-      shadingImage: _shading,
-      artworkImage: artwork,
+      //
+      // When the print has been baked into the fabric ([FabricPrint]) the
+      // folds, light and weave are already in the ink, so the pass is skipped.
+      shadingImage: printed != null ? null : _shading,
+      artworkImage: printed ?? artwork,
       // The design prints as it was designed. It is rendered with no
       // background fill, so what reaches the fabric is the artwork alone and
       // the shirt shows through everywhere it is transparent.

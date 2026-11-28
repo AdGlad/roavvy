@@ -113,10 +113,20 @@ typedef AddToCartCallback =
 /// alongside them, because the fulfiller drops the image into a fixed printable
 /// area — so an arrangement that lives outside the image simply does not
 /// survive the hand-off. An identity placement changes nothing.
+///
+/// [garmentColour] (`(hex, name)` from [StudioController.garments]) and
+/// [title] are for a design that is sold exactly as it was approved — a
+/// Signature hero such as the torn-flag tee (M200). Its recipe must stay
+/// byte-identical to the approved one (its `recipeId` is the lock the Lab
+/// signed off), so the shirt colour cannot be written into the recipe's
+/// palette the way [StudioController.setGarment] does; it travels beside it
+/// instead. Null takes the session's own colour and title, as before.
 GarmentCartRequest buildGarmentCartRequest(
   StudioController c, {
   MockupTransform frontPlacement = MockupTransform.identity,
   MockupTransform backPlacement = MockupTransform.identity,
+  (String, String)? garmentColour,
+  String? title,
 }) {
   final hero = c.hero;
   final service = c.service;
@@ -145,8 +155,8 @@ GarmentCartRequest buildGarmentCartRequest(
               ),
             )
             : null,
-    garmentColourHex: hero.palette?.garmentColour,
-    garmentColourName: c.garmentName,
+    garmentColourHex: garmentColour?.$1 ?? hero.palette?.garmentColour,
+    garmentColourName: garmentColour?.$2 ?? c.garmentName,
     selectedCountryCodes: c.selectedCountryCodes.toList(),
     trips: c.context.trips,
     frontPosition: switch (c.frontFit) {
@@ -160,7 +170,7 @@ GarmentCartRequest buildGarmentCartRequest(
       Orientation.landscape => 5 / 4,
       Orientation.square => 1.0,
     },
-    title: c.currentTitle.isEmpty ? null : c.currentTitle,
+    title: title ?? (c.currentTitle.isEmpty ? null : c.currentTitle),
     onOrdered: c.markOrdered,
   );
 }

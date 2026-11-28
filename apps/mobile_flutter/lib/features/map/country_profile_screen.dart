@@ -16,6 +16,7 @@ import 'package:shared_models/shared_models.dart';
 import '../../core/country_names.dart';
 import '../../core/providers.dart';
 import '../../core/region_names.dart';
+import '../commerce_entry/commerce_entry.dart';
 import '../heritage/heritage_detail_sheet.dart';
 import '../scan/hero_providers.dart';
 import '../shared/hero_image_view.dart';
@@ -346,6 +347,8 @@ class _Body extends StatelessWidget {
         // Stats strip
         _StatsStrip(stats: detail.stats, accentColor: accentColor),
         const SizedBox(height: 16),
+        // Your torn flag tee — commerce only, hidden otherwise (ADR-180).
+        CommerceEntry.signatureTeeCard(isoCode),
         // Region map with interactive visited-region polygons
         if (detail.totalRegions > 0)
           _InlineRegionMap(
