@@ -1,4 +1,45 @@
-# Next tasks (planner handoff, updated 2026-11-27)
+# Next tasks (planner handoff, updated 2026-11-28)
+
+# PLAN: Two-country Signatures + Brush Flag, M206–M214
+
+**Goal:** signature T-shirts for **two countries in one design**, plus one new single-country signature (Brush Flag). Each one is developed and approved one at a time in the Design Lab, then shown in the app.
+**References** (`~/Downloads`; stock art, style only):
+- greece/costa-rica → Brush Flag;
+- split-flags-c + split-two-b → Curtain Split;
+- 1-heart-2-countries → Shared Heart;
+- two-hearts-1 → Twin Hearts;
+- split-two → Diagonal Split;
+- multi-hearts → Heart Wall (backlog).
+
+**Issues:** #144–#152. **Architecture:** ADR-185 (pair packs: `countries: 2`, `{{countryA}}`/`{{countryB}}`, pair overrides/locks, shared flag-focus table, `splitPair` seam composition).
+**Defaults taken (owner can change):** A is on the left and order matters (swap in UI); no caption on pair designs; pairs come from same-trip suggestions plus "pick any two" (no home country in the app yet); Curtain Split is the first pair design.
+
+| # | Milestone | Depends | Size | Doc |
+|---|---|---|---|---|
+| M206 | Pair Signatures: two-country model, tokens, resolver, flag focus | M190 | M | `docs/dev/milestones/m206-pair-signature-model.md` |
+| M207 | Lab Pair Workbench + pair QA sheet | M206 | M | `m207-lab-pair-workbench.md` |
+| M208 | Signature: Brush Flag (single country) | M191 | M | `m208-signature-brush-flag.md` |
+| M209 | Pair 1: Curtain Split | M207 | M | `m209-pair-curtain-split.md` |
+| M210 | Pair 2: Shared Heart | M208, M209 | S–M | `m210-pair-shared-heart.md` |
+| M211 | Pair 3: Twin Hearts | M210 | S | `m211-pair-twin-hearts.md` |
+| M212 | Pair 4: Diagonal Split | M209 | S–M | `m212-pair-diagonal-split.md` |
+| M213 | Pair tees in the app (pick/suggest pair, tee page, cart) | M206, M209 approved | M | `m213-pair-tees-in-app.md` |
+| M214 | Heart Wall: many countries (backlog) | M206, M211 | M | `m214-heart-wall-multi-country.md` |
+
+**Sequencing:**
+- M208 (Brush Flag) can start now, in parallel with M206 → M207.
+- After that, the pair designs go strictly one at a time, each finishing only on the owner's approval in the Lab: M209 → M210 → M211 → M212.
+- M213 starts once M209 is approved and runs alongside the remaining designs.
+
+**Owner gates:**
+- choosing the Brush Flag font (from 3 options);
+- approving each design in the Lab;
+- how pairs are chosen in the app (and whether a home-country setting is wanted);
+- the default print layout for Twin Hearts.
+
+---
+
+# PREVIOUS HANDOFF (2026-11-27), retained below
 
 # PLAN: v2 Signature T-shirts, M190–M199 (commerce back on)
 
