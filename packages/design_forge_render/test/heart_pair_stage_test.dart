@@ -115,4 +115,34 @@ void main() {
       expect(alpha(250, (ay + by) ~/ 2 + 40), 0);
     });
   });
+
+  testWidgets('heart wall: one painted heart per country, deterministic',
+      (tester) async {
+    await tester.runAsync(() async {
+      const codes = ['fr', 'jp', 'us', 'br', 'np', 'za', 'gb'];
+      final r = DesignRecipe(
+        seed: 2,
+        content: RecipeContent(flags: [for (final c in codes) FlagRef(c)]),
+        composition: const Composition(
+            family: DesignFamily.singleHero,
+            orientation: Orientation.portrait,
+            sizeClass: SizeClass.large),
+        heartWall: const HeartWall(scratches: 0, streaks: 0),
+      );
+      final res = await _render(r, 400, 500);
+      expect((await _render(r, 400, 500)).imageHash, res.imageHash);
+      final px = await _pixels(res.image);
+      final l = HeartWallLayout.ofRecipe(r, height: 500)!;
+      expect(l.slots, hasLength(codes.length));
+      for (final s in l.slots) {
+        final (x, y) = s.pivot;
+        expect(px[(y.round() * 400 + x.round()) * 4 + 3], 255,
+            reason: '${s.code} heart centre');
+      }
+      // Between rows (just under the first row's hearts) is empty.
+      final row0 = l.slots.first.heartBox;
+      final gapY = (row0.bottom + l.slots[l.columns].heartBox.top) ~/ 2;
+      expect(px[(gapY * 400 + 2) * 4 + 3], 0);
+    });
+  });
 }

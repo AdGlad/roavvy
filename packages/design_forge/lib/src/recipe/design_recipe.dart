@@ -7,6 +7,7 @@ import 'split_pair.dart';
 import 'recipe_parts.dart';
 import 'torn_strips.dart';
 import 'heart_pair.dart';
+import 'heart_wall.dart';
 import 'watercolour.dart';
 import 'versions.dart';
 
@@ -468,6 +469,7 @@ class DesignRecipe {
     this.globe,
     this.brushStroke,
     this.heartPair,
+    this.heartWall,
     this.captions,
     this.splitPair,
     this.motifs = const [],
@@ -515,6 +517,9 @@ class DesignRecipe {
   /// Two flags in brushed hearts (Shared Heart / Twin Hearts); null = none.
   final HeartPair? heartPair;
 
+  /// Many flags in a grid of brushed hearts (Heart Wall); null = none.
+  final HeartWall? heartWall;
+
   /// Text above / below the artwork; null = none.
   final Captions? captions;
 
@@ -555,6 +560,7 @@ class DesignRecipe {
         if (globe != null) 'globe': globe!.toJson(),
         if (brushStroke != null) 'brushStroke': brushStroke!.toJson(),
         if (heartPair != null) 'heartPair': heartPair!.toJson(),
+        if (heartWall != null) 'heartWall': heartWall!.toJson(),
         if (captions != null) 'captions': captions!.toJson(),
         if (splitPair != null) 'splitPair': splitPair!.toJson(),
         if (motifs.isNotEmpty)
@@ -622,6 +628,7 @@ class DesignRecipe {
         globe: _obj(json['globe'], Globe.fromJson),
         brushStroke: _obj(json['brushStroke'], BrushStroke.fromJson),
         heartPair: _obj(json['heartPair'], HeartPair.fromJson),
+        heartWall: _obj(json['heartWall'], HeartWall.fromJson),
         captions: _obj(json['captions'], Captions.fromJson),
         splitPair: _obj(json['splitPair'], SplitPair.fromJson),
         motifs: [
@@ -650,6 +657,7 @@ class DesignRecipe {
     Globe? globe,
     BrushStroke? brushStroke,
     HeartPair? heartPair,
+    HeartWall? heartWall,
     Captions? captions,
     SplitPair? splitPair,
     List<Motif>? motifs,
@@ -671,6 +679,7 @@ class DesignRecipe {
         globe: globe ?? this.globe,
         brushStroke: brushStroke ?? this.brushStroke,
         heartPair: heartPair ?? this.heartPair,
+        heartWall: heartWall ?? this.heartWall,
         captions: captions ?? this.captions,
         splitPair: splitPair ?? this.splitPair,
         motifs: motifs ?? this.motifs,

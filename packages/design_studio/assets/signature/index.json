@@ -14,6 +14,7 @@
     "curtain_split",
     "diagonal_split",
     "shared_heart",
-    "twin_hearts"
+    "twin_hearts",
+    "heart_wall"
   ]
 }

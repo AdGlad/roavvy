@@ -37,7 +37,7 @@ void main() {
             isManual: false,
           );
           final tees = teesFor(catalog.packs, cc, trip: trip);
-          final singles = catalog.packs.where((p) => !p.isPair).length;
+          final singles = catalog.packs.where((p) => p.isSingle).length;
           if (tees.length != singles) {
             problems.add('$cc: only ${tees.length} of $singles');
           }

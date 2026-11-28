@@ -80,20 +80,35 @@ class SignatureSweep {
     'us+co', 'fr+it', 'mx+pt', 'jp+kr', 'np+ch', 'id+mc', //
   ];
 
+  /// The sample country lists of a list pack (M214): the first 3, 6, 12, 24
+  /// and 48 of a fixed traveller's order ([SignatureList.samples]).
+  static List<String> get sampleListKeys => [
+    for (final l in SignatureList.samples) l.key,
+  ];
+
   /// The keys a pack is sheeted over: [codes] for a single pack, its sample
-  /// pairs (or [defaultSamplePairs]) for a pair pack.
+  /// pairs (or [defaultSamplePairs]) for a pair pack, the sample lists for a
+  /// list pack.
   static List<String> keysFor(SignatureRecipe pack, List<String> codes) =>
-      !pack.isPair
+      pack.isList
+      ? sampleListKeys
+      : !pack.isPair
       ? codes
       : (pack.samplePairs.isNotEmpty ? pack.samplePairs : defaultSamplePairs);
 
   /// Default lock keys for approval.
-  static List<String> defaultLocksFor(SignatureRecipe pack) =>
-      pack.isPair ? defaultLockPairs : defaultLockCountries;
+  static List<String> defaultLocksFor(SignatureRecipe pack) => pack.isList
+      ? sampleListKeys
+      : pack.isPair
+      ? defaultLockPairs
+      : defaultLockCountries;
 
   /// A key every pack can render (fallbacks, orientation probes).
-  static String probeKey(SignatureRecipe pack) =>
-      pack.isPair ? pack.firstPair.key : 'us';
+  static String probeKey(SignatureRecipe pack) => pack.isList
+      ? SignatureRecipe.defaultSampleList.key
+      : pack.isPair
+      ? pack.firstPair.key
+      : 'us';
 
   final RenderService service;
   final int longSide;

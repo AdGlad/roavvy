@@ -31,13 +31,51 @@ class HeartPairStage extends RenderStage {
     final p = recipe.heartPair;
     final flags = recipe.content.flags;
     if (p == null || flags.length < 2) return;
-    final w = ctx.width.toDouble(), h = ctx.height.toDouble();
     final layout = HeartPairLayout.compute(p,
-        width: w, height: h, a: flags[0].code, b: flags[1].code);
+        width: ctx.width.toDouble(),
+        height: ctx.height.toDouble(),
+        a: flags[0].code,
+        b: flags[1].code);
+    ctx.artwork = await paintHearts(
+      ctx,
+      layout.slots,
+      seed: DeterministicRng.hashString('heartPair:${recipe.seed}'),
+      // A shared heart's two halves share one set of strokes and scratches.
+      sharedStrokes: !p.isTwin,
+      hatchAngle: p.hatchAngle,
+      hatchWidth: p.hatchWidth,
+      spill: p.spill,
+      tails: p.tails,
+      streaks: p.streaks,
+      frayed: p.frayed,
+      crossHatch: p.crossHatch,
+      scratches: p.scratches,
+    );
+  }
 
+  /// Paints [slots] (from [HeartPairLayout] or `HeartWallLayout`) as brushed
+  /// hearts filled with their flags, onto a transparent canvas the size of
+  /// [ctx]. [sharedStrokes]: all slots share one heart (a shared heart's
+  /// halves) — one set of strokes and scratches, B clipped to its region.
+  /// Otherwise each heart gets its own strokes (seeded per slot).
+  static Future<ui.Image> paintHearts(
+    RenderContext ctx,
+    List<HeartSlot> slots, {
+    required int seed,
+    bool sharedStrokes = false,
+    required double hatchAngle,
+    required double hatchWidth,
+    required double spill,
+    required double tails,
+    required double streaks,
+    required bool frayed,
+    double crossHatch = 0,
+    required double scratches,
+  }) async {
+    final w = ctx.width.toDouble(), h = ctx.height.toDouble();
     final images = <ui.Image>[];
     final shaped = <bool>[];
-    for (final s in layout.slots) {
+    for (final s in slots) {
       final img = await ctx.assets.resolveFlag(s.code,
           width: s.flagDest.width.round().clamp(16, 4096),
           height: s.flagDest.height.round().clamp(16, 4096));
@@ -47,57 +85,56 @@ class HeartPairStage extends RenderStage {
       // first (some flag art has a thin white margin baked in, e.g. Panama).
       images.add(isShaped ? img : await _trim(img));
     }
-    final seed = DeterministicRng.hashString('heartPair:${recipe.seed}');
     final full = ui.Rect.fromLTWH(0, 0, w, h);
 
-    ctx.artwork = await ctx.rasterise((canvas) {
+    return ctx.rasterise((canvas) {
       canvas.saveLayer(full, ui.Paint());
-      for (final s in layout.slots) {
+      for (var i = 0; i < slots.length; i++) {
+        final s = slots[i];
         final heart = _path(s.heart);
         final unit = math.max(s.heartBox.width, s.heartBox.height);
-        // Twin hearts are painted separately; a shared heart's two halves
-        // share one set of strokes.
-        final strokeSeed = p.isTwin ? seed ^ (0x9E37 * (s.slot + 1)) : seed;
+        final strokeSeed = sharedStrokes ? seed : seed ^ (0x9E37 * (i + 1));
         canvas.save();
         _turn(canvas, s);
         canvas.saveLayer(full, ui.Paint());
         BrushEdge.paintHatch(canvas, heart,
-            angleDeg: p.hatchAngle,
-            width: p.hatchWidth * unit,
-            spill: p.spill,
-            tails: p.tails,
-            streaks: p.streaks,
-            frayed: p.frayed,
+            angleDeg: hatchAngle,
+            width: hatchWidth * unit,
+            spill: spill,
+            tails: tails,
+            streaks: streaks,
+            frayed: frayed,
             seed: strokeSeed);
-        if (p.crossHatch > 0) {
+        if (crossHatch > 0) {
           BrushEdge.paintHatch(canvas, heart,
-              angleDeg: p.hatchAngle + 70,
-              width: p.hatchWidth * unit,
-              spill: p.spill * p.crossHatch,
-              tails: p.tails,
+              angleDeg: hatchAngle + 70,
+              width: hatchWidth * unit,
+              spill: spill * crossHatch,
+              tails: tails,
               streaks: 0,
-              frayed: p.frayed,
+              frayed: frayed,
               seed: strokeSeed ^ 0xC055);
         }
         canvas.saveLayer(full, ui.Paint()..blendMode = ui.BlendMode.srcIn);
         // A is painted across the whole heart and B over its side of the
         // seam, so the seam never shows a hairline gap.
         final region = s.region;
-        if (region != null && s.slot > 0) canvas.clipPath(_path(region));
-        _paintFlag(canvas, images[s.slot], s, unit, backed: shaped[s.slot]);
+        if (region != null && i > 0) canvas.clipPath(_path(region));
+        _paintFlag(canvas, images[i], s, unit, backed: shaped[i]);
         canvas.restore();
         canvas.restore();
         canvas.restore();
       }
       // Scratches over the paint.
-      for (final s in layout.slots) {
-        if (!p.isTwin && s.slot > 0) break;
+      for (var i = 0; i < slots.length; i++) {
+        if (sharedStrokes && i > 0) break;
+        final s = slots[i];
         canvas.save();
         _turn(canvas, s);
         BrushEdge.paintScratches(canvas, _path(s.heart),
-            angleDeg: p.hatchAngle,
-            amount: p.scratches,
-            seed: seed ^ (0x51C7 * (s.slot + 1)));
+            angleDeg: hatchAngle,
+            amount: scratches,
+            seed: seed ^ (0x51C7 * (i + 1)));
         canvas.restore();
       }
       canvas.restore();

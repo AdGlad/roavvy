@@ -1,0 +1,67 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "composition": {
+      "family": "singleHero",
+      "orientation": "portrait",
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": "{{countries}}"
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "heartWall": {
+      "fill": 0.94,
+      "frayed": true,
+      "hatchAngle": 0.0,
+      "hatchWidth": 0.09,
+      "maxColumns": 6,
+      "scratches": 0.15,
+      "spacing": 0.08,
+      "spill": 0.3,
+      "squeeze": 0.5,
+      "streaks": 0.25,
+      "tails": 0.4,
+      "tiltJitter": 3.0
+    },
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "countries": "n",
+  "envelope": {
+    "heartWall.hatchAngle": {
+      "max": 6,
+      "min": -6
+    },
+    "heartWall.streaks": {
+      "max": 0.35,
+      "min": 0.15
+    },
+    "heartWall.tiltJitter": {
+      "max": 5,
+      "min": 0
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "heart_wall",
+  "locks": {
+    "fr,jp,us": "09912163417a3645",
+    "fr,jp,us,br,np,za": "2fecca3511e778c8",
+    "fr,jp,us,br,np,za,gb,mx,it,ch,kr,au": "4e7b0eadda81b347",
+    "fr,jp,us,br,np,za,gb,mx,it,ch,kr,au,es,ca,in,pt,gr,ar,th,eg,de,tr,nz,pe": "52a76a8cc11b5f26",
+    "fr,jp,us,br,np,za,gb,mx,it,ch,kr,au,es,ca,in,pt,gr,ar,th,eg,de,tr,nz,pe,ie,ma,vn,se,cl,id,hr,ke,no,is,cu,ph,nl,bt,ae,fi,co,sg,at,cz,jm,lk,dk,pa": "68bfa4126a3500ca"
+  },
+  "notes": "Every country in its own small brushed heart, in rows of up to six, in the order given (M214). Style reference only: ~/Downloads/multi-hearts.jpeg.",
+  "overrides": {},
+  "status": "draft",
+  "title": "Heart Wall",
+  "version": 1
+}

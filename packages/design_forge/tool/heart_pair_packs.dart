@@ -1,11 +1,11 @@
-// Writes the Shared Heart and Twin Hearts draft packs (M210/M211) from
-// code, in canonical form. Run from packages/design_forge:
+// Writes the Shared Heart, Twin Hearts (M210/M211) and Heart Wall (M214)
+// draft packs from code, in canonical form, with fresh locks. Run from packages/design_forge:
 //
 //   dart run tool/heart_pair_packs.dart ../design_studio/assets/signature
 //
-// Re-running resets envelope/base to these values (keeping nothing from the
-// existing files); locks are refreshed afterwards by the Lab or the
-// `UPDATE_LOCKS` test.
+// Re-running resets each pack to these values (keeping nothing from the
+// existing files) and locks its heroes: the Lab's default lock pairs, or
+// for Heart Wall the sample lists (3, 6, 12, 24, 48 countries).
 import 'dart:io';
 
 import 'package:design_forge/design_forge.dart';
@@ -57,6 +57,21 @@ const twinHearts = HeartPair(
   crossHatch: 0,
 );
 
+const heartWall = HeartWall(
+  maxColumns: 6,
+  fill: 0.94,
+  spacing: 0.08,
+  tiltJitter: 3,
+  squeeze: 0.5,
+  hatchAngle: 0,
+  hatchWidth: 0.09,
+  spill: 0.3,
+  tails: 0.4,
+  streaks: 0.25,
+  scratches: 0.15,
+  frayed: true,
+);
+
 const lockPairs = ['us+co', 'fr+it', 'mx+pt', 'jp+kr', 'np+ch', 'id+mc'];
 
 void main(List<String> args) {
@@ -103,11 +118,41 @@ void main(List<String> args) {
         'front': {'zone': 'fullFront', 'scale': 0.8},
       },
     ),
+    SignatureRecipe(
+      id: 'heart_wall',
+      title: 'Heart Wall',
+      version: 1,
+      status: SignatureStatus.draft,
+      countries: SignatureRecipe.anyCount,
+      notes: 'Every country in its own small brushed heart, in rows of up to '
+          'six, in the order given (M214). Style reference only: '
+          '~/Downloads/multi-hearts.jpeg.',
+      base: (DesignRecipe(
+        seed: 1,
+        content: const RecipeContent(flags: []),
+        composition: const Composition(
+          family: DesignFamily.singleHero,
+          orientation: Orientation.portrait,
+          sizeClass: SizeClass.large,
+        ),
+        heartWall: heartWall,
+      ).toJson()
+        ..remove('recipeId'))
+        ..['content'] = {'flags': SignatureRecipe.countriesToken},
+      envelope: VariationEnvelope.fromJson(const {
+        'seed': {'min': 1, 'max': 1000000, 'integer': true},
+        'heartWall.tiltJitter': {'min': 0, 'max': 5},
+        'heartWall.hatchAngle': {'min': -6, 'max': 6},
+        'heartWall.streaks': {'min': 0.15, 'max': 0.35},
+      }),
+    ),
   ];
   for (final raw in packs) {
-    // Lock the hero of each lock pair (the Lab's defaultLockPairs).
+    // Lock the hero of each lock key.
+    final keys =
+        raw.isList ? [for (final l in SignatureList.samples) l.key] : lockPairs;
     final p = raw.copyWith(locks: {
-      for (final k in lockPairs) k: SignatureResolver.heroFor(raw, k).recipeId,
+      for (final k in keys) k: SignatureResolver.heroFor(raw, k).recipeId,
     });
     File('$dir/${p.id}.pack.json')
         .writeAsStringSync(SignaturePackCodec.encode(p));
