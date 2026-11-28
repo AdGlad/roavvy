@@ -41,12 +41,13 @@ As M209: hard-fail free on the sample pairs, then the **owner approves**.
   - The `FlagFocus` table was not changed.
 - **Pair QA:** a `PairGeometry.of` case reports the true crops (heart polygon in flag space) and the seam.
 - **Pack `shared_heart`** (draft v1, square):
-  - Strokes are 0.065 wide at −38°, with spill 0.45, tails 0.9, streaks 0.4 and scratches 0.55.
-  - The variation envelope covers seed, seam curve and lean, hatch angle (−48…−32), spill and scratches.
+  - Strokes are 0.065 wide at −38°, with spill 0.45, tails 0.9 and streaks 0.4.
+  - Scratches are 0.85, raised toward the reference's grunge.
+  - The variation envelope covers seed, seam curve and lean, hatch angle (−48…−32), spill and scratches (0.7–1.0).
   - Locks are set on the six default lock pairs.
 - **QA** (`signature_qa_cli_test`, heroes + 4 variations): 32 sample pairs → 0 fail; 50 random pairs → 0 fail. The soft warnings are:
   - garment contrast, as with every flag pack;
   - `pair_seam` on look-alike pairs (ID+MC, NL+LU, FR+IT…). The reference design has no seam line either, so this is left for the owner to decide.
 - **Open items:**
-  - The reference's grunge is heavier than ours. Raise `scratches` in the Lab if wanted.
+  - The reference's grunge still includes speckle, which `paintScratches` does not draw (it only draws scuffs).
   - Flags shrunk for their emblem (GR, PA, TT) show extended edge colour in the heart's corners.

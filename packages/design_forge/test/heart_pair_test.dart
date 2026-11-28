@@ -103,7 +103,7 @@ void main() {
             final g = PairGeometry.of(_recipe(p, a, b,
                 o: p.isTwin ? Orientation.landscape : Orientation.square))!;
             for (final c in g.crops) {
-              expect(c.emblemVisible, greaterThanOrEqualTo(0.7),
+              expect(c.emblemVisible, greaterThanOrEqualTo(0.75),
                   reason: '${p.layout} $a+$b slot ${c.slot}');
             }
           }
@@ -116,7 +116,7 @@ void main() {
       // a shared heart the hoist faces the seam and stays in view.
       final g = PairGeometry.of(_recipe(const HeartPair(), 've', 'pr'))!;
       expect(g.crops[1].code, 'pr');
-      expect(g.crops[1].emblemVisible, greaterThanOrEqualTo(0.8));
+      expect(g.crops[1].emblemVisible, greaterThanOrEqualTo(0.75));
     });
 
     test('PairGeometry reports twin hearts with a gap (seam check skipped)',

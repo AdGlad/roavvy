@@ -23,10 +23,10 @@
     "heartPair": {
       "crossHatch": 0.0,
       "frayed": true,
-      "gap": 0.012,
+      "gap": -0.02,
       "hatchAngle": -4.0,
       "hatchWidth": 0.07,
-      "heartScale": 0.8,
+      "heartScale": 1.0,
       "layout": "twin",
       "scratches": 0.25,
       "seamCurve": 0.3,
@@ -76,12 +76,12 @@
     }
   },
   "locks": {
-    "fr+it": "1710bd2a27458f60",
-    "id+mc": "3e2b8e9754572a66",
-    "jp+kr": "199beee5d275103e",
-    "mx+pt": "28768d2f93cac002",
-    "np+ch": "04f410dcac6911d8",
-    "us+co": "3023e67053639ead"
+    "fr+it": "303fef4dced2158b",
+    "id+mc": "7d24bd29be475b5d",
+    "jp+kr": "55136caa2286a805",
+    "mx+pt": "3c99b2bed1dc6929",
+    "np+ch": "4a5a51b36ba7d173",
+    "us+co": "4ccac4b9294f4b22"
   },
   "notes": "Two hearts side by side, one flag each (M211, ADR-185), brushed edges and dry streaks. Style reference only: ~/Downloads/two-hearts-1.jpeg.",
   "overrides": {},

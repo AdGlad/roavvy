@@ -186,22 +186,26 @@ class HeartPairLayout {
   static HeartPairLayout _twin(
       HeartPair p, double w, double h, String a, String b) {
     final tilt = p.tilt.clamp(-30.0, 30.0);
-    var gapPx = p.gap.clamp(0.0, 0.3) * w;
+    final rad = tilt.abs() * math.pi / 180;
+    final cos = math.cos(rad), sin = math.sin(rad);
+    // A negative gap overlaps the hearts a little (B is painted over A).
+    var gapPx = p.gap.clamp(-0.1, 0.3) * w;
     var hw = (p.heartScale.clamp(0.1, 1.0) * w - gapPx) / 2;
     var hh = hw / heartAspect;
-    // Fit the height (a tilted heart's box grows).
-    final maxH = h * 0.9;
-    final grow = math.cos(tilt.abs() * math.pi / 180) +
-        heartAspect * math.sin(tilt.abs() * math.pi / 180);
-    if (hh * grow > maxH) {
-      final s = maxH / (hh * grow);
-      hw *= s;
-      hh *= s;
-      gapPx *= s;
-    }
     // Tilted hearts swing their tips inward: keep them apart.
-    final lean = hh / 2 * math.sin(tilt.abs() * math.pi / 180);
-    final half = gapPx / 2 + lean + hw / 2;
+    double lean() => hh / 2 * sin;
+    // Fit the pair, tilted and with room for the brush strokes that spill
+    // past the outline, inside the canvas (so the print edge is never hit).
+    final margin = 0.075; // of the heart's width
+    final outer =
+        gapPx / 2 + lean() + hw / 2 + hw / 2 * cos + hh / 2 * sin + hw * margin;
+    final tall = hh / 2 * cos + hw / 2 * sin + hw * margin;
+    final s =
+        math.min(1.0, math.min(w / 2 * 0.99 / outer, h / 2 * 0.97 / tall));
+    hw *= s;
+    hh *= s;
+    gapPx *= s;
+    final half = gapPx / 2 + lean() + hw / 2;
 
     HeartSlot slot(int i, String code) {
       final cx = w / 2 + (i == 0 ? -half : half);

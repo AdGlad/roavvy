@@ -28,7 +28,7 @@
       "hatchWidth": 0.065,
       "heartScale": 0.8,
       "layout": "shared",
-      "scratches": 0.55,
+      "scratches": 0.85,
       "seamCurve": 0.35,
       "seamLean": 0.0,
       "seamPosition": 0.5,
@@ -48,8 +48,8 @@
       "min": -48
     },
     "heartPair.scratches": {
-      "max": 0.55,
-      "min": 0.3
+      "max": 1.0,
+      "min": 0.7
     },
     "heartPair.seamCurve": {
       "max": 0.6,
@@ -74,12 +74,12 @@
   "heroes": {},
   "id": "shared_heart",
   "locks": {
-    "fr+it": "46276b67db6d5632",
-    "id+mc": "419edfd110e881f0",
-    "jp+kr": "07084abbdcd6b108",
-    "mx+pt": "5b0222299de4bd7c",
-    "np+ch": "2f616ec331c7c652",
-    "us+co": "68287bc9b64981d7"
+    "fr+it": "1de6e8d6f1397cf1",
+    "id+mc": "611bf0a44e08089f",
+    "jp+kr": "22388dfa9fcfe147",
+    "mx+pt": "0b495c5a5222a593",
+    "np+ch": "2c8b36341d3f6b91",
+    "us+co": "3f800aa66409f198"
   },
   "notes": "Two countries in one heart (M210, ADR-185): A in the left lobe, B in the right, scribbled dry-brush edge, light scratches. Style reference only: ~/Downloads/1-heart-2-countries.jpg.",
   "overrides": {},

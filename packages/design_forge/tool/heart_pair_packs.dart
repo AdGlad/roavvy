@@ -36,15 +36,15 @@ const sharedHeart = HeartPair(
   spill: 0.45,
   tails: 0.9,
   streaks: 0.4,
-  scratches: 0.55,
+  scratches: 0.85,
   crossHatch: 0,
   frayed: false,
 );
 
 const twinHearts = HeartPair(
   layout: HeartPair.twin,
-  heartScale: 0.8,
-  gap: 0.012,
+  heartScale: 1.0,
+  gap: -0.02,
   tilt: 7,
   squeeze: 0.45,
   hatchAngle: -4,
@@ -78,7 +78,7 @@ void main(List<String> args) {
         'heartPair.seamLean': {'min': -0.4, 'max': 0.4},
         'heartPair.hatchAngle': {'min': -48, 'max': -32},
         'heartPair.spill': {'min': 0.5, 'max': 0.8},
-        'heartPair.scratches': {'min': 0.3, 'max': 0.55},
+        'heartPair.scratches': {'min': 0.7, 'max': 1.0},
       }),
     ),
     SignatureRecipe(
