@@ -110,8 +110,8 @@ List<SignatureTee> teesFor(
   final cc = countryCode.toLowerCase();
   final out = <SignatureTee>[];
   for (final pack in packs) {
-    // Two-country packs (Curtain Split, ADR-185) need a pair, not one
-    // country; they reach the app through the pair flow (M213).
+    // Two-country packs make pair tees ([teesForPair]), never a single
+    // country's.
     if (pack.isPair) continue;
     final needsTrip = pack.tokens.keys.any(kTripTokens.contains);
     if (needsTrip && trip == null) continue;
@@ -154,6 +154,207 @@ final signatureTeeProvider = Provider.family<SignatureTee?, TeeKey>((ref, key) {
   }
   return null;
 });
+
+// ── Two-country (pair) tees, M213 ───────────────────────────────────────────
+
+/// Two countries on one shirt, in order: [a] prints on the left (or top),
+/// [b] on the right. Both upper-case ISO alpha-2. (a, b) and (b, a) are
+/// different designs (ADR-185), so a pair is never sorted.
+typedef TeePair = ({String a, String b});
+
+/// [a] and [b] as a [TeePair], upper-cased.
+TeePair teePair(String a, String b) => (a: a.toUpperCase(), b: b.toUpperCase());
+
+/// Identifies one pair tee: the pair and a pack id (null: the pair's first
+/// design).
+typedef PairTeeKey = ({TeePair pair, String? packId});
+
+/// "Greece & Italy".
+String pairTitle(TeePair p) =>
+    '${kCountryNames[p.a] ?? p.a} & ${kCountryNames[p.b] ?? p.b}';
+
+/// The bundled two-country packs, in feed order. Empty when there are none —
+/// and in a release build until one is approved in the Lab.
+final pairPacksProvider = Provider<List<SignatureRecipe>>(
+  (ref) => [
+    for (final p in ref.watch(signaturePacksProvider))
+      if (p.isPair) p,
+  ],
+);
+
+/// The designs [packs] give the pair, in pack order, as a pure function.
+/// Single-country packs and packs that cannot resolve the pair are left out.
+List<SignatureTee> teesForPair(List<SignatureRecipe> packs, TeePair pair) {
+  if (pair.a.length != 2 || pair.b.length != 2) return const [];
+  if (pair.a == pair.b) return const [];
+  final out = <SignatureTee>[];
+  for (final pack in packs) {
+    if (!pack.isPair) continue;
+    try {
+      out.add((
+        pack: pack,
+        recipe: SignatureResolver.heroPair(
+          pack,
+          pair.a.toLowerCase(),
+          pair.b.toLowerCase(),
+        ),
+      ));
+    } catch (_) {
+      // Not offered for this pair.
+    }
+  }
+  return out;
+}
+
+/// Every design a pair can be ordered in.
+final signaturePairTeesProvider = Provider.family<List<SignatureTee>, TeePair>(
+  (ref, pair) => teesForPair(ref.watch(pairPacksProvider), pair),
+);
+
+/// One pair tee: the design [PairTeeKey.packId], or the pair's first design
+/// when packId is null. Null when unavailable.
+final signaturePairTeeProvider = Provider.family<SignatureTee?, PairTeeKey>((
+  ref,
+  key,
+) {
+  final tees = ref.watch(signaturePairTeesProvider(key.pair));
+  if (tees.isEmpty) return null;
+  if (key.packId == null) return tees.first;
+  for (final t in tees) {
+    if (t.pack.id == key.packId) return t;
+  }
+  return null;
+});
+
+/// Trips closer than this (days between one leg's end and the next leg's
+/// start) are one journey: "countries visited on the same trip".
+const int kJourneyGapDays = 2;
+
+/// One journey: its countries in the order first reached (upper-case, no
+/// repeats) and the ids of the trips in it.
+typedef _Journey = ({List<String> countries, Set<String> tripIds});
+
+/// [trips] grouped into journeys, oldest first: runs of trips in date order,
+/// each starting no more than [gapDays] after the run so far ends.
+List<_Journey> _journeys(List<TripRecord> trips, int gapDays) {
+  final sorted = [...trips]..sort((x, y) => x.startedOn.compareTo(y.startedOn));
+  final out = <_Journey>[];
+  DateTime? end;
+  for (final t in sorted) {
+    final cc = t.countryCode.toUpperCase();
+    if (cc.length != 2) continue;
+    final joins =
+        end != null && !t.startedOn.isAfter(end.add(Duration(days: gapDays)));
+    if (!joins) {
+      out.add((countries: <String>[], tripIds: <String>{}));
+      end = t.endedOn;
+    } else if (t.endedOn.isAfter(end)) {
+      end = t.endedOn;
+    }
+    final j = out.last;
+    if (!j.countries.contains(cc)) j.countries.add(cc);
+    j.tripIds.add(t.id);
+  }
+  return out;
+}
+
+/// The traveller's journeys (see [kJourneyGapDays]), most recent first, each
+/// as its countries in the order first reached.
+List<List<String>> journeysFrom(
+  List<TripRecord> trips, {
+  int gapDays = kJourneyGapDays,
+}) => [for (final j in _journeys(trips, gapDays).reversed) j.countries];
+
+/// The pair [trip]'s journey suggests: the trip's country with the journey
+/// country reached just before it (for the first leg, just after it), in
+/// travel order. Null when the journey has one country.
+TeePair? journeyPairFor(List<TripRecord> trips, TripRecord trip) {
+  for (final j in _journeys(trips, kJourneyGapDays)) {
+    if (!j.tripIds.contains(trip.id)) continue;
+    final c = j.countries;
+    if (c.length < 2) return null;
+    final i = c.indexOf(trip.countryCode.toUpperCase());
+    if (i < 0) return null;
+    return i == 0 ? teePair(c[0], c[1]) : teePair(c[i - 1], c[i]);
+  }
+  return null;
+}
+
+/// Suggested pairs, best first, as a pure function:
+///  1. consecutive countries of each multi-country journey, most recent
+///     journey first, in travel order;
+///  2. the two most-visited countries (most trips; ties by photos, then by
+///     name) — or, without trips, the two most recently discovered.
+/// A pair is suggested once, in whichever order comes first. At most [max].
+List<TeePair> pairSuggestions({
+  required List<TripRecord> trips,
+  required List<EffectiveVisitedCountry> visits,
+  int max = 8,
+}) {
+  final out = <TeePair>[];
+  final seen = <String>{};
+  void add(String a, String b) {
+    if (a == b || out.length >= max) return;
+    final k = ([a, b]..sort()).join('+');
+    if (seen.add(k)) out.add(teePair(a, b));
+  }
+
+  for (final j in journeysFrom(trips)) {
+    for (var i = 0; i + 1 < j.length; i++) {
+      add(j[i], j[i + 1]);
+    }
+  }
+
+  final tripCount = <String, int>{};
+  final photos = <String, int>{};
+  for (final t in trips) {
+    final cc = t.countryCode.toUpperCase();
+    if (cc.length != 2) continue;
+    tripCount[cc] = (tripCount[cc] ?? 0) + 1;
+    photos[cc] = (photos[cc] ?? 0) + t.photoCount;
+  }
+  final top =
+      tripCount.keys.toList()..sort((x, y) {
+        final c = tripCount[y]!.compareTo(tripCount[x]!);
+        if (c != 0) return c;
+        final p = photos[y]!.compareTo(photos[x]!);
+        if (p != 0) return p;
+        return (kCountryNames[x] ?? x).compareTo(kCountryNames[y] ?? y);
+      });
+  if (top.length >= 2) {
+    add(top[0], top[1]);
+  } else {
+    final recent = orderTees(visits);
+    if (recent.length >= 2) add(recent[0], recent[1]);
+  }
+  return out;
+}
+
+/// The visited countries a pair can be picked from, most recently
+/// discovered first.
+final pairCountriesProvider = Provider<List<String>>((ref) {
+  final visits = ref.watch(effectiveVisitsProvider).valueOrNull ?? const [];
+  return orderTees([
+    for (final v in visits)
+      if (v.countryCode.length == 2) v,
+  ]);
+});
+
+/// True when pair tees can be offered: a pair pack exists and the traveller
+/// has at least two countries.
+final pairTeesAvailableProvider = Provider<bool>(
+  (ref) =>
+      ref.watch(pairPacksProvider).isNotEmpty &&
+      ref.watch(pairCountriesProvider).length >= 2,
+);
+
+/// The traveller's suggested pairs ([pairSuggestions]).
+final pairSuggestionsProvider = Provider<List<TeePair>>(
+  (ref) => pairSuggestions(
+    trips: ref.watch(tripListProvider).valueOrNull ?? const [],
+    visits: ref.watch(effectiveVisitsProvider).valueOrNull ?? const [],
+  ),
+);
 
 /// The recipe that prints [tee] on the shirt [garmentHex] (`#RRGGBB`).
 ///
@@ -237,6 +438,9 @@ List<String> orderTees(List<EffectiveVisitedCountry> visits) {
 /// `recipeId` is the one the Lab approved — so the shirt colour rides beside
 /// it ([garment]) instead of being written into its palette. The exception is
 /// a design whose ink follows the shirt ([teeRecipe]).
+///
+/// A pair tee (M213) passes the second country as [pairWith]: the title
+/// becomes "Greece & Italy · (design title)" and both countries' trips ride along.
 GarmentCartRequest buildSignatureTeeCartRequest({
   required RenderService service,
   required SignatureTee tee,
@@ -244,13 +448,16 @@ GarmentCartRequest buildSignatureTeeCartRequest({
   required (String, String) garment,
   List<TripRecord> trips = const [],
   PrintLayout? layout,
+  String? pairWith,
 }) {
   final cc = countryCode.toLowerCase();
-  final scope = '${tee.pack.id}:$cc';
+  final other = pairWith?.toLowerCase();
+  final codes = [cc, if (other != null) other];
+  final scope = '${tee.pack.id}:${codes.join('+')}';
   final recipe = teeRecipe(tee, garment.$1);
   final mine = [
     for (final t in trips)
-      if (t.countryCode.toLowerCase() == cc)
+      if (codes.contains(t.countryCode.toLowerCase()))
         StudioV2TravelContext.tripFromRecord(t),
   ];
   final session =
@@ -259,7 +466,7 @@ GarmentCartRequest buildSignatureTeeCartRequest({
           service: service,
           designContext:
               mine.isEmpty
-                  ? DesignContext(flagCodes: [cc], scopeKey: scope)
+                  ? DesignContext(flagCodes: codes, scopeKey: scope)
                   : DesignContext.fromTrips(mine, scopeKey: scope),
           unavailableGarments: StudioV2CartAdapter.unstockedColours,
         )
@@ -267,7 +474,10 @@ GarmentCartRequest buildSignatureTeeCartRequest({
         ..loadGarment(
           GarmentDesign(front: recipe, back: recipe, garmentColour: garment.$1),
         );
-  final name = kCountryNames[cc.toUpperCase()] ?? cc.toUpperCase();
+  final name =
+      other == null
+          ? kCountryNames[cc.toUpperCase()] ?? cc.toUpperCase()
+          : pairTitle(teePair(cc, other));
   return buildGarmentCartRequest(
     session,
     garmentColour: garment,

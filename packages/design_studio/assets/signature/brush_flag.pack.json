@@ -1,0 +1,91 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "brushStroke": {
+      "bristles": 20.0,
+      "centerY": 0.6,
+      "dryness": 0.5,
+      "leadClean": 0.85,
+      "liftFray": 0.5,
+      "maxAspect": 2.0,
+      "minAspect": 1.3,
+      "scale": 0.84,
+      "skew": 0.0,
+      "spill": 0.5,
+      "taper": 0.7
+    },
+    "captions": {
+      "bottomSize": 0.13,
+      "colour": "auto",
+      "font": "handwritten",
+      "grit": 0.0,
+      "top": "{{countryName}}",
+      "topSize": 0.21,
+      "upperCase": true
+    },
+    "composition": {
+      "family": "singleHero",
+      "orientation": "landscape",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{country}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "envelope": {
+    "brushStroke.bristles": {
+      "max": 24.0,
+      "min": 16.0
+    },
+    "brushStroke.dryness": {
+      "max": 0.7,
+      "min": 0.3
+    },
+    "brushStroke.liftFray": {
+      "max": 0.75,
+      "min": 0.35
+    },
+    "brushStroke.skew": {
+      "max": 3.0,
+      "min": -3.0
+    },
+    "captions.topSize": {
+      "max": 0.22,
+      "min": 0.19
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "brush_flag",
+  "locks": {
+    "br": "79d8ddd2c6c6d6df",
+    "fr": "39d32f12d7e78f9a",
+    "jp": "69bccb275adb44bf",
+    "sc": "1ab55fddbe7beea8",
+    "us": "41b33ea02fe6180a",
+    "za": "50b5c926ff32e5d5"
+  },
+  "notes": "The flag painted as one broad brush stroke: a solid block whose top and bottom edges wobble with a few nicks, whose right end lifts off in jagged pointed spikes, built from slightly staggered bands, with a clean leading edge; the country's name above in a casual handwritten marker (embedded Kalam Regular, OFL), inked for the shirt. Style reference: Greece / Costa Rica brush-flag prints (stock; generic format, nothing reproduced).",
+  "overrides": {},
+  "status": "draft",
+  "title": "Brush Flag",
+  "version": 1
+}

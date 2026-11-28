@@ -28,7 +28,13 @@ class CaptionsPainter {
     void band(String? text, double top, double height) {
       if (text == null || text.trim().isEmpty) return;
       final t = c.upperCase ? text.trim().toUpperCase() : text.trim();
-      final rect = ui.Rect.fromLTWH(w * 0.07, top, w * 0.86, height);
+      var rect = ui.Rect.fromLTWH(w * 0.07, top, w * 0.86, height);
+      // Accented capitals (Å, Ô, Ü) rise above the line box: leave them
+      // headroom so they never run into the edge of the print.
+      if (t.runes.any((r) => r > 0x7F)) {
+        rect = ui.Rect.fromLTRB(
+            rect.left, rect.top + height * 0.22, rect.right, rect.bottom);
+      }
       canvas.saveLayer(rect.inflate(height * 0.3), ui.Paint());
       _fitText(canvas, t, rect, family, ink);
       if (c.grit > 0) _grit(canvas, rect, c.grit, rng);

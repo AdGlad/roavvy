@@ -188,3 +188,39 @@ dart run tool/pack_from_preset.dart \
   torn_flag "Torn Flag" ../design_studio/assets/signature/torn_flag.pack.json
 ```
 Then add the id to `assets/signature/index.json`.
+
+## Shared dry-brush edge (`BrushEdge`, M208)
+
+The Brush Flag pack (`brush_flag`) paints the flag as one dry-brush stroke:
+`DesignRecipe.brushStroke` (`BrushStroke`: `bristles`, `dryness`, `liftFray`,
+`leadClean`, `taper`, `spill`, `skew`, `scale`, `centerY`, `minAspect`,
+`maxAspect`) drives `BrushFlagStage`, and the caption uses the embedded
+handwritten font (`captions.font: "handwritten"`, Kalam Regular, OFL).
+
+The edge itself is reusable by any stage or pack (Shared Heart, Twin Hearts,
+Diagonal Split…). It is **vector**: the shape's outline is resampled and moved
+along its normals, then filled anti-aliased, as if painted with one broad brush
+moving left → right (`vertical: true` = top → bottom). The long edges wobble
+with a few nicks, the trailing edge lifts off in pointed spikes with notches
+between them, the stroke is a few staggered bands, the leading edge stays
+clean. The inside is never cut, and inward bites are capped by the shape's
+local thickness (a heart's tip is roughened, not shredded).
+
+```dart
+// design_forge_render
+path = BrushEdge.outline(heartPath, brush, seed);                  // ui.Path
+mask = await BrushEdge.maskForPath(heartPath, w, h, brush, seed);  // white = keep; dstIn it
+mask = await BrushEdge.maskForRect(rect, w, h, brush, seed, vertical: true);
+art  = await BrushEdge.brushArtwork(art, brush, seed, shape: heartPath); // spikes carry the paint
+```
+
+`brushArtwork` first extends the artwork's colour outward (nearest painted
+pixel, `BrushEdge.extendColour`), so a spike continues its stripe. Without
+`shape` it brushes the box of the painted pixels and keeps the artwork's own
+alpha (a pennant keeps its diagonals).
+
+What the edge reads (fractions of the shape's own box): `bristles` = spikes
+across the trailing edge (3–40), `dryness` = wobble and nicks, `liftFray` =
+spike length, `taper` = how much the stroke thins and leans towards its end,
+`spill` = band stagger, `leadClean` = calm leading edge. `scale`, `centerY` and
+the aspect range only matter to `BrushFlagStage`.

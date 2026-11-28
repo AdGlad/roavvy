@@ -1,6 +1,7 @@
 import 'canonical_json.dart';
 import 'captions.dart';
 import 'design_axis.dart';
+import 'brush_stroke.dart';
 import 'globe.dart';
 import 'split_pair.dart';
 import 'recipe_parts.dart';
@@ -464,6 +465,7 @@ class DesignRecipe {
     this.tornStrips,
     this.watercolour,
     this.globe,
+    this.brushStroke,
     this.captions,
     this.splitPair,
     this.motifs = const [],
@@ -505,6 +507,9 @@ class DesignRecipe {
   /// The flag wrapped onto a ball; null = none.
   final Globe? globe;
 
+  /// The flag painted as one dry-brush stroke (Brush Flag); null = none.
+  final BrushStroke? brushStroke;
+
   /// Text above / below the artwork; null = none.
   final Captions? captions;
 
@@ -543,6 +548,7 @@ class DesignRecipe {
         if (tornStrips != null) 'tornStrips': tornStrips!.toJson(),
         if (watercolour != null) 'watercolour': watercolour!.toJson(),
         if (globe != null) 'globe': globe!.toJson(),
+        if (brushStroke != null) 'brushStroke': brushStroke!.toJson(),
         if (captions != null) 'captions': captions!.toJson(),
         if (splitPair != null) 'splitPair': splitPair!.toJson(),
         if (motifs.isNotEmpty)
@@ -608,6 +614,7 @@ class DesignRecipe {
         tornStrips: _obj(json['tornStrips'], TornStrips.fromJson),
         watercolour: _obj(json['watercolour'], Watercolour.fromJson),
         globe: _obj(json['globe'], Globe.fromJson),
+        brushStroke: _obj(json['brushStroke'], BrushStroke.fromJson),
         captions: _obj(json['captions'], Captions.fromJson),
         splitPair: _obj(json['splitPair'], SplitPair.fromJson),
         motifs: [
@@ -634,6 +641,7 @@ class DesignRecipe {
     TornStrips? tornStrips,
     Watercolour? watercolour,
     Globe? globe,
+    BrushStroke? brushStroke,
     Captions? captions,
     SplitPair? splitPair,
     List<Motif>? motifs,
@@ -653,6 +661,7 @@ class DesignRecipe {
         tornStrips: tornStrips ?? this.tornStrips,
         watercolour: watercolour ?? this.watercolour,
         globe: globe ?? this.globe,
+        brushStroke: brushStroke ?? this.brushStroke,
         captions: captions ?? this.captions,
         splitPair: splitPair ?? this.splitPair,
         motifs: motifs ?? this.motifs,

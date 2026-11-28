@@ -26,9 +26,13 @@ class SignatureTeeArt extends ConsumerWidget {
     required this.countryCode,
     this.packId,
     this.garmentColour,
+    this.pairWith,
   });
 
   final String countryCode;
+
+  /// The second country of a pair tee (M213); null for a one-country tee.
+  final String? pairWith;
 
   /// The design; null is the country's default (first) design.
   final String? packId;
@@ -38,9 +42,18 @@ class SignatureTeeArt extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tee = ref.watch(
-      signatureTeeProvider((countryCode: countryCode, packId: packId)),
-    );
+    final other = pairWith;
+    final tee =
+        other == null
+            ? ref.watch(
+              signatureTeeProvider((countryCode: countryCode, packId: packId)),
+            )
+            : ref.watch(
+              signaturePairTeeProvider((
+                pair: teePair(countryCode, other),
+                packId: packId,
+              )),
+            );
     if (tee == null) return const SizedBox.shrink();
     final service = ref.watch(signatureTeeRenderServiceProvider);
     if (service == null) return const TeePlaceholder();

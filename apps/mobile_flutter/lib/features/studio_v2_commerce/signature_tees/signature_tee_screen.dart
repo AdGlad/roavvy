@@ -52,10 +52,17 @@ class SignatureTeeScreen extends ConsumerStatefulWidget {
     super.key,
     required this.countryCode,
     this.packId,
+    this.pairWith,
     this.onAddToCart = _studioCart,
   });
 
+  /// The country — for a pair tee, the first (left) country.
   final String countryCode;
+
+  /// The second (right) country of a pair tee (M213, ADR-185); null for a
+  /// one-country tee. The page then offers the two-country designs, titled
+  /// "Greece & Italy", with a swap that reverses the order.
+  final String? pairWith;
 
   /// The design shown first; null (or a design the country doesn't have)
   /// shows the country's default design.
@@ -69,6 +76,8 @@ class SignatureTeeScreen extends ConsumerStatefulWidget {
 class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
   late (String, String) _garment = teeGarments.first;
   late String? _packId = widget.packId;
+  late String _a = widget.countryCode.toUpperCase();
+  late String? _b = widget.pairWith?.toUpperCase();
   String? _size;
   bool _adding = false;
 
@@ -96,12 +105,42 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
     if (_view != TeeView.both) _view = TeeView.of(side);
   });
 
-  String get _cc => widget.countryCode.toUpperCase();
+  String get _cc => _a;
+
+  TeePair? get _pair => _b == null ? null : teePair(_a, _b!);
 
   /// The selected tee, falling back to the default design.
-  SignatureTee? _tee(WidgetRef ref) =>
-      ref.watch(signatureTeeProvider((countryCode: _cc, packId: _packId))) ??
-      ref.watch(signatureTeeProvider((countryCode: _cc, packId: null)));
+  SignatureTee? _tee(WidgetRef ref) {
+    final pair = _pair;
+    if (pair != null) {
+      return ref.watch(
+            signaturePairTeeProvider((pair: pair, packId: _packId)),
+          ) ??
+          ref.watch(signaturePairTeeProvider((pair: pair, packId: null)));
+    }
+    return ref.watch(
+          signatureTeeProvider((countryCode: _cc, packId: _packId)),
+        ) ??
+        ref.watch(signatureTeeProvider((countryCode: _cc, packId: null)));
+  }
+
+  /// Every design on offer for this country, or this pair.
+  List<SignatureTee> _tees(WidgetRef ref) {
+    final pair = _pair;
+    return pair == null
+        ? ref.watch(signatureTeesProvider(_cc))
+        : ref.watch(signaturePairTeesProvider(pair));
+  }
+
+  /// Pair tees: reverse the order. The design is a different one (ADR-185:
+  /// A sits left), so the view and guides start fresh; the chosen layout and
+  /// design are kept.
+  void _swap() => setState(() {
+    final b = _b;
+    if (b == null) return;
+    _b = _a;
+    _a = b;
+  });
 
   Future<void> _addToCart() async {
     final tee = _tee(ref);
@@ -117,6 +156,7 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
         garment: _garment,
         trips: ref.read(tripListProvider).valueOrNull ?? const [],
         layout: _layoutFor(tee),
+        pairWith: _b,
       );
       await widget.onAddToCart(
         context,
@@ -131,9 +171,10 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
   @override
   Widget build(BuildContext context) {
     final tee = _tee(ref);
-    final tees = ref.watch(signatureTeesProvider(_cc));
+    final tees = _tees(ref);
     final loading = ref.watch(signatureCatalogProvider).isLoading;
-    final name = kCountryNames[_cc] ?? _cc;
+    final pair = _pair;
+    final name = pair == null ? kCountryNames[_cc] ?? _cc : pairTitle(pair);
     final price = ref
         .watch(shopifyPricingProvider)
         .whenOrNull(data: (p) => p.tshirtFromPrice);
@@ -168,6 +209,10 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                         child: Column(
                           children: [
+                            if (pair != null) ...[
+                              _PairHeader(pair: pair, onSwap: _swap),
+                              const SizedBox(height: 6),
+                            ],
                             TeeViewSwitcher(
                               view: _viewFor(tee),
                               layout: _layoutFor(tee),
@@ -183,7 +228,10 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
                                         ? const TeePlaceholder()
                                         : TeeSidesPreview(
                                           key: Key(
-                                            'tee-preview-${tee.pack.id}',
+                                            pair == null
+                                                ? 'tee-preview-${tee.pack.id}'
+                                                : 'tee-preview-${tee.pack.id}-'
+                                                    '${pair.a}-${pair.b}',
                                           ),
                                           service: service,
                                           recipe: teeRecipe(tee, _garment.$1),
@@ -216,6 +264,7 @@ class _SignatureTeeScreenState extends ConsumerState<SignatureTeeScreen> {
                             return _DesignChoice(
                               key: Key('tee-design-${t.pack.id}'),
                               countryCode: _cc,
+                              pairWith: _b,
                               packId: t.pack.id,
                               title: t.pack.title,
                               garmentColour: _garment.$1,
@@ -376,9 +425,11 @@ class _DesignChoice extends StatelessWidget {
     required this.garmentColour,
     required this.selected,
     required this.onTap,
+    this.pairWith,
   });
 
   final String countryCode;
+  final String? pairWith;
   final String packId;
   final String title;
   final String garmentColour;
@@ -408,11 +459,51 @@ class _DesignChoice extends StatelessWidget {
           padding: const EdgeInsets.all(4),
           child: SignatureTeeArt(
             countryCode: countryCode,
+            pairWith: pairWith,
             packId: packId,
             garmentColour: garmentColour,
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Pair tees: "Greece ⇄ Italy" — the two countries in print order, with a
+/// swap that reverses them.
+class _PairHeader extends StatelessWidget {
+  const _PairHeader({required this.pair, required this.onSwap});
+
+  final TeePair pair;
+  final VoidCallback onSwap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    Widget country(String cc, String key) => Flexible(
+      child: Text(
+        kCountryNames[cc] ?? cc,
+        key: Key(key),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+      ),
+    );
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        country(pair.a, 'tee-pair-a'),
+        IconButton(
+          key: const Key('tee-pair-swap'),
+          tooltip: 'Swap sides',
+          visualDensity: VisualDensity.compact,
+          color: cs.primary,
+          onPressed: onSwap,
+          icon: const Icon(Icons.swap_horiz),
+        ),
+        country(pair.b, 'tee-pair-b'),
+      ],
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart';
 
 import '../../core/commerce/commerce_flag.dart';
+import '../../core/providers.dart' show tripListProvider;
 import '../cards/journey_card.dart' show JourneyStyle;
 import '../memory/memory_anniversary_photo.dart';
 import '../merch/achievement_merch_option_screen.dart';
@@ -15,8 +16,11 @@ import '../merch/merch_shop_screen.dart';
 import '../merch/pulse_merch_option_screen.dart';
 import '../studio_v2_commerce/studio_v2_entry.dart';
 import '../studio_v2_commerce/signature_tees/my_tees_screen.dart';
+import '../studio_v2_commerce/signature_tees/pair_tees_screen.dart';
 import '../studio_v2_commerce/signature_tees/signature_tee_screen.dart';
 import '../studio_v2_commerce/signature_tees/signature_tee_widgets.dart';
+import '../studio_v2_commerce/signature_tees/signature_tees.dart'
+    show TeePair, journeyPairFor;
 
 export '../merch/merch_cart_screen.dart' show merchCartCountProvider;
 
@@ -120,25 +124,67 @@ abstract final class CommerceEntry {
     ),
   );
 
-  /// "My tees": signature tees for every visited country (M200).
-  static Future<void> openMyTees(BuildContext context) =>
-      _push(context, (_) => const MyTeesScreen(onOpenTee: openSignatureTee));
+  /// "My tees": signature tees for every visited country (M200), with the
+  /// "Two countries" row on top when a two-country design exists (M213).
+  static Future<void> openMyTees(BuildContext context) => _push(
+    context,
+    (_) => const MyTeesScreen(
+      onOpenTee: openSignatureTee,
+      onOpenPairs: openPairTees,
+    ),
+  );
+
+  /// The tee page for two countries (M213): [pair].a prints on the left.
+  /// Opened on design [packId] (null: the pair's first design).
+  static Future<void> openPairTee(
+    BuildContext context,
+    TeePair pair, {
+    String? packId,
+  }) => _push(
+    context,
+    (_) => SignatureTeeScreen(
+      countryCode: pair.a,
+      pairWith: pair.b,
+      packId: packId,
+    ),
+  );
+
+  /// "Two countries": suggested pairs and pick-any-two (M213).
+  static Future<void> openPairTees(BuildContext context) => _push(
+    context,
+    (_) => PairTeesScreen(onOpenPair: (c, p) => openPairTee(c, p)),
+  );
+
+  /// The trip sheet's two-country tee: [trip]'s country with its neighbour
+  /// on the same journey. Hidden when commerce is off, when the journey has
+  /// one country, or when there is no two-country design. [onOpen] replaces
+  /// the default tap (e.g. to close a sheet first).
+  static Widget tripPairTeeCard(TripRecord trip, {OpenPairTee? onOpen}) =>
+      CommerceGate(
+        child: Consumer(
+          builder: (context, ref, _) {
+            final trips = ref.watch(tripListProvider).valueOrNull ?? const [];
+            return TripPairTeeCard(
+              pair: journeyPairFor(trips, trip),
+              onOpen: onOpen ?? (c, p) => openPairTee(c, p),
+            );
+          },
+        ),
+      );
 
   /// The "Your (country) tees" card for a visited country (country page,
   /// trip sheet): every signature design, in a row. Hidden when commerce is
   /// off or there is no tee for the country. [onOpen] replaces the default
   /// tap (e.g. to close a sheet first); it should still open the tee through
   /// [openSignatureTee].
-  static Widget signatureTeeCard(
-    String countryCode, {
-    OpenTee? onOpen,
-  }) => CommerceGate(
-    child: SignatureTeeCard(
-      countryCode: countryCode,
-      onOpen:
-          onOpen ?? (c, id) => openSignatureTee(c, countryCode, packId: id),
-    ),
-  );
+  static Widget signatureTeeCard(String countryCode, {OpenTee? onOpen}) =>
+      CommerceGate(
+        child: SignatureTeeCard(
+          countryCode: countryCode,
+          onOpen:
+              onOpen ?? (c, id) => openSignatureTee(c, countryCode, packId: id),
+        ),
+      );
 
   /// The tee strip with "Get this tee" on a new-country celebration.
   static Widget celebrationTee(String countryCode) => CommerceGate(
