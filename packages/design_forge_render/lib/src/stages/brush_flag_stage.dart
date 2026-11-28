@@ -11,7 +11,8 @@ import 'render_stage.dart';
 ///
 /// The stroke is a landscape block in the flag's own aspect (clamped to
 /// [BrushStroke.minAspect]…[BrushStroke.maxAspect]), [BrushStroke.scale] of the
-/// canvas wide and centred at [BrushStroke.centerY], so a caption fits above.
+/// canvas wide, hung just under the caption (or centred at
+/// [BrushStroke.centerY] when there is none).
 /// Its edges are brushed by [BrushEdge] and the whole stroke is turned by
 /// [BrushStroke.skew]. It replaces whatever the composition drew.
 class BrushFlagStage extends RenderStage {
@@ -40,17 +41,25 @@ class BrushFlagStage extends RenderStage {
         : probe.width / math.max(1, probe.height);
     final aspect =
         shaped ? native : native.clamp(p.minAspect, p.maxAspect).toDouble();
+    // With a caption above, the stroke hangs just under it; otherwise it is
+    // centred at [BrushStroke.centerY].
+    final cap = recipe.captions;
+    final top = cap?.top != null && cap!.top!.trim().isNotEmpty
+        ? h * (0.03 + cap.topSize + 0.012)
+        : null;
     var bw = w * p.scale.clamp(0.2, 1.0);
     var bh = bw / aspect;
-    final maxH = h * 0.68;
+    final maxH = top == null ? h * 0.68 : h * 0.95 - top;
     if (bh > maxH) {
       bh = maxH;
       bw = bh * aspect;
     }
-    final box = ui.Rect.fromCenter(
-        center: ui.Offset(w / 2, h * p.centerY.clamp(0.2, 0.8)),
-        width: bw,
-        height: bh);
+    final box = top == null
+        ? ui.Rect.fromCenter(
+            center: ui.Offset(w / 2, h * p.centerY.clamp(0.2, 0.8)),
+            width: bw,
+            height: bh)
+        : ui.Rect.fromLTWH((w - bw) / 2, top, bw, bh);
 
     final flag = await ctx.assets.resolveFlag(code,
         width: bw.round().clamp(16, 4096), height: bh.round().clamp(16, 4096));
@@ -67,7 +76,12 @@ class BrushFlagStage extends RenderStage {
     });
 
     final seed = DeterministicRng.hashString('brushStroke:${recipe.seed}');
-    final brushed = await BrushEdge.brushArtwork(painted, p, seed);
+    final brushed = await BrushEdge.brushArtwork(painted, p, seed,
+        shape: shaped
+            ? null
+            : (ui.Path()
+              ..addRRect(ui.RRect.fromRectAndRadius(
+                  box, ui.Radius.circular(box.shortestSide * 0.04)))));
     if (p.skew == 0) {
       ctx.artwork = brushed;
       return;

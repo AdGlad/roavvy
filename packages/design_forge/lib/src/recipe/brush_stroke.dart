@@ -1,23 +1,24 @@
-/// The flag painted as one broad dry-brush stroke (`DesignRecipe.brushStroke`),
-/// the Brush Flag signature (M208): a landscape block whose top and bottom
-/// edges break into bristle streaks, whose trailing (right) end frays where the
-/// brush lifted, and whose leading (left) edge stays nearly clean. The flag
-/// itself is never recoloured, and the centre is kept whole so emblems survive.
+/// The flag painted as one broad brush stroke (`DesignRecipe.brushStroke`),
+/// the Brush Flag signature (M208): a solid painted block whose top and
+/// bottom edges wobble gently with a few nicks, whose trailing (right) end
+/// lifts off in jagged pointed spikes, built from a few bands that start and
+/// end at slightly different places, with a nearly clean leading edge. The
+/// flag inside is never cut or recoloured.
 ///
-/// The same parameters drive the reusable edge treatment
-/// (`BrushEdge` in design_forge_render), which roughens the edge of ANY shape
-/// mask — a heart, a split block — in the same dry-brush hand. Sizes are
-/// fractions of the shape's own box, so preview and print match.
+/// The same parameters drive the reusable edge treatment (`BrushEdge` in
+/// design_forge_render), which brushes the outline of ANY shape — a heart, a
+/// split block. Sizes are fractions of the shape's own box, so preview and
+/// print match.
 ///
 /// Like the other new groups, [toJson] writes every field.
 class BrushStroke {
   const BrushStroke({
-    this.bristles = 72,
-    this.dryness = 0.55,
+    this.bristles = 20,
+    this.dryness = 0.5,
     this.liftFray = 0.5,
     this.leadClean = 0.85,
-    this.taper = 0.3,
-    this.spill = 0.35,
+    this.taper = 0.7,
+    this.spill = 0.5,
     this.skew = 0,
     this.scale = 0.84,
     this.centerY = 0.6,
@@ -25,25 +26,26 @@ class BrushStroke {
     this.maxAspect = 2.0,
   });
 
-  /// Number of bristle bands across the stroke (more = finer streaks).
+  /// How many lift-off spikes run across the trailing edge.
   final double bristles;
 
-  /// How deep the dry streaks bite into the top and bottom edges (0 = a
-  /// clean edge, 1 = about a fifth of the stroke height is streaky).
+  /// Roughness of the edges along the stroke: wobble and small nicks
+  /// (0 = smooth).
   final double dryness;
 
-  /// Length of the frayed lift-off at the trailing end (0 = square end,
-  /// 1 = bristles end up to about a quarter of the width early).
+  /// Length of the lift-off spikes at the trailing end (0 = square end,
+  /// 1 = spikes up to about an eighth of the stroke's length).
   final double liftFray;
 
   /// How clean the leading (left) edge stays compared with the rest
   /// (1 = straight, 0 = as ragged as the top and bottom).
   final double leadClean;
 
-  /// Pressure taper: the stroke narrows slightly towards its end (0 = none).
+  /// How much the lift-off leans (the bottom reaches further; 0 = none).
   final double taper;
 
-  /// Thin bristle hairs that overshoot the edge (0 = none).
+  /// How staggered the painted bands are: each starts and ends at a
+  /// slightly different place (0 = one clean block).
   final double spill;
 
   /// Rotation of the whole stroke, degrees anticlockwise (small, ±3).
@@ -92,9 +94,9 @@ class BrushStroke {
       minAspect: n('minAspect', d.minAspect),
       maxAspect: n('maxAspect', d.maxAspect),
     );
-    if (b.bristles < 4 || b.bristles > 200) {
+    if (b.bristles < 3 || b.bristles > 40) {
       throw FormatException(
-          'brushStroke.bristles must be 4..200, not ${b.bristles}');
+          'brushStroke.bristles must be 3..40, not ${b.bristles}');
     }
     if (b.minAspect <= 0 || b.maxAspect < b.minAspect) {
       throw const FormatException('brushStroke aspect range is empty');

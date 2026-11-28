@@ -24,7 +24,7 @@ class Captions {
   final String? bottom;
 
   /// 'brush' (embedded Permanent Marker), 'varsity' (embedded Graduate),
-  /// 'handwritten' (embedded Kalam Bold) or null (platform bold sans).
+  /// 'handwritten' (embedded Kalam Regular) or null (platform bold sans).
   final String? font;
 
   /// [flagColour], 'auto' (legible on the garment) or `#RRGGBB`.

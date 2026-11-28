@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -9,17 +10,10 @@ import 'package:flutter_test/flutter_test.dart';
 final _flagDir =
     Directory('../../apps/mobile_flutter/assets/flags/svg').absolute.path;
 
-/// An opaque red rectangle on transparent, premultiplied RGBA.
-Uint8List _block(int w, int h, int l, int t, int r, int b) {
-  final px = Uint8List(w * h * 4);
-  for (var y = t; y < b; y++) {
-    for (var x = l; x < r; x++) {
-      final i = (y * w + x) * 4;
-      px[i] = px[i + 3] = 255;
-    }
-  }
-  return px;
-}
+Future<Uint8List> _pixels(ui.Image img) async =>
+    (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!
+        .buffer
+        .asUint8List();
 
 int _alpha(Uint8List px, int w, int x, int y) => px[(y * w + x) * 4 + 3];
 
@@ -27,72 +21,117 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const w = 300, h = 200;
   const p = BrushStroke();
+  const rect = ui.Rect.fromLTWH(40, 40, 220, 120);
 
-  test('brush edge is deterministic and seed-dependent', () {
-    final src = _block(w, h, 40, 40, 260, 160);
-    final a = BrushEdge.paint(src, w, h, p, 7);
-    final b = BrushEdge.paint(src, w, h, p, 7);
-    final c = BrushEdge.paint(src, w, h, p, 8);
+  test('outline is deterministic and seed-dependent', () {
+    final shape = ui.Path()..addRect(rect);
+    final a = BrushEdge.outline(shape, p, 7).getBounds();
+    final b = BrushEdge.outline(shape, p, 7).getBounds();
+    final c = BrushEdge.outline(shape, p, 8).getBounds();
     expect(a, b);
-    expect(a, isNot(c));
+    expect(a == c, isFalse);
   });
 
-  test('keeps the middle whole, bites only the edges, frays the end', () {
-    final src = _block(w, h, 40, 40, 260, 160);
-    final out = BrushEdge.paint(src, w, h, p, 3);
-    // Middle (where an emblem sits) untouched.
-    for (var y = 70; y < 130; y++) {
-      for (var x = 80; x < 200; x++) {
-        expect(_alpha(out, w, x, y), 255, reason: 'centre at $x,$y');
-      }
-    }
-    int cleared(int x0, int x1, int y0, int y1) {
-      var n = 0;
-      for (var y = y0; y < y1; y++) {
-        for (var x = x0; x < x1; x++) {
-          if (_alpha(src, w, x, y) == 255 && _alpha(out, w, x, y) < 128) n++;
+  testWidgets('solid inside, gently moved long edges, spiky trailing end',
+      (tester) async {
+    await tester.runAsync(() async {
+      final px = await _pixels(await BrushEdge.maskForRect(rect, w, h, p, 3));
+      // The whole interior is paint: no gaps through the stripes.
+      for (var y = 60; y < 140; y++) {
+        for (var x = 70; x < 210; x++) {
+          expect(_alpha(px, w, x, y), 255, reason: 'inside at $x,$y');
         }
       }
-      return n;
-    }
-
-    expect(cleared(80, 220, 40, 50), greaterThan(0), reason: 'top streaks');
-    expect(cleared(80, 220, 150, 160), greaterThan(0),
-        reason: 'bottom streaks');
-    final trailing = cleared(240, 260, 60, 140);
-    final leading = cleared(40, 60, 60, 140);
-    expect(trailing, greaterThan(leading * 3),
-        reason: 'end frays, start clean');
-    // Nothing paints far from the shape.
-    expect(_alpha(out, w, 5, 5), 0);
-  });
-
-  test('vertical strokes brush the left/right edges instead', () {
-    final src = _block(w, h, 40, 40, 260, 160);
-    final out = BrushEdge.paint(src, w, h, p, 3, vertical: true);
-    var leftBites = 0;
-    for (var y = 60; y < 140; y++) {
-      for (var x = 40; x < 50; x++) {
-        if (_alpha(out, w, x, y) < 128) leftBites++;
+      // Trailing edge: along a column just past the box, paint comes and
+      // goes (spikes and notches); the leading edge stays nearly straight.
+      int changes(int x) {
+        var n = 0, prev = _alpha(px, w, x, 50) > 127;
+        for (var y = 51; y < 150; y++) {
+          final on = _alpha(px, w, x, y) > 127;
+          if (on != prev) n++;
+          prev = on;
+        }
+        return n;
       }
-    }
-    expect(leftBites, greaterThan(0));
+
+      final trailing =
+          [for (var x = 235; x < 285; x++) changes(x)].reduce(math.max);
+      expect(trailing, greaterThan(6), reason: 'jagged lift-off');
+      expect(changes(44), lessThan(4), reason: 'clean leading edge');
+      // Anti-aliased: partial alpha exists along the outline.
+      var partial = 0;
+      for (var i = 3; i < px.length; i += 4) {
+        if (px[i] > 0 && px[i] < 255) partial++;
+      }
+      expect(partial, greaterThan(50));
+      expect(_alpha(px, w, 5, 5), 0);
+    });
   });
 
-  testWidgets('mask helpers brush any path', (tester) async {
+  testWidgets('vertical strokes spike at the bottom instead', (tester) async {
+    await tester.runAsync(() async {
+      final px = await _pixels(
+          await BrushEdge.maskForRect(rect, w, h, p, 3, vertical: true));
+
+      var changes = 0;
+      for (var y = 140; y < 175; y++) {
+        var n = 0, prev = _alpha(px, w, 40, y) > 127;
+        for (var x = 41; x < 260; x++) {
+          final on = _alpha(px, w, x, y) > 127;
+          if (on != prev) n++;
+          prev = on;
+        }
+        changes = math.max(changes, n);
+      }
+      expect(changes, greaterThan(6));
+    });
+  });
+
+  testWidgets('narrow parts are roughened, never cut away (heart tip)',
+      (tester) async {
     await tester.runAsync(() async {
       final heart = ShapeGeometry.build(
-          'heart', const ui.Rect.fromLTWH(50, 20, 200, 160), 0)!;
-      final m = await BrushEdge.maskForPath(heart, w, h, p, 1);
-      final r = await BrushEdge.maskForRect(
-          const ui.Rect.fromLTWH(40, 40, 220, 120), w, h, p, 1);
-      expect(m.width, w);
-      expect(r.height, h);
-      final px = (await r.toByteData(format: ui.ImageByteFormat.rawRgba))!
-          .buffer
-          .asUint8List();
-      expect(_alpha(px, w, 150, 100), 255);
-      expect(_alpha(px, w, 5, 5), 0);
+          'heart', const ui.Rect.fromLTWH(50, 10, 200, 180), 0)!;
+      const rough = BrushStroke(dryness: 1, liftFray: 1, spill: 1);
+      final px =
+          await _pixels(await BrushEdge.maskForPath(heart, w, h, rough, 1));
+      // Every row of the tip region still holds paint (it may lean).
+      final tipBottom = heart.getBounds().bottom.floor();
+      var painted = 0;
+      for (var y = tipBottom - 40; y < tipBottom - 8; y++) {
+        var any = false;
+        for (var x = 100; x < 200; x++) {
+          if (_alpha(px, w, x, y) > 127) any = true;
+        }
+        if (any) painted++;
+      }
+      expect(painted, 32);
+    });
+  });
+
+  testWidgets('brushArtwork: spikes carry the neighbouring paint',
+      (tester) async {
+    await tester.runAsync(() async {
+      final rec = ui.PictureRecorder();
+      ui.Canvas(rec)
+        ..drawRect(const ui.Rect.fromLTWH(40, 40, 220, 60),
+            ui.Paint()..color = const ui.Color(0xFFFF0000))
+        ..drawRect(const ui.Rect.fromLTWH(40, 100, 220, 60),
+            ui.Paint()..color = const ui.Color(0xFF0000FF));
+      final art = await rec.endRecording().toImage(w, h);
+      final out = await _pixels(await BrushEdge.brushArtwork(art, p, 2,
+          shape: ui.Path()..addRect(rect)));
+      // Every painted pixel past the original right edge is red or blue.
+      for (var y = 40; y < 160; y++) {
+        for (var x = 261; x < 295; x++) {
+          final i = (y * w + x) * 4;
+          if (out[i + 3] < 250) continue;
+          expect(out[i] > 200 || out[i + 2] > 200, isTrue);
+          expect(out[i + 1] < 40, isTrue);
+        }
+      }
+      final colour = BrushEdge.extendColour(Uint8List(16), 2, 2, 4);
+      expect(colour.every((b) => b == 0), isTrue, reason: 'nothing to extend');
     });
   });
 

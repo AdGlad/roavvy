@@ -6,91 +6,311 @@ import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
 
-/// The dry-brush edge, reusable by any stage (ADR-185 / M208).
+/// The painted dry-brush edge, reusable by any stage (ADR-185 / M208).
 ///
-/// Roughens the edge of a SHAPE — given as artwork whose alpha is the shape —
-/// as if it were painted with one broad dry brush moving left → right
-/// ([vertical]: top → bottom):
+/// Turns a shape's outline into the outline of the same shape painted with
+/// one broad brush moving left → right ([vertical]: top → bottom), as a
+/// **vector path** (filled anti-aliased):
 ///
-///  * the edges running along the stroke break into bristle streaks
-///    ([BrushStroke.dryness]) with a few hairs overshooting ([BrushStroke.spill]);
-///  * each bristle ends at its own place at the trailing end
-///    ([BrushStroke.liftFray]), the frayed lift-off;
-///  * the leading edge stays nearly clean ([BrushStroke.leadClean]);
-///  * the stroke narrows a little towards its end ([BrushStroke.taper]).
+///  * the edges along the stroke wobble gently, with a few small nicks
+///    ([BrushStroke.dryness]);
+///  * the trailing edge lifts off in jagged, pointed spikes of varied length
+///    with triangular notches between them ([BrushStroke.liftFray] = spike
+///    length, [BrushStroke.bristles] = how many spikes across the stroke,
+///    [BrushStroke.taper] = how much the lift-off leans);
+///  * the stroke is a stack of a few painted bands that start and end at
+///    slightly different places ([BrushStroke.spill] = how staggered);
+///  * the leading edge stays nearly clean ([BrushStroke.leadClean]).
 ///
-/// It never touches the middle of the shape (emblems survive): every bite is
-/// limited to a band along the edge, at most about a fifth of the shape.
-/// Colours are kept; overshooting hairs take the colour of the nearest inked
-/// pixel. All sizes are fractions of the shape's own bounding box, so a
-/// preview and the print match.
+/// Nothing cuts through the inside: the paint is solid, only the outline
+/// moves. Inward bites are capped by the shape's local thickness, so a narrow
+/// part (a heart's tip) is roughened, never shredded. Outward spikes take the
+/// colour of the nearest painted pixel. All sizes are fractions of the shape's
+/// bounding box, so preview and print match; everything is seeded.
 ///
-/// Usage:
 /// ```dart
-/// // Any shape: clip the flag to a heart first, then brush its edge.
-/// art = await BrushEdge.brushArtwork(art, params, seed);
-/// // A path or a rect, as a mask (white = keep), to dstIn onto anything:
-/// final mask = await BrushEdge.maskForPath(heartPath, w, h, params, seed);
-/// final block = await BrushEdge.maskForRect(rect, w, h, params, seed, vertical: true);
-/// // Pure Dart core (isolate-safe, bit-identical everywhere):
-/// final rgba2 = BrushEdge.paint(rgbaPremultiplied, w, h, params, seed);
+/// final outline = BrushEdge.outline(heartPath, brush, seed);           // ui.Path
+/// final mask = await BrushEdge.maskForPath(heartPath, w, h, brush, seed); // white = keep
+/// final mask2 = await BrushEdge.maskForRect(rect, w, h, brush, seed, vertical: true);
+/// art = await BrushEdge.brushArtwork(art, brush, seed, shape: heartPath);
 /// ```
 class BrushEdge {
   const BrushEdge._();
 
-  /// Brushes the edge of [art]'s own shape (its alpha), off the UI isolate.
-  static Future<ui.Image> brushArtwork(ui.Image art, BrushStroke p, int seed,
-      {bool vertical = false}) async {
-    final data = await art.toByteData(format: ui.ImageByteFormat.rawRgba);
-    final bytes = data!.buffer.asUint8List();
-    final w = art.width, h = art.height;
-    final out = await Isolate.run(
-        () => paint(bytes, w, h, p, seed, vertical: vertical));
-    return _decode(out, w, h);
+  /// The brushed outline of [shape] (one closed path per contour).
+  static ui.Path outline(ui.Path shape, BrushStroke p, int seed,
+      {bool vertical = false}) {
+    final bounds = shape.getBounds();
+    if (bounds.isEmpty) return ui.Path();
+    // Work in stroke space: the stroke always runs along +x.
+    final toStroke = vertical ? _swapXY : _identity;
+    final src = shape.transform(toStroke);
+    final b = src.getBounds();
+    final along = b.width, across = b.height;
+    final unit = math.min(along, across);
+    final s0 = seed & 0x7FFFFFFF;
+
+    final dry = p.dryness.clamp(0.0, 1.0);
+    final wobbleAmp = unit * 0.022 * (0.3 + dry);
+    final nickDepth = unit * 0.02 * dry;
+    final fray = along * 0.16 * p.liftFray.clamp(0.0, 1.0);
+    final teeth = p.bristles.clamp(3.0, 40.0);
+    final lean = p.taper.clamp(0.0, 1.0);
+    final stagger = along * 0.09 * p.spill.clamp(0.0, 1.0);
+    final endTaper = across * 0.09 * p.taper.clamp(0.0, 1.0);
+    final lead = p.leadClean.clamp(0.0, 1.0);
+
+    // Painted bands across the stroke, each with its own start and end.
+    const bands = 4;
+    final bandStart = [
+      for (var k = 0; k < bands; k++)
+        k == bands - 1
+            ? stagger * (0.6 + 0.6 * _hash(s0 ^ 0xB0A1, k))
+            : stagger * 0.6 * math.pow(_hash(s0 ^ 0xB0A1, k), 1.5),
+    ];
+    final bandEnd = [
+      for (var k = 0; k < bands; k++) stagger * (2 * _hash(s0 ^ 0xB0A2, k) - 1),
+    ];
+    double banded(List<double> v, double yn) {
+      final f = (yn * bands - 0.5).clamp(0.0, bands - 1.0);
+      final i = f.floor().clamp(0, bands - 1), j = math.min(i + 1, bands - 1);
+      final t = _smooth(0.35, 0.65, f - i);
+      return v[i] + (v[j] - v[i]) * t;
+    }
+
+    // Spikes on the trailing edge: pointed triangles of varied length; now
+    // and then a notch instead.
+    double spike(double yn) {
+      final f = yn * teeth + 1.2 * (_noise(s0 ^ 0x5716, yn * 4) - 0.5);
+      final k = f.floor();
+      final u = f - k;
+      final tip = 0.25 + 0.5 * _hash(s0 ^ 0x5717, k);
+      final r = _hash(s0 ^ 0x5718, k);
+      // Mostly spikes of very different lengths, now and then a notch.
+      final len =
+          r < 0.18 ? -0.3 : 0.1 + 0.9 * math.pow(_hash(s0 ^ 0x5719, k), 1.2);
+      final tri = u < tip ? u / tip : (1 - u) / (1 - tip);
+      // Thin pointed spikes; the valleys between them bite in a little.
+      return fray * ((0.35 + len) * tri - 0.35);
+    }
+
+    final out = ui.Path();
+    for (final metric in src.computeMetrics()) {
+      final len = metric.length;
+      if (len <= 0) continue;
+      final n = math.max(64, (len / unit * 260).round());
+      // Small nicks: short inward dents at random places along the outline.
+      final nickCount = (len / unit * 3 * dry).round();
+      final nicks = [
+        for (var k = 0; k < nickCount; k++)
+          (
+            _hash(s0 ^ 0x41C0, k) * len,
+            unit * (0.012 + 0.025 * _hash(s0 ^ 0x41C1, k)),
+            nickDepth * (0.5 + _hash(s0 ^ 0x41C2, k)),
+          ),
+      ];
+      final pts = <ui.Offset>[];
+      for (var i = 0; i < n; i++) {
+        final s = len * i / n;
+        final t = metric.getTangentForOffset(s);
+        if (t == null) continue;
+        final pos = t.position;
+        var nx = t.vector.dy, ny = -t.vector.dx;
+        if (src.contains(pos + ui.Offset(nx, ny) * (unit * 0.004))) {
+          nx = -nx;
+          ny = -ny;
+        }
+        final yn = ((pos.dy - b.top) / across).clamp(0.0, 1.0);
+        final trailing = _smooth(0.35, 0.85, nx);
+        final leading = _smooth(0.35, 0.85, -nx);
+        final side = 1 - trailing - leading; // along-stroke edges
+
+        // Gentle low-frequency wobble (quieter on the leading edge).
+        var d = wobbleAmp *
+            (2 * _noise(s0 ^ 0x70B1, s / (unit * 0.45)) -
+                1 +
+                0.35 * (2 * _noise(s0 ^ 0x70B2, s / (unit * 0.08)) - 1)) *
+            (1 - leading * lead * 0.8);
+        // Nicks, mostly on the long edges.
+        for (final (at, width, depth) in nicks) {
+          final dist = (s - at).abs();
+          if (dist < width)
+            d -= depth * (1 - dist / width) * (side + 0.4 * trailing);
+        }
+        // Staggered bands: where each band starts and ends.
+        d -= leading * banded(bandStart, yn);
+        d += trailing * banded(bandEnd, yn);
+        // The lift-off: spikes, leaning (bottom reaches further).
+        // (Spikes fade out at the corners so none floats off on its own.)
+        final ends = _smooth(0.03, 0.16, yn) * _smooth(0.03, 0.16, 1 - yn);
+        d += trailing * (spike(yn) * ends + fray * lean * 0.6 * (yn - 0.5));
+
+        // The stroke thins towards its end (pressure lifting): the long edges
+        // close in near the trailing end.
+        final xn = ((pos.dx - b.left) / along).clamp(0.0, 1.0);
+        d -= (side + trailing) * endTaper * xn * xn;
+        // Never bite deeper than a share of the local thickness.
+        if (d < 0) {
+          final room = _inward(src, pos, -nx, -ny, unit);
+          d = math.max(d, -0.3 * room);
+        }
+        pts.add(pos + ui.Offset(nx, ny) * d);
+      }
+      if (pts.length < 3) continue;
+      out.addPolygon(pts, true);
+    }
+    return out.transform(toStroke); // the swap is its own inverse
   }
 
-  /// A white-on-transparent mask of [path] with a brushed edge.
+  /// A white-on-transparent mask of [path], brushed.
   static Future<ui.Image> maskForPath(
       ui.Path path, int w, int h, BrushStroke p, int seed,
-      {bool vertical = false}) async {
+      {bool vertical = false}) {
     final rec = ui.PictureRecorder();
-    ui.Canvas(rec, ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()))
-        .drawPath(path, ui.Paint()..color = const ui.Color(0xFFFFFFFF));
-    final img = await rec.endRecording().toImage(w, h);
-    return brushArtwork(img, p, seed, vertical: vertical);
+    ui.Canvas(rec, ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble())).drawPath(
+        outline(path, p, seed, vertical: vertical),
+        ui.Paint()
+          ..color = const ui.Color(0xFFFFFFFF)
+          ..isAntiAlias = true);
+    return rec.endRecording().toImage(w, h);
   }
 
-  /// A white-on-transparent mask of [rect] with a brushed edge.
+  /// A white-on-transparent mask of [rect], brushed.
   static Future<ui.Image> maskForRect(
           ui.Rect rect, int w, int h, BrushStroke p, int seed,
           {bool vertical = false}) =>
-      maskForPath(ui.Path()..addRect(rect), w, h, p, seed, vertical: vertical);
+      maskForPath(
+          ui.Path()
+            ..addRRect(ui.RRect.fromRectAndRadius(
+                rect, ui.Radius.circular(rect.shortestSide * 0.04))),
+          w,
+          h,
+          p,
+          seed,
+          vertical: vertical);
 
-  static Future<ui.Image> _decode(Uint8List px, int w, int h) {
-    final c = Completer<ui.Image>();
-    ui.decodeImageFromPixels(px, w, h, ui.PixelFormat.rgba8888, c.complete);
-    return c.future;
-  }
-
-  /// Pure-Dart core on PREMULTIPLIED RGBA. Returns a new buffer.
-  static Uint8List paint(Uint8List rgba, int w, int h, BrushStroke p, int seed,
-      {bool vertical = false}) {
-    if (vertical) {
-      final t = _transpose(rgba, w, h);
-      return _transpose(_paint(t, h, w, p, seed), h, w);
+  /// Brushes [art] along [shape] (default: the box of its painted pixels).
+  /// Colour is first extended outward from the painted pixels, so spikes
+  /// past the original edge carry the paint next to them (a stripe runs on
+  /// into its spike).
+  static Future<ui.Image> brushArtwork(ui.Image art, BrushStroke p, int seed,
+      {ui.Path? shape, bool vertical = false}) async {
+    final w = art.width, h = art.height;
+    final data = await art.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final bytes = data!.buffer.asUint8List();
+    var path = shape;
+    if (path == null) {
+      final box = _alphaBounds(bytes, w, h);
+      if (box == null) return art;
+      path = ui.Path()..addRect(box);
     }
-    return _paint(rgba, w, h, p, seed);
+    final reach = (math.max(w, h) * 0.2).round();
+    final extended = await _decode(
+        await Isolate.run(() => extendColour(bytes, w, h, reach)), w, h);
+    final rec = ui.PictureRecorder();
+    final canvas =
+        ui.Canvas(rec, ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()));
+    canvas.saveLayer(null, ui.Paint());
+    canvas.drawPath(
+        outline(path, p, seed, vertical: vertical),
+        ui.Paint()
+          ..color = const ui.Color(0xFFFFFFFF)
+          ..isAntiAlias = true);
+    canvas.drawImage(
+        extended, ui.Offset.zero, ui.Paint()..blendMode = ui.BlendMode.srcIn);
+    if (shape == null) {
+      // Without a vector shape, the artwork's own alpha still bounds it
+      // (e.g. a pennant flag keeps its diagonal edges).
+      canvas.drawImage(
+          art, ui.Offset.zero, ui.Paint()..blendMode = ui.BlendMode.dstIn);
+    }
+    canvas.restore();
+    return rec.endRecording().toImage(w, h);
   }
 
-  static Uint8List _paint(
-      Uint8List rgba, int w, int h, BrushStroke p, int seed) {
+  /// Fills transparent pixels within [reach] px of the painted ones with the
+  /// colour of the nearest painted pixel (premultiplied RGBA in and out).
+  /// Pure Dart; nearest by a two-pass chamfer propagation.
+  static Uint8List extendColour(Uint8List rgba, int w, int h, int reach) {
     final n = w * h;
-    final inside = Uint8List(n);
-    var x0 = w, x1 = -1, y0 = h, y1 = -1;
+    const big = 1 << 28;
+    final dist = Int32List(n);
+    final from = Int32List(n);
+    for (var i = 0; i < n; i++) {
+      // Only fully painted pixels are sources: an anti-aliased rim would
+      // leave a seam where the paint is extended.
+      if (rgba[i * 4 + 3] >= 250) {
+        dist[i] = 0;
+        from[i] = i;
+      } else {
+        dist[i] = big;
+        from[i] = -1;
+      }
+    }
+    void relax(int i, int j, int cost) {
+      final c = dist[j] + cost;
+      if (c < dist[i]) {
+        dist[i] = c;
+        from[i] = from[j];
+      }
+    }
+
     for (var y = 0; y < h; y++) {
       for (var x = 0; x < w; x++) {
-        if (rgba[(y * w + x) * 4 + 3] >= 128) {
-          inside[y * w + x] = 1;
+        final i = y * w + x;
+        if (dist[i] == 0) continue;
+        if (x > 0) relax(i, i - 1, 3);
+        if (y > 0) {
+          relax(i, i - w, 3);
+          if (x > 0) relax(i, i - w - 1, 4);
+          if (x < w - 1) relax(i, i - w + 1, 4);
+        }
+      }
+    }
+    for (var y = h - 1; y >= 0; y--) {
+      for (var x = w - 1; x >= 0; x--) {
+        final i = y * w + x;
+        if (dist[i] == 0) continue;
+        if (x < w - 1) relax(i, i + 1, 3);
+        if (y < h - 1) {
+          relax(i, i + w, 3);
+          if (x < w - 1) relax(i, i + w + 1, 4);
+          if (x > 0) relax(i, i + w - 1, 4);
+        }
+      }
+    }
+    final out = Uint8List.fromList(rgba);
+    final limit = reach * 3;
+    for (var i = 0; i < n; i++) {
+      final f = from[i];
+      if (dist[i] == 0 || f < 0 || dist[i] > limit) continue;
+      final a = rgba[f * 4 + 3];
+      if (a == 0) continue;
+      // Un-premultiply then write fully opaque.
+      for (var c = 0; c < 3; c++) {
+        out[i * 4 + c] = (rgba[f * 4 + c] * 255 / a).round().clamp(0, 255);
+      }
+      out[i * 4 + 3] = 255;
+    }
+    return out;
+  }
+
+  /// How far the shape extends from [pos] in direction (dx, dy).
+  static double _inward(
+      ui.Path shape, ui.Offset pos, double dx, double dy, double unit) {
+    final step = unit / 120;
+    var d = step;
+    while (d < unit && shape.contains(pos + ui.Offset(dx, dy) * d)) {
+      d += step;
+    }
+    return d;
+  }
+
+  static ui.Rect? _alphaBounds(Uint8List px, int w, int h) {
+    var x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        if (px[(y * w + x) * 4 + 3] >= 128) {
           if (x < x0) x0 = x;
           if (x > x1) x1 = x;
           if (y < y0) y0 = y;
@@ -98,175 +318,27 @@ class BrushEdge {
         }
       }
     }
-    if (x1 < 0) return Uint8List.fromList(rgba);
-    final bw = (x1 - x0 + 1).toDouble(), bh = (y1 - y0 + 1).toDouble();
-
-    final dIn = _chamfer(inside, w, h, 1); // inside → distance to outside
-    final dOut = _chamfer(inside, w, h, 0); // outside → distance to inside
-
-    // Row extents (for the trailing fray).
-    final rowRight = Int32List(h)..fillRange(0, h, -1);
-    for (var y = y0; y <= y1; y++) {
-      for (var x = x1; x >= x0; x--) {
-        if (inside[y * w + x] == 1) {
-          rowRight[y] = x;
-          break;
-        }
-      }
-    }
-
-    final dry = p.dryness.clamp(0.0, 1.0);
-    final edge = math.max(1.0, dry * 0.18 * bh); // streaky band depth, px
-    final band = bh / p.bristles.clamp(4.0, 200.0); // one bristle, px
-    final fray = p.liftFray.clamp(0.0, 1.0) * 0.25 * bw;
-    final spill = p.spill.clamp(0.0, 1.0) * 0.05 * bh;
-    final taper = p.taper.clamp(0.0, 1.0) * 0.06 * bh;
-    final lead = p.leadClean.clamp(0.0, 1.0);
-    final streakLen = bw * 0.16; // typical streak length along the stroke
-    final s = seed & 0x7FFFFFFF;
-
-    // Bristles run along the stroke, with a very slight drift.
-    int bristleAt(int x, int y) {
-      final wob = band * 0.2 * (_noise(s ^ 0x3B1, x / (bw * 0.5)) - 0.5);
-      return ((y - y0 + wob) / band).floor();
-    }
-
-    // Each bristle's ink along its length: long on/off runs plus fine skips.
-    double ink(int b, int x) =>
-        _noise(s ^ (b * 7919), x / streakLen) * 0.75 +
-        _noise(s ^ (b * 104729 + 17), x / (streakLen * 0.22)) * 0.25;
-
-    final out = Uint8List.fromList(rgba);
-    final maxReach = spill + 2;
-    for (var y = 0; y < h; y++) {
-      final nearRows = y >= y0 - maxReach && y <= y1 + maxReach;
-      for (var x = 0; x < w; x++) {
-        final i = y * w + x;
-        if (inside[i] == 0) {
-          // Outside: transparent, except the few overshooting hairs.
-          out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = out[i * 4 + 3] = 0;
-          if (!nearRows || spill <= 0) continue;
-          final d = dOut[i];
-          if (d > spill) continue;
-          final b = bristleAt(x, y);
-          if (_hash(s ^ 0x5B11, b) < 1 - p.spill * 0.5) continue;
-          final reach = spill * (0.3 + 0.7 * _hash(s ^ 0x5B12, b));
-          if (d > reach || ink(b, x) < 0.55) continue;
-          final r = rowRight[y.clamp(y0, y1)];
-          if (r >= 0 && x > r - fray) continue;
-          final src = _nearestInside(inside, w, h, x, y, (spill + 2).ceil());
-          if (src < 0) continue;
-          for (var c = 0; c < 4; c++) {
-            out[i * 4 + c] = rgba[src * 4 + c];
-          }
-          continue;
-        }
-        final xn = ((x - x0) / bw).clamp(0.0, 1.0);
-        final d = dIn[i] - taper * xn * xn;
-        final r = rowRight[y];
-        final inFray = fray > 0 && r >= 0 && x > r - fray - 1;
-        if (d > edge && !inFray) continue;
-        final b = bristleAt(x, y);
-        final n = ink(b, x);
-        var keep = 1.0;
-        if (d < edge) {
-          // Close to the edge more bristles run dry; deep inside none do.
-          final t = math.pow((1 - d / edge).clamp(0.0, 1.0), 1.3).toDouble();
-          final leadW = (1 - lead) + lead * _smooth(0.0, 0.2, xn);
-          final thr = 0.97 * t * leadW;
-          keep = ((n - thr) * 25 + 0.5).clamp(0.0, 1.0);
-          if (d <= 0) keep = 0;
-        }
-        if (inFray) {
-          // Frayed lift-off: each bristle ends at its own place, and the
-          // bristles separate (thin dry gaps) towards the end.
-          final end = r - fray * math.pow(_hash(s ^ 0xF4A7, b), 0.9);
-          keep = math.min(keep, (end - x + 0.5).clamp(0.0, 1.0));
-          final zone = ((x - (r - fray)) / fray).clamp(0.0, 1.0);
-          final thr = zone * (0.25 + 0.5 * dry);
-          keep = math.min(keep, ((n - thr) * 25 + 0.5).clamp(0.0, 1.0));
-        }
-        if (keep < 1) _scale(out, i * 4, keep);
-      }
-    }
-    return out;
+    if (x1 < 0) return null;
+    return ui.Rect.fromLTRB(x0.toDouble(), y0.toDouble(), x1 + 1.0, y1 + 1.0);
   }
 
-  static void _scale(Uint8List px, int o, double k) {
-    px[o] = (px[o] * k).round();
-    px[o + 1] = (px[o + 1] * k).round();
-    px[o + 2] = (px[o + 2] * k).round();
-    px[o + 3] = (px[o + 3] * k).round();
+  static Future<ui.Image> _decode(Uint8List px, int w, int h) {
+    final c = Completer<ui.Image>();
+    ui.decodeImageFromPixels(px, w, h, ui.PixelFormat.rgba8888, c.complete);
+    return c.future;
   }
 
-  /// Index of the nearest inside pixel straight up/down/left/right, or -1.
-  static int _nearestInside(
-      Uint8List inside, int w, int h, int x, int y, int max) {
-    for (var r = 1; r <= max; r++) {
-      if (y + r < h && inside[(y + r) * w + x] == 1) return (y + r) * w + x;
-      if (y - r >= 0 && inside[(y - r) * w + x] == 1) return (y - r) * w + x;
-      if (x - r >= 0 && inside[y * w + x - r] == 1) return y * w + x - r;
-      if (x + r < w && inside[y * w + x + r] == 1) return y * w + x + r;
-    }
-    return -1;
-  }
+  static final Float64List _identity = Float64List(16)
+    ..[0] = 1
+    ..[5] = 1
+    ..[10] = 1
+    ..[15] = 1;
 
-  /// 3-4 chamfer distance (in px) from each pixel whose [inside] equals
-  /// [target] to the nearest pixel that doesn't; 0 elsewhere.
-  static Float32List _chamfer(Uint8List inside, int w, int h, int target) {
-    const big = 1 << 28;
-    final d = Int32List(w * h);
-    for (var i = 0; i < w * h; i++) {
-      d[i] = inside[i] == target ? big : 0;
-    }
-    for (var y = 0; y < h; y++) {
-      for (var x = 0; x < w; x++) {
-        final i = y * w + x;
-        var v = d[i];
-        if (v == 0) continue;
-        if (x > 0) v = math.min(v, d[i - 1] + 3);
-        if (y > 0) {
-          v = math.min(v, d[i - w] + 3);
-          if (x > 0) v = math.min(v, d[i - w - 1] + 4);
-          if (x < w - 1) v = math.min(v, d[i - w + 1] + 4);
-        }
-        d[i] = v;
-      }
-    }
-    for (var y = h - 1; y >= 0; y--) {
-      for (var x = w - 1; x >= 0; x--) {
-        final i = y * w + x;
-        var v = d[i];
-        if (v == 0) continue;
-        if (x < w - 1) v = math.min(v, d[i + 1] + 3);
-        if (y < h - 1) {
-          v = math.min(v, d[i + w] + 3);
-          if (x < w - 1) v = math.min(v, d[i + w + 1] + 4);
-          if (x > 0) v = math.min(v, d[i + w - 1] + 4);
-        }
-        d[i] = v;
-      }
-    }
-    final out = Float32List(w * h);
-    for (var i = 0; i < w * h; i++) {
-      out[i] = d[i] >= big ? 1e9 : d[i] / 3.0;
-    }
-    return out;
-  }
-
-  static Uint8List _transpose(Uint8List px, int w, int h) {
-    final out = Uint8List(px.length);
-    for (var y = 0; y < h; y++) {
-      for (var x = 0; x < w; x++) {
-        final s = (y * w + x) * 4, d = (x * h + y) * 4;
-        out[d] = px[s];
-        out[d + 1] = px[s + 1];
-        out[d + 2] = px[s + 2];
-        out[d + 3] = px[s + 3];
-      }
-    }
-    return out;
-  }
+  static final Float64List _swapXY = Float64List(16)
+    ..[1] = 1
+    ..[4] = 1
+    ..[10] = 1
+    ..[15] = 1;
 
   static double _smooth(double a, double b, double x) {
     final t = ((x - a) / (b - a)).clamp(0.0, 1.0);
