@@ -43,12 +43,15 @@ class SignatureTeeArt extends ConsumerWidget {
     if (tee == null) return const SizedBox.shrink();
     final service = ref.watch(signatureTeeRenderServiceProvider);
     if (service == null) return const TeePlaceholder();
+    final shirt = garmentColour ?? teeGarments.first.$1;
     return ShirtPreview(
       service: service,
-      recipe: tee.recipe,
+      // The shirt's own ink for a design whose ink follows it (Passport
+      // Stamp: white on a dark shirt); the approved recipe otherwise.
+      recipe: teeRecipe(tee, shirt),
       front: false,
       longSide: kTeePreviewLongSide,
-      garmentColour: garmentColour ?? teeGarments.first.$1,
+      garmentColour: shirt,
       placeholder: const TeePlaceholder(),
     );
   }

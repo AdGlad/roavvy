@@ -87,7 +87,9 @@ List<Override> _overrides({
   signatureCatalogProvider.overrideWith(
     (ref) async => SignatureCatalog(pack ? [_pack, _stamp] : const []),
   ),
-  signatureTeeRenderServiceProvider.overrideWithValue(RenderService(_NoRender())),
+  signatureTeeRenderServiceProvider.overrideWithValue(
+    RenderService(_NoRender()),
+  ),
   shopifyPricingProvider.overrideWith(
     (ref) async => const MerchPrices(tshirtFromPrice: r'$39.00'),
   ),
@@ -157,11 +159,17 @@ void main() {
         photoCount: 12,
         isManual: false,
       );
-      expect([for (final t in teesFor([_pack, _stamp], 'FR')) t.pack.id], [
-        'torn_flag',
-      ]);
+      expect(
+        [
+          for (final t in teesFor([_pack, _stamp], 'FR')) t.pack.id,
+        ],
+        ['torn_flag'],
+      );
       final tees = teesFor([_pack, _stamp], 'FR', trip: trip);
-      expect([for (final t in tees) t.pack.id], ['torn_flag', 'passport_stamp']);
+      expect(
+        [for (final t in tees) t.pack.id],
+        ['torn_flag', 'passport_stamp'],
+      );
       final stamp = tees.last.recipe;
       expect(
         stamp.recipeId,
@@ -196,6 +204,34 @@ void main() {
       expect(latestTrip(trips, 'IT'), isNull);
       expect(stampDate(DateTime(2022, 11, 30)), '30 NOV 22');
       expect(stampDate(DateTime(2005, 3, 4)), '04 MAR 05');
+    });
+
+    test('only a design whose ink follows the shirt takes its colour', () {
+      final trip = TripRecord(
+        id: 'fr1',
+        countryCode: 'FR',
+        startedOn: DateTime(2019, 5, 1),
+        endedOn: DateTime(2019, 5, 9),
+        photoCount: 1,
+        isManual: false,
+      );
+      final tees = teesFor([_pack, _stamp], 'FR', trip: trip);
+      final torn = tees.first, stamp = tees.last;
+      expect(inkFollowsShirt(torn.recipe), isFalse);
+      expect(teeRecipe(torn, '#000000'), same(torn.recipe));
+      expect(inkFollowsShirt(stamp.recipe), isTrue);
+      final onBlack = teeRecipe(stamp, '#000000');
+      expect(onBlack.palette!.garmentColour, '#000000');
+      expect(onBlack.recipeId, isNot(teeRecipe(stamp, '#FFFFFF').recipeId));
+      // The cart prints that same shirt-specific design.
+      final r = buildSignatureTeeCartRequest(
+        service: RenderService(_NoRender()),
+        tee: stamp,
+        countryCode: 'FR',
+        garment: ('#000000', 'Black'),
+        trips: [trip],
+      );
+      expect(r.garment.back!.recipeId, onBlack.recipeId);
     });
 
     test('only orderable colours are offered', () {
@@ -347,13 +383,14 @@ void main() {
       await tester.pump();
       await tester.tap(find.byKey(const Key('tee-add-to-cart')));
       await tester.pumpAndSettle();
+      final stamp = (
+        pack: _stamp,
+        recipe: SignatureResolver.hero(_stamp, 'jp', tokens: tripTokens(trip)),
+      );
+      // Its ink follows the shirt (Black, the default colour).
       expect(
         sent.single.garment.back!.recipeId,
-        SignatureResolver.hero(
-          _stamp,
-          'jp',
-          tokens: tripTokens(trip),
-        ).recipeId,
+        teeRecipe(stamp, teeGarments.first.$1).recipeId,
       );
       expect(sent.single.title, 'Japan · Passport Stamp');
     });

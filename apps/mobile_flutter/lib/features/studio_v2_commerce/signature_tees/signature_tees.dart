@@ -141,6 +141,27 @@ final signatureTeeProvider = Provider.family<SignatureTee?, TeeKey>((ref, key) {
   return null;
 });
 
+/// Whether [recipe]'s ink adapts to the shirt: a garment-aware design whose
+/// ink is not the flag (Passport Stamp in black ink). Its ink is chosen from
+/// the shirt colour — near-white on dark cloth, near-black on light — so the
+/// shirt colour is part of the design.
+bool inkFollowsShirt(DesignRecipe recipe) =>
+    recipe.palette?.strategy == ColourStrategy.garmentAware &&
+    recipe.inkIsAdaptive;
+
+/// The recipe that prints [tee] on the shirt [garmentHex] (`#RRGGBB`).
+///
+/// Unchanged for almost every design: the shirt colour rides beside the
+/// recipe so its `recipeId` stays the one the Lab approved. Only a design
+/// whose ink follows the shirt ([inkFollowsShirt]) gets the shirt written into
+/// its palette, so the preview AND the print file pick the legible ink — the
+/// print renderer has no other way to know the shirt.
+DesignRecipe teeRecipe(SignatureTee tee, String garmentHex) {
+  final r = tee.recipe;
+  if (!inkFollowsShirt(r)) return r;
+  return r.copyWith(palette: r.palette!.copyWith(garmentColour: garmentHex));
+}
+
 /// Renders tee previews. One for the whole app so every surface shares the
 /// [RenderService] image cache — a design rendered on the celebration is not
 /// rendered again on the country page.
@@ -202,7 +223,8 @@ List<String> orderTees(List<EffectiveVisitedCountry> visits) {
 ///
 /// The recipe is passed through untouched — for an untokenised pack its
 /// `recipeId` is the one the Lab approved — so the shirt colour rides beside
-/// it ([garment]) instead of being written into its palette.
+/// it ([garment]) instead of being written into its palette. The exception is
+/// a design whose ink follows the shirt ([teeRecipe]).
 GarmentCartRequest buildSignatureTeeCartRequest({
   required RenderService service,
   required SignatureTee tee,
@@ -212,6 +234,7 @@ GarmentCartRequest buildSignatureTeeCartRequest({
 }) {
   final cc = countryCode.toLowerCase();
   final scope = '${tee.pack.id}:$cc';
+  final recipe = teeRecipe(tee, garment.$1);
   final mine = [
     for (final t in trips)
       if (t.countryCode.toLowerCase() == cc)
@@ -230,8 +253,8 @@ GarmentCartRequest buildSignatureTeeCartRequest({
         ..setFrontFit(FrontFit.none)
         ..loadGarment(
           GarmentDesign(
-            front: tee.recipe,
-            back: tee.recipe,
+            front: recipe,
+            back: recipe,
             garmentColour: garment.$1,
           ),
         );
