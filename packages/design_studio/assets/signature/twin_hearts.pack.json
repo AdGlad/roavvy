@@ -1,0 +1,91 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "composition": {
+      "family": "singleHero",
+      "orientation": "landscape",
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{countryA}}",
+          "weight": 1.0
+        },
+        {
+          "code": "{{countryB}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "heartPair": {
+      "crossHatch": 0.0,
+      "frayed": true,
+      "gap": 0.012,
+      "hatchAngle": -4.0,
+      "hatchWidth": 0.07,
+      "heartScale": 0.8,
+      "layout": "twin",
+      "scratches": 0.25,
+      "seamCurve": 0.3,
+      "seamLean": 0.0,
+      "seamPosition": 0.5,
+      "spill": 0.6,
+      "squeeze": 0.45,
+      "streaks": 0.55,
+      "tails": 0.65,
+      "tilt": 7.0
+    },
+    "schemaVersion": 1,
+    "seed": 1
+  },
+  "countries": 2,
+  "envelope": {
+    "heartPair.hatchAngle": {
+      "max": 8,
+      "min": -8
+    },
+    "heartPair.spill": {
+      "max": 0.75,
+      "min": 0.45
+    },
+    "heartPair.streaks": {
+      "max": 0.7,
+      "min": 0.35
+    },
+    "heartPair.tilt": {
+      "max": 11,
+      "min": 3
+    },
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "twin_hearts",
+  "layout": {
+    "front": {
+      "scale": 0.8,
+      "zone": "fullFront"
+    }
+  },
+  "locks": {
+    "fr+it": "1710bd2a27458f60",
+    "id+mc": "3e2b8e9754572a66",
+    "jp+kr": "199beee5d275103e",
+    "mx+pt": "28768d2f93cac002",
+    "np+ch": "04f410dcac6911d8",
+    "us+co": "3023e67053639ead"
+  },
+  "notes": "Two hearts side by side, one flag each (M211, ADR-185), brushed edges and dry streaks. Style reference only: ~/Downloads/two-hearts-1.jpeg.",
+  "overrides": {},
+  "status": "draft",
+  "title": "Twin Hearts",
+  "version": 1
+}
