@@ -1,5 +1,7 @@
 import 'package:design_forge/design_forge.dart';
 import 'package:design_studio/design_studio.dart';
+import 'package:design_studio/garment_mockup.dart' show inkFollowsShirt;
+export 'package:design_studio/garment_mockup.dart' show inkFollowsShirt;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/shared_models.dart'
@@ -141,14 +143,6 @@ final signatureTeeProvider = Provider.family<SignatureTee?, TeeKey>((ref, key) {
   return null;
 });
 
-/// Whether [recipe]'s ink adapts to the shirt: a garment-aware design whose
-/// ink is not the flag (Passport Stamp in black ink). Its ink is chosen from
-/// the shirt colour — near-white on dark cloth, near-black on light — so the
-/// shirt colour is part of the design.
-bool inkFollowsShirt(DesignRecipe recipe) =>
-    recipe.palette?.strategy == ColourStrategy.garmentAware &&
-    recipe.inkIsAdaptive;
-
 /// The recipe that prints [tee] on the shirt [garmentHex] (`#RRGGBB`).
 ///
 /// Unchanged for almost every design: the shirt colour rides beside the
@@ -159,7 +153,8 @@ bool inkFollowsShirt(DesignRecipe recipe) =>
 DesignRecipe teeRecipe(SignatureTee tee, String garmentHex) {
   final r = tee.recipe;
   if (!inkFollowsShirt(r)) return r;
-  return r.copyWith(palette: r.palette!.copyWith(garmentColour: garmentHex));
+  final palette = r.palette ?? const Palette();
+  return r.copyWith(palette: palette.copyWith(garmentColour: garmentHex));
 }
 
 /// Renders tee previews. One for the whole app so every surface shares the
