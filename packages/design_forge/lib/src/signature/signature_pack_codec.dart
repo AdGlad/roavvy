@@ -57,6 +57,7 @@ class SignaturePackCodec {
       if (s.tokens.isNotEmpty) 'tokens': s.tokens,
       if (s.layout.isNotEmpty) 'layout': s.layout,
       if (s.isPair) 'countries': s.countries,
+      if (s.isList) 'countries': 'n',
       if (s.samplePairs.isNotEmpty) 'samplePairs': s.samplePairs,
     };
     return '${const JsonEncoder.withIndent('  ').convert(_sorted(json))}\n';
@@ -146,8 +147,9 @@ class SignaturePackCodec {
 
   static int _countries(Object? v) {
     if (v == null) return 1;
-    if (v is num && v == v.toInt()) return v.toInt();
-    throw FormatException('"countries" must be 1 or 2 (got $v)');
+    if (v == 'n') return SignatureRecipe.anyCount;
+    if (v is num && v == v.toInt() && v.toInt() != 0) return v.toInt();
+    throw FormatException('"countries" must be 1, 2 or "n" (got $v)');
   }
 
   static List<String> _strings(Object? v, String where) {

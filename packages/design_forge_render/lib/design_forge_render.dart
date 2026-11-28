@@ -25,6 +25,7 @@ export 'src/render_target.dart';
 export 'src/renderer.dart';
 export 'src/stages/brush_flag_stage.dart';
 export 'src/stages/heart_pair_stage.dart';
+export 'src/stages/heart_wall_stage.dart';
 export 'src/stages/captions_painter.dart';
 export 'src/stages/clip_stage.dart';
 export 'src/stages/colour_stage.dart';

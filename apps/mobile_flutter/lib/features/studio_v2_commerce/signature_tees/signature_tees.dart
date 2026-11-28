@@ -110,9 +110,10 @@ List<SignatureTee> teesFor(
   final cc = countryCode.toLowerCase();
   final out = <SignatureTee>[];
   for (final pack in packs) {
-    // Two-country packs make pair tees ([teesForPair]), never a single
-    // country's.
-    if (pack.isPair) continue;
+    // Two-country packs make pair tees ([teesForPair]) and many-country
+    // packs (Heart Wall, M214) have no app entry yet; neither is a single
+    // country's tee.
+    if (!pack.isSingle) continue;
     final needsTrip = pack.tokens.keys.any(kTripTokens.contains);
     if (needsTrip && trip == null) continue;
     try {

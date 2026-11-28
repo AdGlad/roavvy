@@ -53,7 +53,26 @@ class SignatureResolver {
     return _variation(s, SignaturePair(a, b).key, index, tokens);
   }
 
-  /// [hero] or [heroPair] for a pack key (`"jp"` or `"fr+jp"`).
+  /// The hero of a list pack ([SignatureRecipe.isList]) for [codes], in
+  /// order (M214).
+  static DesignRecipe heroList(SignatureRecipe s, Iterable<String> codes,
+      {Map<String, String> tokens = const {}}) {
+    _list(s);
+    return _hero(s, SignatureList(codes).key, tokens);
+  }
+
+  /// Variation [index] of a list pack for [codes]. The seed key is
+  /// `id|version|a,b,c|index` (the joined list), so another order or
+  /// another set of countries gives another feed.
+  static DesignRecipe variationList(
+      SignatureRecipe s, Iterable<String> codes, int index,
+      {Map<String, String> tokens = const {}}) {
+    _list(s);
+    return _variation(s, SignatureList(codes).key, index, tokens);
+  }
+
+  /// [hero], [heroPair] or [heroList] for a pack key (`"jp"`, `"fr+jp"` or
+  /// `"us,fr,jp"`).
   static DesignRecipe heroFor(SignatureRecipe s, String key,
           {Map<String, String> tokens = const {}}) =>
       _hero(s, _key(s, key), tokens);
@@ -123,7 +142,9 @@ class SignatureResolver {
       }
     }
 
-    if (s.isPair) {
+    if (s.isList) {
+      apply(s.overrides[key]);
+    } else if (s.isPair) {
       final p = SignaturePair.parse(key);
       apply(s.overrides[p.a], slot: 0);
       apply(s.overrides[p.b], slot: 1);
@@ -135,18 +156,29 @@ class SignatureResolver {
     return DesignRecipe.fromJson(json);
   }
 
-  static String _key(SignatureRecipe s, String key) =>
-      s.isPair ? SignaturePair.parse(key).key : key.toLowerCase();
+  static String _key(SignatureRecipe s, String key) => s.isList
+      ? SignatureList.parse(key).key
+      : s.isPair
+          ? SignaturePair.parse(key).key
+          : key.toLowerCase();
 
   static void _single(SignatureRecipe s) {
-    if (s.isPair) {
-      throw StateError('${s.id} is a pair pack: use heroPair/variationPair');
+    if (!s.isSingle) {
+      throw StateError(s.isList
+          ? '${s.id} is a list pack: use heroList/variationList'
+          : '${s.id} is a pair pack: use heroPair/variationPair');
     }
   }
 
   static void _pair(SignatureRecipe s) {
     if (!s.isPair) {
       throw StateError('${s.id} is a single-country pack: use hero/variation');
+    }
+  }
+
+  static void _list(SignatureRecipe s) {
+    if (!s.isList) {
+      throw StateError('${s.id} is not a list pack (countries: "n")');
     }
   }
 }

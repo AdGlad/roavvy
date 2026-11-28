@@ -119,3 +119,11 @@ PACK=<pair_pack> flutter test test/signature_qa_cli_test.dart
 # optional: PAIRS=us+co,fr+it  VARIATIONS=8  LABEL=…
 # a pack not in the bundle yet: PACK_FILE=/path/to/x.pack.json
 ```
+
+## Many-country packs (Heart Wall, M214)
+
+A list pack (`"countries": "n"`) is sheeted at five fixed sizes: the first 3, 6, 12,
+24 and 48 countries of a fixed traveller's order (`SignatureList.samples`). Each cell
+is labelled "n countries". Approve locks those five lists; in the dialog, separate lock
+lists with `;` (a list itself is `us,fr,jp`). Headless: `PACK=heart_wall`; to render
+other lists, use `LISTS=us,fr,jp;de,it,es`.

@@ -21,6 +21,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// Pair packs (`"countries": 2`, ADR-185) sheet their sample pairs (the
 /// pack's `samplePairs`, else SignatureSweep.defaultSamplePairs) with the
 /// pair checks; PAIRS=us+co,fr+it renders those pairs instead.
+/// List packs (`"countries": "n"`, M214) sheet the sample lists (3, 6, 12,
+/// 24, 48 countries); LISTS=us,fr,jp;de,it renders those lists instead.
 /// PACK_FILE=path/to/x.pack.json sheets a pack that is not in the bundle yet.
 /// Output: design_studio/contact_sheets/signature/PACK/LABEL/.
 void main() {
@@ -42,7 +44,16 @@ void main() {
           .map((s) => s.trim().toLowerCase())
           .where((s) => s.isNotEmpty)
           .toList();
-      final countries = pack.isPair
+      // List packs (countries: "n", M214) sheet the sample lists (3, 6, 12,
+      // 24, 48 countries); LISTS=us,fr,jp;de,it renders those lists instead.
+      final lists = env['LISTS']
+          ?.split(';')
+          .map((s) => s.trim().toLowerCase())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      final countries = pack.isList
+          ? (lists ?? SignatureSweep.keysFor(pack, source.codes()))
+          : pack.isPair
           ? (list('PAIRS') ?? SignatureSweep.keysFor(pack, source.codes()))
           : (list('COUNTRIES') ?? source.codes());
       final variations = int.tryParse(env['VARIATIONS'] ?? '') ?? 0;

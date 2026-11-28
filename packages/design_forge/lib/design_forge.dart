@@ -18,6 +18,7 @@ export 'src/recipe/design_recipe.dart';
 export 'src/recipe/garment_design.dart';
 export 'src/recipe/globe.dart';
 export 'src/recipe/heart_pair.dart';
+export 'src/recipe/heart_wall.dart';
 export 'src/recipe/split_pair.dart';
 export 'src/recipe/procedural_recipe_codec.dart';
 export 'src/recipe/recipe_parts.dart';
@@ -29,6 +30,7 @@ export 'src/library/design_library.dart';
 
 // Signature Recipes (ADR-181).
 export 'src/signature/heart_pair_layout.dart';
+export 'src/signature/heart_wall_layout.dart';
 export 'src/signature/pair_geometry.dart';
 export 'src/signature/recipe_path.dart';
 export 'src/signature/signature_pack_codec.dart';

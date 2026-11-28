@@ -63,6 +63,68 @@ class SignaturePair {
   String toString() => key;
 }
 
+/// An ordered list of countries for a many-country signature (M214, Heart
+/// Wall; pack `"countries": "n"`). Order is the input order (e.g. by first
+/// visit) and is part of the design. Its [key] (`"us,fr,jp"`) keys a list
+/// pack's heroes, locks and overrides, and seeds its variations.
+class SignatureList {
+  SignatureList(Iterable<String> codes)
+      : codes =
+            List.unmodifiable([for (final c in codes) c.trim().toLowerCase()]) {
+    if (this.codes.isEmpty) {
+      throw const FormatException('A country list needs at least one country');
+    }
+    if (this.codes.length > maxLength) {
+      throw FormatException('A country list takes at most $maxLength countries '
+          '(got ${this.codes.length})');
+    }
+    if (this.codes.any((c) => c.isEmpty || c.contains('+'))) {
+      throw FormatException('"$key" is not a country list');
+    }
+    if (this.codes.toSet().length != this.codes.length) {
+      throw FormatException('A country list repeats a country ($key)');
+    }
+  }
+
+  /// Parses `"us,fr,jp"` (a single code is a list of one).
+  factory SignatureList.parse(String key) => SignatureList(key.split(','));
+
+  /// The most countries one design shows.
+  static const int maxLength = 60;
+
+  /// Sizes the Lab sheets and QA check a list pack at.
+  static const List<int> sampleSizes = [3, 6, 12, 24, 48];
+
+  /// A fixed traveller's order (mixed regions, emblem flags, a pennant, a
+  /// square flag) whose first n countries make the sample lists.
+  static const List<String> sampleOrder = [
+    'fr', 'jp', 'us', 'br', 'np', 'za', 'gb', 'mx', 'it', 'ch', 'kr', 'au', //
+    'es', 'ca', 'in', 'pt', 'gr', 'ar', 'th', 'eg', 'de', 'tr', 'nz', 'pe', //
+    'ie', 'ma', 'vn', 'se', 'cl', 'id', 'hr', 'ke', 'no', 'is', 'cu', 'ph', //
+    'nl', 'bt', 'ae', 'fi', 'co', 'sg', 'at', 'cz', 'jm', 'lk', 'dk', 'pa', //
+  ];
+
+  /// The sample lists: the first n of [sampleOrder] for each of
+  /// [sampleSizes].
+  static List<SignatureList> get samples => [
+        for (final n in sampleSizes) SignatureList(sampleOrder.take(n)),
+      ];
+
+  final List<String> codes;
+
+  String get key => codes.join(',');
+  int get length => codes.length;
+
+  @override
+  bool operator ==(Object other) => other is SignatureList && other.key == key;
+
+  @override
+  int get hashCode => key.hashCode;
+
+  @override
+  String toString() => key;
+}
+
 /// A parameter fix for one country, with the reason it is needed.
 ///
 /// Overrides may only change parameters; they never add a flag's anatomy to
@@ -162,6 +224,7 @@ class SignatureRecipe {
     'country3',
     'countryName',
     ...pairTokens,
+    ...listTokens,
   };
 
   /// Tokens of a two-country pack ([countries] = 2): country A (left/top)
@@ -174,6 +237,22 @@ class SignatureRecipe {
     'countryB3',
     'countryBName',
   };
+
+  /// [countries] value of a many-country pack (`"countries": "n"` in the
+  /// file).
+  static const int anyCount = 0;
+
+  /// A list pack's flags: a JSON string value that is exactly this token is
+  /// replaced by the list of flag refs (`{"code": cc, "weight": 1.0}`), one
+  /// per country, in order. `{{countryCount}}` is the number of countries.
+  static const String countriesToken = '{{countries}}';
+
+  /// Tokens of a list pack.
+  static const Set<String> listTokens = {'countries', 'countryCount'};
+
+  /// List used to validate a list pack (and open it in the Lab).
+  static final SignatureList defaultSampleList =
+      SignatureList(['us', 'fr', 'jp', 'br', 'za', 'au']);
 
   static const Set<String> _singleTokens = {
     'country',
@@ -230,7 +309,9 @@ class SignatureRecipe {
   final Map<String, Object?> layout;
 
   /// How many countries the design takes: 1 (the default; keys are country
-  /// codes) or 2 (a pair pack; keys are `"a+b"`, see [SignaturePair]).
+  /// codes), 2 (a pair pack; keys are `"a+b"`, see [SignaturePair]) or
+  /// [anyCount] (a list pack, `"n"` in the file; keys are `"a,b,c"`, see
+  /// [SignatureList]).
   final int countries;
 
   /// Pair packs only: the fixed pairs the Lab sheets and QA run over
@@ -239,6 +320,38 @@ class SignatureRecipe {
 
   bool get isApproved => status == SignatureStatus.approved;
   bool get isPair => countries == 2;
+
+  /// A many-country pack (Heart Wall).
+  bool get isList => countries == anyCount;
+
+  /// A one-country pack (keys are country codes).
+  bool get isSingle => countries == 1;
+
+  /// A list pack's base with its countries filled in, in order. A fresh
+  /// mutable copy every call.
+  Map<String, Object?> instantiateList(Iterable<String> codes,
+      {Map<String, String> tokens = const {}}) {
+    final list = SignatureList(codes);
+    final all = {
+      ...this.tokens,
+      ...tokens,
+      'countryCount': '${list.length}',
+    };
+    Object? expand(Object? node) {
+      if (node == countriesToken) {
+        return [
+          for (final c in list.codes) {'code': c, 'weight': 1.0},
+        ];
+      }
+      if (node is Map) {
+        return {for (final e in node.entries) e.key: expand(e.value)};
+      }
+      if (node is List) return [for (final v in node) expand(v)];
+      return node;
+    }
+
+    return _substitute(expand(deepCopyJson(base)), all) as Map<String, Object?>;
+  }
 
   /// The pair a pair pack is validated (and opened in the Lab) with.
   SignaturePair get firstPair => samplePairs.isEmpty
@@ -267,6 +380,9 @@ class SignatureRecipe {
   /// code for single packs, `"a+b"` for pair packs.
   Map<String, Object?> instantiateKey(String key,
       {Map<String, String> tokens = const {}}) {
+    if (isList) {
+      return instantiateList(SignatureList.parse(key).codes, tokens: tokens);
+    }
     if (!isPair) return instantiate(key, tokens: tokens);
     final p = SignaturePair.parse(key);
     return instantiatePair(p.a, p.b, tokens: tokens);
@@ -337,14 +453,31 @@ class SignatureRecipe {
       throw const FormatException(
           'base must not carry recipeId/provenance (they are derived)');
     }
-    if (countries != 1 && countries != 2) {
-      throw FormatException('countries must be 1 or 2 (got $countries)');
+    if (countries != 1 && countries != 2 && countries != anyCount) {
+      throw FormatException('countries must be 1, 2 or "n" (got $countries)');
     }
     final usedTokens = RegExp(r'\{\{([a-zA-Z0-9_]+)\}\}')
         .allMatches(_strings(base).join('\n'))
         .map((m) => m.group(1)!)
         .toSet();
-    if (isPair) {
+    if (isList) {
+      if (!usedTokens.contains('countries')) {
+        throw const FormatException(
+            "a list pack's base must use {{countries}} (its flag list)");
+      }
+      final other = usedTokens.intersection({..._singleTokens, ...pairTokens});
+      if (other.isNotEmpty) {
+        throw FormatException('a list pack must not use '
+            '${other.map((t) => '{{$t}}').join(', ')}; use {{countries}}');
+      }
+      if (samplePairs.isNotEmpty) {
+        throw const FormatException(
+            'samplePairs is only for pair packs (countries: 2)');
+      }
+    } else if (usedTokens.intersection(listTokens).isNotEmpty) {
+      throw const FormatException(
+          '{{countries}}/{{countryCount}} need a list pack ("countries": "n")');
+    } else if (isPair) {
       final usesA = usedTokens.any((t) => t.startsWith('countryA'));
       final usesB = usedTokens.any((t) => t.startsWith('countryB'));
       if (!usesA || !usesB) {
@@ -380,6 +513,10 @@ class SignatureRecipe {
       _checkKey(k, 'lock');
     }
     for (final k in overrides.keys) {
+      if (isList) {
+        SignatureList.parse(k);
+        continue;
+      }
       if (SignaturePair.isPairKey(k)) {
         if (!isPair) {
           throw FormatException(
@@ -402,8 +539,11 @@ class SignatureRecipe {
     }
 
     // The base must be a real recipe once a country is filled in.
-    Map<String, Object?> fill() =>
-        isPair ? instantiatePair(firstPair.a, firstPair.b) : instantiate('us');
+    Map<String, Object?> fill() => isList
+        ? instantiateList(defaultSampleList.codes)
+        : isPair
+            ? instantiatePair(firstPair.a, firstPair.b)
+            : instantiate('us');
     final sample = fill();
     try {
       DesignRecipe.fromJson(sample);
@@ -460,6 +600,10 @@ class SignatureRecipe {
   }
 
   void _checkKey(String key, String what) {
+    if (isList) {
+      SignatureList.parse(key);
+      return;
+    }
     if (isPair) {
       if (!SignaturePair.isPairKey(key)) {
         throw FormatException(

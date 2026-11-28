@@ -12,6 +12,7 @@ import 'stages/composition_stage.dart';
 import 'stages/clip_stage.dart';
 import 'stages/brush_flag_stage.dart';
 import 'stages/heart_pair_stage.dart';
+import 'stages/heart_wall_stage.dart';
 import 'stages/globe_stage.dart';
 import 'stages/edge_treatment_stage.dart';
 import 'stages/effects_stage.dart';
@@ -49,6 +50,7 @@ class CanvasRenderer implements Renderer {
         ClipStage(),
         BrushFlagStage(),
         HeartPairStage(),
+        HeartWallStage(),
         WatercolourStage(),
         EdgeTreatmentStage(),
         EffectsStage(),

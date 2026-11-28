@@ -80,6 +80,7 @@ class SignatureScreenState extends State<SignatureScreen> {
   List<String> get _keys {
     final p = _pack;
     if (p == null) return const [];
+    if (p.isList) return SignatureSweep.keysFor(p, widget.codes);
     if (!p.isPair) return widget.codes;
     final base = SignatureSweep.keysFor(p, widget.codes);
     return [
@@ -91,6 +92,9 @@ class SignatureScreenState extends State<SignatureScreen> {
 
   /// "Greece" for a country key, "Greece + Costa Rica" for a pair key.
   String _name(String key) {
+    if (key.contains(',')) {
+      return '${SignatureList.parse(key).length} countries';
+    }
     if (!key.contains('+')) return widget.countryNames[key] ?? '';
     final pr = SignaturePair.parse(key);
     return '${widget.countryNames[pr.a] ?? pr.a.toUpperCase()} + '
@@ -357,7 +361,7 @@ class SignatureScreenState extends State<SignatureScreen> {
           (p.locks.keys.isNotEmpty
                   ? ({...SignatureSweep.defaultLocksFor(p), ...p.locks.keys})
                   : SignatureSweep.defaultLocksFor(p))
-              .join(', '),
+              .join(p.isList ? '; ' : ', '),
     );
     final go = await showDialog<bool>(
       context: context,
@@ -379,7 +383,9 @@ class SignatureScreenState extends State<SignatureScreen> {
               TextField(
                 controller: locksField,
                 decoration: InputDecoration(
-                  labelText: p.isPair
+                  labelText: p.isList
+                      ? 'Lock lists (a,b,c; …, goldens)'
+                      : p.isPair
                       ? 'Lock pairs (a+b, goldens)'
                       : 'Lock countries (goldens)',
                   isDense: true,
@@ -402,10 +408,17 @@ class SignatureScreenState extends State<SignatureScreen> {
     );
     if (go != true || !mounted) return;
     final lockCountries = [
-      for (final s in locksField.text.split(','))
+      for (final s in locksField.text.split(p.isList ? ';' : ','))
         if (s.trim().isNotEmpty) s.trim().toLowerCase(),
     ];
     bool known(String k) {
+      if (p.isList) {
+        try {
+          return SignatureList.parse(k).codes.every(widget.codes.contains);
+        } on FormatException {
+          return false;
+        }
+      }
       if (!p.isPair) return !k.contains('+') && widget.codes.contains(k);
       try {
         final pr = SignaturePair.parse(k);
@@ -940,7 +953,7 @@ class SignatureScreenState extends State<SignatureScreen> {
                           vertical: 2,
                         ),
                         child: Text(
-                          '${cc.toUpperCase()} ${p.isPair ? '' : _name(cc)}${overridden ? ' ✎' : ''}${hero ? ' ★' : ''}',
+                          '${p.isList ? _name(cc) : '${cc.toUpperCase()} ${p.isPair ? '' : _name(cc)}'}${overridden ? ' ✎' : ''}${hero ? ' ★' : ''}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 11),
