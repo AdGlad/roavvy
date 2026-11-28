@@ -177,6 +177,16 @@ class _TripDetailContent extends ConsumerWidget {
             },
           ),
 
+          // Two countries from this trip's journey on one tee (M213).
+          CommerceEntry.tripPairTeeCard(
+            trip,
+            onOpen: (context, pair) {
+              final nav = Navigator.of(context);
+              nav.pop();
+              CommerceEntry.openPairTee(nav.context, pair);
+            },
+          ),
+
           const SizedBox(height: 16),
         ],
       ),

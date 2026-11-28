@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/country_names.dart';
+import 'pair_tees_screen.dart';
 import 'signature_tee_widgets.dart';
 import 'signature_tees.dart';
 
@@ -10,9 +11,12 @@ import 'signature_tees.dart';
 ///
 /// Opened only through `CommerceEntry.openMyTees`.
 class MyTeesScreen extends ConsumerWidget {
-  const MyTeesScreen({super.key, required this.onOpenTee});
+  const MyTeesScreen({super.key, required this.onOpenTee, this.onOpenPairs});
 
   final void Function(BuildContext context, String countryCode) onOpenTee;
+
+  /// Opens the "Two countries" chooser (M213). Null hides that row.
+  final void Function(BuildContext context)? onOpenPairs;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,7 +46,8 @@ class MyTeesScreen extends ConsumerWidget {
               ),
             );
           }
-          return GridView.builder(
+          final pairs = onOpenPairs;
+          final grid = GridView.builder(
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
@@ -80,6 +85,17 @@ class MyTeesScreen extends ConsumerWidget {
                 ),
               );
             },
+          );
+          if (pairs == null) return grid;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: PairTeesCard(onOpen: pairs),
+              ),
+              Expanded(child: grid),
+            ],
           );
         },
       ),
