@@ -102,13 +102,37 @@ class CaptionsPainter {
 
   static Future<ui.Color> _ink(String colour, DesignRecipe recipe,
       AssetResolver assets, ui.Color? background) async {
-    if (colour.startsWith('#')) {
-      return ui.Color(0xFF000000 | int.parse(colour.substring(1), radix: 16));
-    }
-    final dark = background == null || background.computeLuminance() >= 0.3;
+    // The shirt: the recipe's own garment colour when it has one (a print file
+    // is rendered on transparent, so that is the only way it can know), else
+    // what the artwork is drawn against.
+    final shirt = _hex(recipe.palette?.garmentColour) ?? background;
+    final dark = shirt == null || shirt.computeLuminance() >= 0.3;
     final legible = dark ? const ui.Color(0xFF1A1A1A) : const ui.Color(0xFFF2F2F2);
-    if (colour != Captions.flagColour || recipe.content.flags.isEmpty) return legible;
-    return await _strongestFlagColour(assets, recipe.content.flags.first.code) ?? legible;
+    ui.Color? chosen;
+    if (colour.startsWith('#')) {
+      chosen = _hex(colour);
+    } else if (colour == Captions.flagColour && recipe.content.flags.isNotEmpty) {
+      chosen = await _strongestFlagColour(assets, recipe.content.flags.first.code);
+    }
+    if (chosen == null) return legible;
+    // Never ink that vanishes into the shirt (a red caption on a red tee, a
+    // navy one on black): fall back to the legible tone.
+    if (shirt != null && _contrast(chosen, shirt) < minContrast) return legible;
+    return chosen;
+  }
+
+  /// Least WCAG contrast ratio a caption keeps against its shirt.
+  static const double minContrast = 2.0;
+
+  static double _contrast(ui.Color a, ui.Color b) {
+    final la = a.computeLuminance(), lb = b.computeLuminance();
+    return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+  }
+
+  static ui.Color? _hex(String? hex) {
+    if (hex == null || !hex.startsWith('#') || hex.length != 7) return null;
+    final v = int.tryParse(hex.substring(1), radix: 16);
+    return v == null ? null : ui.Color(0xFF000000 | v);
   }
 
   /// The most common clearly-coloured (not white / black / grey) colour.

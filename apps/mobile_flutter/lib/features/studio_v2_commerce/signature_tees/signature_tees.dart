@@ -142,12 +142,16 @@ final signatureTeeProvider = Provider.family<SignatureTee?, TeeKey>((ref, key) {
 });
 
 /// Whether [recipe]'s ink adapts to the shirt: a garment-aware design whose
-/// ink is not the flag (Passport Stamp in black ink). Its ink is chosen from
-/// the shirt colour — near-white on dark cloth, near-black on light — so the
-/// shirt colour is part of the design.
+/// ink is not the flag (Passport Stamp in black ink), or one with captions
+/// (I ♥ Country). Its ink is chosen against the shirt colour — never black on
+/// a black tee or red on a red one — so the shirt colour is part of the
+/// design.
 bool inkFollowsShirt(DesignRecipe recipe) =>
-    recipe.palette?.strategy == ColourStrategy.garmentAware &&
-    recipe.inkIsAdaptive;
+    (recipe.palette?.strategy == ColourStrategy.garmentAware &&
+        recipe.inkIsAdaptive) ||
+    // Captions (I ♥ Country) keep their colour only while it contrasts with
+    // the shirt, so they too must know it.
+    recipe.captions != null;
 
 /// The recipe that prints [tee] on the shirt [garmentHex] (`#RRGGBB`).
 ///
@@ -159,7 +163,8 @@ bool inkFollowsShirt(DesignRecipe recipe) =>
 DesignRecipe teeRecipe(SignatureTee tee, String garmentHex) {
   final r = tee.recipe;
   if (!inkFollowsShirt(r)) return r;
-  return r.copyWith(palette: r.palette!.copyWith(garmentColour: garmentHex));
+  final palette = r.palette ?? const Palette();
+  return r.copyWith(palette: palette.copyWith(garmentColour: garmentHex));
 }
 
 /// Renders tee previews. One for the whole app so every surface shares the
