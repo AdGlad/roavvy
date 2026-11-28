@@ -1852,3 +1852,58 @@ v2 brings T-shirt purchasing back. The owner wants six designs that look like cu
 - Engine changes that move an approved design fail the lock check and the goldens; the fix is to review in the Lab and re-approve (bump `version`), never to edit goldens blind.
 - `portrait_torn_flag` presets (ADR-179) become the first pack's base; the preset format stays for Lab-only experiments.
 - Asset coverage limits the choice of recipes: flags 272, country outlines 239, passport stamps ~196 countries, national animals 159, landmarks 1. A recipe must work from assets every country has, or declare a fallback in its pack.
+
+## ADR-182 — Signature tees: every approved pack, sold through the one Studio V2 cart
+
+**Status:** Accepted (2026-11-28, PRs #138, #141)
+
+**Context:**
+M200 put one Signature design (Torn Flag) on the country page, trip sheet, new-country celebration and a "My tees" screen, with a product page feeding the Studio V2 cart. There are now ten packs, and the owner asked for all of them in the purchase flow. Some packs need data beyond the country (Passport Stamp's `{{entry}}`/`{{exit}}` dates), and one pack's ink depends on the shirt colour.
+
+**Decision:**
+1. **Every bundled pack is offered for every visited country**, in `index.json` order; the first is the default design. `SignatureCatalog.load` still drops `draft` packs in release builds, so a pack reaches customers only after Lab approval. Code: `apps/mobile_flutter/lib/features/studio_v2_commerce/signature_tees/` (`teesFor`, `signatureTeesProvider`, `signatureTeeProvider((countryCode, packId))`).
+2. **All surfaces go through the commerce seam.** `CommerceEntry.openSignatureTee(context, cc, {packId})`, `signatureTeeCard`, `celebrationTee`, `myTeesCard`, `openMyTees`; each widget is wrapped in `CommerceGate`, openers are no-ops when commerce is off (ADR-180). The country card shows every design in a row; the product page has a design picker, colour, size, Add to cart.
+3. **One cart path.** An order is built with a headless `StudioController` and the shared `buildGarmentCartRequest`, so print files come from the same `renderPrintFiles` → `production_render` path as every Studio order. Cart title is `"<Country> · <Design>"`.
+4. **The recipe stays the approved one; the shirt colour rides beside it.** Exception: a design whose ink is chosen against the shirt (`inkFollowsShirt`: garment-aware adaptive ink, or captions) gets the shirt written into `palette.garmentColour` (`teeRecipe`), because the print renderer draws on transparent and has no other way to know the shirt. Its `recipeId` then differs per shirt colour, by design.
+5. **Trip tokens are never faked.** A pack using `entry`/`exit` is offered only when the traveller has a dated trip to the country, filled from the most recent one (`12 MAR 24`). The pack's sample dates never reach a shirt.
+6. **Optional bundle assets are answered from the asset manifest, never by a failing load.** `official/<cc>` flag artwork exists only for the US and is probed on every torn-flag render. Throwing in an async continuation of the bundle's `SynchronousFuture` escaped as an unhandled error even when caught, so a miss is returned as an error future.
+
+**Consequences:**
+- A new pack appears in the app as soon as it is bundled and approved; no app code.
+- Approved-pack locks still guard untokenised designs; shirt- or trip-dependent designs are verified by render tests (`signature_tees_render_test.dart`: every pack renders from the app bundle and produces its 1800×2400 print file through the real cart path; stamp ink is light on Black and dark on White).
+- Real orders still need the production switches (`COMMERCE_ENABLED`, `studio_v2_fulfilment_enabled`); until then Add to cart stops at "Print files ready".
+
+## ADR-183 — Shirt mockups: one shared renderer, the print baked into the fabric, ink always legible
+
+**Status:** Accepted (2026-11-28, PRs #138, #140, #141)
+
+**Context:**
+The owner saw designs "sitting on top" of the shirt: the mockup only multiplied the photo's folds over the ink (darken-only, 40%), so the print stayed flat. The Design Lab rendered its own shirt, so the Lab and the app could disagree. Ink that depends on the shirt (Passport Stamp, I ♥ Country captions) rendered black on every colour in shirt previews, and flag-coloured captions vanished on a shirt of that colour.
+
+**Decision:**
+1. **One garment mockup for app and Lab.** Garment photos, tint, `FabricPrint`, mockup canvas/painter, placement bake, `ShirtPreview` and `StudioGarments` live in `packages/design_studio` (`garment_mockup.dart`). The app's old paths are one-line re-exports.
+2. **Still previews print the design into the fabric (`FabricPrint`).** In the garment photo's own geometry: displacement along the slope of the smoothed fabric luminance (capped at 2 photo px so round designs stay round), fold light relative to the print area's mean (darker in folds, lifted on ridges), and the heather weave lighting and thinning the ink. Pure pixel maths on an isolate, cached per design + shading map + print area (~0.2 s). Used only at the default placement; the interactive placement editor keeps the live shading pass. Print files are never affected.
+3. **Shirt-dependent ink is rendered against the shirt.** `ShirtPreview` passes the shirt colour as the render background whenever `inkFollowsShirt` (one shared rule in design_studio) or an automatic outline applies.
+4. **Captions never vanish into the shirt.** The caption painter reads the shirt from `palette.garmentColour` (else the render background) and falls back to the legible near-white / near-black tone when the chosen ink's WCAG contrast with the shirt is below 2:1.
+
+**Consequences:**
+- A change to the mockup shows in both the Lab and the app.
+- Previews read as printed garments; the baked look is a preview aid, not a print-file effect.
+- Any new design with text or stamp ink must either be flag-filled or follow the shirt (`garmentAware` adaptive ink or captions); otherwise it can vanish on a matching shirt.
+
+## ADR-184 — Signature look decisions and the WearRaster noise
+
+**Status:** Accepted (2026-11-28, PRs #137, #139)
+
+**Context:**
+Several Signature packs were tuned with the owner this session, and one engine defect surfaced while doing so.
+
+**Decision:**
+1. **Tie-dye is a spiral.** The crumple-based Tie-Dye Flag (`effects.dyed`) read as cracked glass; it is kept but superseded by **Spiral Tie-Dye** (`effects.spiralDye`): the flag twisted into swirled arms in its own colours, white fold creases, band rings, soft ragged edge. The whole disc is cloth, so non-rectangular flags (Nepal) dye onto white cotton rather than breaking up.
+2. **Spiral Tie-Dye is finished in acid wash + Beachwear** (bleach marbling over the dye; vintage grade, fade, light grain).
+3. **Varsity Letters uses the Beachwear faded finish** (vintage grade 0.38, fade 0.22, grain 0.12, with envelopes). Compared on USA/JPN/GBR/BRA against acid wash (blotchy bleach on the letters), sun-faded and worn (read as speckled distress) and ink cracks (barely visible).
+4. **WearRaster noise uses a fully mixed hash** (murmur3 fmix32 per input). The old single linear combine + one mix round left lattice values correlated for some seeds, giving straight-edged acid-wash patches; the bleach blotches are also domain-warped. This reshuffled the noise in every WearRaster effect (Flag Globe, Tie-Dye Flag, Spiral Tie-Dye); all were drafts, and their locks were refreshed.
+
+**Consequences:**
+- Locks of packs using WearRaster effects changed once; future engine changes that move them must go through Lab re-approval (ADR-181 §6).
+- Known open items: Passport Stamp shows black boxes where trip dates sit (also in the Lab) and must be fixed before approval; Varsity's four special codes (EU, IC, PC, XX) are just under the 15% minimum span (pre-existing).
