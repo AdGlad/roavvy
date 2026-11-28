@@ -13,6 +13,11 @@ import 'package:flutter/material.dart';
 /// and [FabricPrint] bake (displacement, light, weave). A change to the mockup
 /// in either host shows up in both, and what is approved here looks the way
 /// the traveller will see it in the purchase flow.
+///
+/// With [onLayoutChanged] it is also where a signature's default PRINT LAYOUT
+/// is chosen (front/back zones and sizes): the same shared controls and
+/// front/back/both preview as the app's product page, saved into the pack so
+/// the app opens every tee on the layout approved here.
 class LabShirtPanel extends StatefulWidget {
   const LabShirtPanel({
     super.key,
@@ -20,7 +25,15 @@ class LabShirtPanel extends StatefulWidget {
     required this.recipe,
     this.title,
     this.width = 380,
+    this.layout = PrintLayout.standard,
+    this.onLayoutChanged,
   });
+
+  /// Where the design prints.
+  final PrintLayout layout;
+
+  /// Makes the layout editable; null shows [layout] read-only.
+  final ValueChanged<PrintLayout>? onLayoutChanged;
 
   final RenderService service;
 
@@ -49,7 +62,18 @@ class _LabShirtPanelState extends State<LabShirtPanel> {
   static const _garments = QaThresholds.orderableGarments;
 
   int _garment = 0;
-  bool _front = true;
+  late TeeView _view = TeeView.forLayout(widget.layout);
+  bool _guides = false;
+
+  @override
+  void didUpdateWidget(covariant LabShirtPanel old) {
+    super.didUpdateWidget(old);
+    // Keep looking at a face that prints (undo, another pack).
+    final side = _view.side;
+    if (side != null && !widget.layout.prints(side)) {
+      _view = TeeView.forLayout(widget.layout);
+    }
+  }
 
   String get _hex {
     final c = _garments[_garment].$1.toARGB32() & 0xFFFFFF;
@@ -70,17 +94,15 @@ class _LabShirtPanelState extends State<LabShirtPanel> {
                   style: Theme.of(context).textTheme.titleSmall,
                   overflow: TextOverflow.ellipsis),
             ),
-            SegmentedButton<bool>(
-              showSelectedIcon: false,
-              style: const ButtonStyle(visualDensity: VisualDensity.compact),
-              segments: const [
-                ButtonSegment(value: true, label: Text('Front')),
-                ButtonSegment(value: false, label: Text('Back')),
-              ],
-              selected: {_front},
-              onSelectionChanged: (s) => setState(() => _front = s.first),
-            ),
           ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+          child: TeeViewSwitcher(
+            view: _view,
+            layout: widget.layout,
+            onChanged: (v) => setState(() => _view = v),
+          ),
         ),
         Expanded(
           child: Container(
@@ -90,14 +112,37 @@ class _LabShirtPanelState extends State<LabShirtPanel> {
                 ? const Center(
                     child: Text('Nothing selected',
                         style: TextStyle(color: Colors.white38)))
-                : ShirtPreview(
+                : TeeSidesPreview(
                     service: widget.service,
                     recipe: recipe,
-                    front: _front,
+                    layout: widget.layout,
+                    view: _view,
+                    onViewChanged: (v) => setState(() => _view = v),
                     garmentColour: _hex,
+                    showGuides: _guides,
                   ),
           ),
         ),
+        if (widget.onLayoutChanged case final onChanged?)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 260),
+            child: SingleChildScrollView(
+              key: const Key('lab-layout'),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: PrintLayoutControls(
+                layout: widget.layout,
+                dense: true,
+                onChanged: (l) {
+                  setState(() => _guides = true);
+                  onChanged(l);
+                },
+                onFocus: (side) => setState(() {
+                  _guides = true;
+                  if (_view != TeeView.both) _view = TeeView.of(side);
+                }),
+              ),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.all(10),
           child: Wrap(spacing: 6, runSpacing: 6, children: [

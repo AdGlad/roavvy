@@ -97,14 +97,110 @@ void main() {
           reason: 'production placement must not turn on the string "$word"',
         );
       }
-      // …and the placements a print file can carry are the explicit five.
+      // …and the placements a print file can carry are the explicit seven.
       expect(PrintPlacement.values.map((p) => p.name), [
         'backFull',
         'frontFull',
         'frontLeftChest',
         'frontRightChest',
+        'backUpper',
+        'backNeck',
         'none',
       ]);
+    });
+  });
+
+  group('print layout zones', () {
+    test('full-size shipped zones land on the shipped print areas', () {
+      for (final (zone, placement) in [
+        (PrintZone.fullBack, PrintPlacement.backFull),
+        (PrintZone.fullFront, PrintPlacement.frontFull),
+        (PrintZone.leftChest, PrintPlacement.frontLeftChest),
+        (PrintZone.rightChest, PrintPlacement.frontRightChest),
+      ]) {
+        expect(
+          TshirtPrintProfile.zoneArea(ZonePrint(zone)),
+          TshirtPrintProfile.artworkArea(placement),
+          reason: zone.name,
+        );
+      }
+    });
+
+    test('a zone at a smaller size prints smaller, from the same top line', () {
+      final full = TshirtPrintProfile.zoneArea(const ZonePrint(PrintZone.upperBack));
+      expect(full, const ui.Rect.fromLTWH(150, 112.5, 1500, 750));
+      final small = tshirtPrintSpec(
+        PrintPlacement.backUpper,
+        zone: const ZonePrint(PrintZone.upperBack, scale: 0.6),
+      )!;
+      expect(small.artworkArea.top, full.top);
+      expect(small.artworkArea.width, closeTo(900, 1e-6));
+      expect(small.artworkArea.center.dx, closeTo(900, 1e-6));
+      expect(small.side, PrintSide.back);
+    });
+  });
+
+  group('the Roavvy mark on the back print file', () {
+    testWidgets('prints below the collar, the design starts below it', (
+      tester,
+    ) async {
+      final c = studio();
+      addTearDown(c.dispose);
+      final spec = tshirtPrintSpec(
+        PrintPlacement.backFull,
+        zone: const ZonePrint(PrintZone.fullBack),
+        layout: PrintLayout.standard,
+        garmentHex: '#0E0E0E',
+      )!;
+      expect(spec.artworkArea, const ui.Rect.fromLTRB(0, 210, 1800, 2400));
+      final mark = spec.marks.single;
+      expect(mark.rect, const ui.Rect.fromLTWH(712.5, 67.5, 375, 82.5));
+      // Light ink on a black shirt.
+      expect(mark.ink, const ui.Color(0xFFF2F2F2));
+
+      late List<int> px;
+      await tester.runAsync(() async {
+        final art = await ProductionRenderer(c.service.renderer).render(
+          c.hero,
+          spec,
+        );
+        final img =
+            (await (await ui.instantiateImageCodec(art.bytes)).getNextFrame())
+                .image;
+        px = (await img.toByteData())!.buffer.asUint8List();
+      });
+      int alpha(int x, int y) => px[(y * 1800 + x) * 4 + 3];
+      var inked = 0;
+      for (var y = 68; y < 150; y += 4) {
+        for (var x = 713; x < 1087; x += 4) {
+          if (alpha(x, y) > 0) inked++;
+        }
+      }
+      expect(inked, greaterThan(0), reason: 'the mark is in the pixels');
+      // Nothing between the mark and the design, and nothing beside the mark.
+      for (var x = 0; x < 1800; x += 50) {
+        expect(alpha(x, 180), 0, reason: 'clear band at x=$x');
+      }
+      expect(alpha(300, 100), 0);
+    });
+
+    test('no mark on a front file, or when switched off', () {
+      expect(
+        tshirtPrintSpec(
+          PrintPlacement.frontLeftChest,
+          zone: const ZonePrint(PrintZone.leftChest),
+          layout: PrintLayoutPreset.crestAndBack.layout,
+        )!.marks,
+        isEmpty,
+      );
+      final off = PrintLayout.standard.withBrandMark(false);
+      final spec = tshirtPrintSpec(
+        PrintPlacement.backFull,
+        zone: const ZonePrint(PrintZone.fullBack),
+        layout: off,
+      )!;
+      expect(spec.marks, isEmpty);
+      expect(spec.artworkArea, TshirtPrintProfile.artworkArea(PrintPlacement.backFull));
     });
   });
 

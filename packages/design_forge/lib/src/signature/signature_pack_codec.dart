@@ -32,6 +32,7 @@ class SignaturePackCodec {
     'heroes',
     'locks',
     'tokens',
+    'layout',
   };
 
   static String encode(SignatureRecipe s) {
@@ -52,6 +53,7 @@ class SignaturePackCodec {
       'heroes': s.heroes,
       'locks': s.locks,
       if (s.tokens.isNotEmpty) 'tokens': s.tokens,
+      if (s.layout.isNotEmpty) 'layout': s.layout,
     };
     return '${const JsonEncoder.withIndent('  ').convert(_sorted(json))}\n';
   }
@@ -98,6 +100,7 @@ class SignaturePackCodec {
         for (final e in _map(json['tokens'] ?? {}, 'tokens').entries)
           e.key: e.value as String,
       },
+      layout: _map(json['layout'] ?? {}, 'layout'),
     );
   }
 

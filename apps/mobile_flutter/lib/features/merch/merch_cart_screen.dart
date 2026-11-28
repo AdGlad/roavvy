@@ -283,6 +283,8 @@ class _CartItemCheckoutScreenState extends ConsumerState<CartItemCheckoutScreen>
     'center' => 'Centre',
     'left_chest' => 'Left Chest',
     'right_chest' => 'Right Chest',
+    'upper_back' => 'Upper Back',
+    'back_neck' => 'Back Neck',
     _ => 'None',
   };
 

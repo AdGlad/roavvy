@@ -15,3 +15,4 @@ export 'src/garment/mockup_transform.dart';
 export 'src/garment/placement_bake.dart';
 export 'src/garment/shirt_preview.dart';
 export 'src/garment/studio_garments.dart';
+export 'src/garment/tee_layout.dart';

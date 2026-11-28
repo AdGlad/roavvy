@@ -122,9 +122,33 @@ class SignatureScreenState extends State<SignatureScreen> {
       _undo.add(current);
       _redo.clear();
       _pack = next;
+      _lastLayoutEdit = null;
       _dirty = true;
     });
     _resweep();
+  }
+
+  /// A print-layout edit. Not an [_apply]: the layout is garment data, so
+  /// the contact sheet (artwork only) doesn't re-render, and a run of layout
+  /// edits in quick succession — a size slider drag — is one undo step, not
+  /// hundreds.
+  DateTime? _lastLayoutEdit;
+  void _setLayout(PrintLayout l) {
+    final current = _pack;
+    if (current == null) return;
+    final now = DateTime.now();
+    final last = _lastLayoutEdit;
+    final continuing =
+        last != null && now.difference(last) < const Duration(milliseconds: 800);
+    setState(() {
+      if (!continuing) {
+        _undo.add(current);
+        _redo.clear();
+      }
+      _lastLayoutEdit = now;
+      _pack = current.copyWith(layout: l.toJson());
+      _dirty = true;
+    });
   }
 
   void _undoEdit() {
@@ -132,6 +156,7 @@ class SignatureScreenState extends State<SignatureScreen> {
     setState(() {
       _redo.add(_pack!);
       _pack = _undo.removeLast();
+      _lastLayoutEdit = null;
       _dirty = true;
     });
     _resweep();
@@ -142,6 +167,7 @@ class SignatureScreenState extends State<SignatureScreen> {
     setState(() {
       _undo.add(_pack!);
       _pack = _redo.removeLast();
+      _lastLayoutEdit = null;
       _dirty = true;
     });
     _resweep();
@@ -512,6 +538,11 @@ class SignatureScreenState extends State<SignatureScreen> {
       recipe: hero,
       title: cc == null ? null : '${cc.toUpperCase()} ${widget.countryNames[cc] ?? ''}',
       width: 340,
+      // The tee's default print layout is part of the pack: the app opens
+      // every tee of this signature on it. Undoable and saved like any edit;
+      // it never changes a hero's recipeId.
+      layout: PrintLayout.fromJson(p.layout),
+      onLayoutChanged: _setLayout,
     );
   }
 

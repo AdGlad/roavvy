@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -32,11 +33,19 @@ enum PrintPlacement {
   /// A chest logo on the wearer's right (the viewer's left).
   frontRightChest,
 
+  /// A wide band across the shoulders, just below the collar.
+  backUpper,
+
+  /// A small mark centred just below the back collar.
+  backNeck,
+
   /// No print on this face. Produces no file at all, never a blank one.
   none;
 
   PrintSide? get side => switch (this) {
-    PrintPlacement.backFull => PrintSide.back,
+    PrintPlacement.backFull ||
+    PrintPlacement.backUpper ||
+    PrintPlacement.backNeck => PrintSide.back,
     PrintPlacement.none => null,
     _ => PrintSide.front,
   };
@@ -72,6 +81,68 @@ class PrintArrangement {
       translation == ui.Offset.zero && rotation == 0 && scale == 1;
 }
 
+/// The Roavvy brand mark: `roavvy.com`, small, one ink. Drawn by the same
+/// code onto the print file and onto the shirt preview, so the two match.
+abstract final class BrandMark {
+  static const String text = 'roavvy.com';
+
+  /// Near-black on a light shirt, near-white on a dark one.
+  static ui.Color inkFor(ui.Color shirt) {
+    double lin(double c) =>
+        c <= 0.03928 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    final l = 0.2126 * lin(shirt.r) + 0.7152 * lin(shirt.g) + 0.0722 * lin(shirt.b);
+    return l > 0.35 ? const ui.Color(0xFF1C1C1C) : const ui.Color(0xFFF2F2F2);
+  }
+
+  static ui.Paragraph _para(String text, double fontSize, ui.Color ink) {
+    final b =
+        ui.ParagraphBuilder(
+            ui.ParagraphStyle(textAlign: ui.TextAlign.center, maxLines: 1),
+          )
+          ..pushStyle(
+            ui.TextStyle(
+              color: ink,
+              fontSize: fontSize,
+              fontWeight: ui.FontWeight.w600,
+              letterSpacing: fontSize * 0.06,
+            ),
+          )
+          ..addText(text);
+    return b.build()..layout(const ui.ParagraphConstraints(width: 1e6));
+  }
+
+  /// Paints [text] as large as fits inside [box], centred.
+  static void paint(
+    ui.Canvas canvas,
+    ui.Rect box,
+    ui.Color ink, {
+    String text = BrandMark.text,
+  }) {
+    if (box.isEmpty) return;
+    final probe = _para(text, 100, ink);
+    final w = probe.longestLine, h = probe.height;
+    probe.dispose();
+    if (w <= 0 || h <= 0) return;
+    final size = 100 * (box.width / w < box.height / h ? box.width / w : box.height / h);
+    final p = _para(text, size, ink)
+      ..layout(ui.ParagraphConstraints(width: box.width));
+    canvas.save();
+    canvas.clipRect(box);
+    canvas.drawParagraph(p, ui.Offset(box.left, box.center.dy - p.height / 2));
+    canvas.restore();
+    p.dispose();
+  }
+}
+
+/// A [BrandMark] on a print file, in canvas pixels.
+class PrintMark {
+  const PrintMark({required this.rect, required this.ink, this.text = BrandMark.text});
+
+  final ui.Rect rect;
+  final ui.Color ink;
+  final String text;
+}
+
 /// Everything needed to turn one [DesignRecipe] into one print file, stated
 /// once and explicitly.
 ///
@@ -90,6 +161,7 @@ class ProductionRenderSpec {
     this.format = ProductionImageFormat.png,
     this.arrangement = PrintArrangement.identity,
     this.productKey,
+    this.marks = const [],
   }) {
     if (!placement.printsSomething) {
       throw ProductionRenderException(
@@ -111,7 +183,23 @@ class ProductionRenderSpec {
         '${canvasWidthPx}x$canvasHeightPx canvas',
       );
     }
+    for (final m in marks) {
+      if (m.rect.isEmpty ||
+          m.rect.left < 0 ||
+          m.rect.top < 0 ||
+          m.rect.right > canvasWidthPx + 0.5 ||
+          m.rect.bottom > canvasHeightPx + 0.5 ||
+          m.rect.overlaps(artworkArea)) {
+        throw ProductionRenderException(
+          'the brand mark ${m.rect} must sit on the canvas, clear of the artwork',
+        );
+      }
+    }
   }
+
+  /// Small marks printed beside the artwork (the Roavvy mark at the back
+  /// neck). Never inside [artworkArea].
+  final List<PrintMark> marks;
 
   /// What this print IS. Never inferred from a string, never defaulted.
   final PrintPlacement placement;
@@ -396,6 +484,9 @@ class ProductionRenderer {
       ui.Paint()..filterQuality = ui.FilterQuality.high,
     );
     canvas.restore();
+    for (final m in spec.marks) {
+      BrandMark.paint(canvas, m.rect, m.ink, text: m.text);
+    }
 
     final picture = recorder.endRecording();
     try {

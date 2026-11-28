@@ -1,5 +1,7 @@
+import 'package:design_forge/design_forge.dart' show DesignRecipe;
 import 'package:design_studio/design_studio.dart';
-import 'package:flutter/painting.dart' show Rect;
+import 'package:design_studio/garment_mockup.dart' show StudioGarments;
+import 'package:flutter/painting.dart' show Color, Rect;
 
 import '../merch/merch_variant_lookup.dart';
 import '../shared/garment_mockup/mockup_transform.dart';
@@ -93,11 +95,31 @@ abstract final class TshirtPrintProfile {
           px,
           px,
         );
+      case PrintPlacement.backUpper:
+        return zoneArea(const ZonePrint(PrintZone.upperBack));
+      case PrintPlacement.backNeck:
+        return zoneArea(const ZonePrint(PrintZone.backNeck));
       case PrintPlacement.none:
         throw ProductionRenderException(
           'PrintPlacement.none has no printable area',
         );
     }
+  }
+
+  /// Where a [PrintLayout] zone prints, in canvas pixels: the zone's inches
+  /// (at the customer's size) at the print file's dpi. At full size the
+  /// shipped zones land exactly on [artworkArea]'s rects.
+  static Rect zoneArea(ZonePrint zone) => inchesToCanvas(zone.areaInches);
+
+  /// A rect in print-file inches, in canvas pixels.
+  static Rect inchesToCanvas(Rect r) {
+    final d = dimensions;
+    return Rect.fromLTWH(
+      r.left * d.dpi,
+      r.top * d.dpi,
+      r.width * d.dpi,
+      r.height * d.dpi,
+    );
   }
 }
 
@@ -128,15 +150,36 @@ PrintPlacement frontPlacementOf(StudioController c) => switch (c.frontFit) {
 ProductionRenderSpec? tshirtPrintSpec(
   PrintPlacement placement, {
   MockupTransform arrangement = MockupTransform.identity,
+  ZonePrint? zone,
+  PrintLayout? layout,
+  String? garmentHex,
 }) {
   if (!placement.printsSomething) return null;
+  assert(zone == null || zone.zone.placement == placement);
+  final side = placement.side!;
+  final layoutArea = layout?.areaInches(side);
+  final mark = side == PrintSide.back && (layout?.printsMark ?? false);
   final dims = TshirtPrintProfile.dimensions;
   return ProductionRenderSpec(
     placement: placement,
     canvasWidthPx: dims.widthPx,
     canvasHeightPx: dims.heightPx,
     dpi: dims.dpi,
-    artworkArea: TshirtPrintProfile.artworkArea(placement),
+    artworkArea:
+        layoutArea != null
+            ? TshirtPrintProfile.inchesToCanvas(layoutArea)
+            : zone == null
+            ? TshirtPrintProfile.artworkArea(placement)
+            : TshirtPrintProfile.zoneArea(zone),
+    marks: [
+      if (mark)
+        PrintMark(
+          rect: TshirtPrintProfile.inchesToCanvas(PrintLayout.markInches),
+          ink: BrandMark.inkFor(
+            StudioGarments.parseHex(garmentHex) ?? const Color(0xFF0E0E0E),
+          ),
+        ),
+    ],
     transparent: dims.transparent,
     productKey: 'tshirt',
     arrangement: PrintArrangement(
@@ -158,20 +201,39 @@ ProductionRenderSpec? tshirtPrintSpec(
 /// produced only when the customer chose one. Each face is rendered from its
 /// own recipe, independently — rendering one cannot disturb the other, and
 /// neither touches the live session.
+///
+/// With a [layout] (a Signature tee's print layout), the layout decides
+/// instead: each face prints in its zone at its size, and a face the layout
+/// leaves blank produces no file — so a front-only tee has no back file.
 Future<List<ProductionArtwork>> renderPrintFiles(
   StudioController c, {
   MockupTransform frontPlacement = MockupTransform.identity,
   MockupTransform backPlacement = MockupTransform.identity,
+  PrintLayout? layout,
 }) async {
   final printer = ProductionRenderer(c.service.renderer);
   final garment = c.garment;
   final out = <ProductionArtwork>[];
 
-  for (final (placement, recipe, arrangement) in [
-    (PrintPlacement.backFull, c.hero, backPlacement),
-    (frontPlacementOf(c), c.frontFace, frontPlacement),
-  ]) {
-    final spec = tshirtPrintSpec(placement, arrangement: arrangement);
+  final faces = <(PrintPlacement, DesignRecipe, MockupTransform, ZonePrint?)>[
+    if (layout == null) ...[
+      (PrintPlacement.backFull, c.hero, backPlacement, null),
+      (frontPlacementOf(c), c.frontFace, frontPlacement, null),
+    ] else ...[
+      if (layout.back case final z?)
+        (z.zone.placement, c.hero, backPlacement, z),
+      if (layout.front case final z?)
+        (z.zone.placement, c.frontFace, frontPlacement, z),
+    ],
+  ];
+  for (final (placement, recipe, arrangement, zone) in faces) {
+    final spec = tshirtPrintSpec(
+      placement,
+      arrangement: arrangement,
+      zone: zone,
+      layout: layout,
+      garmentHex: garment.garmentColour,
+    );
     if (spec == null) continue;
     final art = await printer.render(recipe, spec);
     out.add(

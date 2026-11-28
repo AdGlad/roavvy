@@ -400,8 +400,9 @@ void main() {
 
     Future<StudioV2CartOutcome> order(
       WidgetTester tester,
-      StudioController c,
-    ) async {
+      StudioController c, {
+      PrintLayout? layout,
+    }) async {
       late StudioV2CartOutcome out;
       await tester.runAsync(() async {
         out = await StudioV2CartService(
@@ -418,7 +419,7 @@ void main() {
             };
           },
         ).addToCart(
-          request: buildGarmentCartRequest(c),
+          request: buildGarmentCartRequest(c, layout: layout),
           options: options,
           uid: 'uid-alice',
           buyerCountry: 'AU',
@@ -435,6 +436,57 @@ void main() {
                 .collection('cartItems')
                 .get())
             .docs;
+
+    testWidgets('a print layout decides the faces: front-only sends no back', (
+      tester,
+    ) async {
+      final c = studio();
+      addTearDown(c.dispose);
+      final out = await order(
+        tester,
+        c,
+        layout: const PrintLayout(front: ZonePrint(PrintZone.leftChest)),
+      );
+      expect(out, isA<StudioV2CartAdded>());
+      final call = calls.single;
+      expect(call.containsKey('backPrintStoragePath'), isFalse);
+      expect(call.containsKey('backPosition'), isFalse);
+      expect(call['frontPosition'], 'front_left');
+      expect(uploader.uploaded.keys.single, startsWith('front_print_files/'));
+      final data = (await cart()).single.data();
+      expect(data['frontPosition'], 'left_chest');
+      expect(data['backPosition'], 'none');
+    });
+
+    testWidgets('an upper-back layout prints on the back file as "back"', (
+      tester,
+    ) async {
+      final c = studio();
+      addTearDown(c.dispose);
+      final out = await order(
+        tester,
+        c,
+        layout: const PrintLayout(
+          front: ZonePrint(PrintZone.fullFront),
+          back: ZonePrint(PrintZone.upperBack),
+        ),
+      );
+      expect(out, isA<StudioV2CartAdded>());
+      final call = calls.single;
+      expect(call['backPosition'], 'back');
+      expect(call['frontPosition'], 'front');
+      final faces = (out as StudioV2CartAdded).metadata.faces;
+      expect(faces.map((f) => f.placement).toSet(), {
+        PrintPlacement.backUpper,
+        PrintPlacement.frontFull,
+      });
+      // Every face is still the full 12"×16" print file — the zone is in
+      // the pixels.
+      for (final f in faces) {
+        expect((f.widthPx, f.heightPx), (1800, 2400));
+      }
+      expect((await cart()).single.data()['backPosition'], 'upper_back');
+    });
 
     testWidgets('the item lands in the existing cart, once', (tester) async {
       final c = studio();

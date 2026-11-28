@@ -18,10 +18,12 @@ Top bar → **Signatures**. The first pack in `index.json` opens.
 | **Left: parameters** | Every recipe parameter. The value applies to **every country**. Tick **Vary** to let variations move it; set the range (min – max, or `a, b, c` for choices). |
 | **Centre: all countries** | Every flag's hero on the chosen shirt colour, with a QA dot: green pass, amber warning, red failure (hover for the reason). Filter to Warnings/Failures, search by name, switch the shirt colour. ✎ = has an override, ★ = curated hero. |
 | **Right: one country** | Large hero on the 6 orderable shirt colours, QA detail, the first 12 variations (**v3 → hero** makes that variation the country's hero), and the country's **override**. |
+| **Far right: on the shirt** | The selected country's hero on the app's own shirt mockup. **Front / Back / Both** (or swipe) turns the shirt; a dot marks each face that prints. Below it, the **print layout**: presets (Back, Front, Crest + back, Front + back, Front + neck, Crest only), then each face's zone and size. The dashed box is the zone's largest printable area. **Roavvy mark at back neck** (on by default) adds a small `roavvy.com` below the back collar in black or white to suit the shirt; it only prints with a back design, which then starts 1.4" lower. The layout is saved in the pack and is what the app's tee page opens on; travellers can still change it there. |
 | **Top bar** | Pack picker, status (`draft v1 · unsaved`), Undo/Redo, **Save draft**, **Export sheet**, **Approve…** |
 
 Edits re-render only what changed: a parameter edit re-renders every country, an override
-or hero change re-renders one.
+or hero change re-renders one, and a print-layout edit re-renders nothing but the shirt
+(a slider drag is one undo step).
 
 ## Rules of thumb
 

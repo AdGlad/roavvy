@@ -33,7 +33,11 @@ pack file, not code.
     "jp": { "params": { "tornStrips.distress": 0.6 }, "reason": "Red disc vanishes under heavy distress" }
   },
   "heroes": { "fr": { "seed": 42 } },   // curated envelope values for the hero
-  "locks":  { "us": "748dc73163b8ec40" } // hero recipeId per sample country
+  "locks":  { "us": "748dc73163b8ec40" }, // hero recipeId per sample country
+  "layout": {                     // optional: where the tee prints by default
+    "front": { "zone": "leftChest" },
+    "back":  { "zone": "fullBack", "scale": 0.9 }
+  }
 }
 ```
 
@@ -46,6 +50,15 @@ pack file, not code.
 - **Overrides** change parameters only. An override on an enveloped path must be
   inside the range, and pins that path for the country (variations stop moving it).
 - **Heroes** may only set enveloped paths, inside their ranges.
+- **`layout`** is the tee's default print layout (`design_studio`'s
+  `PrintLayout`): at most one zone per face — front `fullFront | leftChest |
+  rightChest`, back `fullBack | upperBack | backNeck` — with an optional
+  `scale` (zone minimum … 1, hung from the zone's top edge). Omitted = a full
+  back print. `"mark": false` turns off the small `roavvy.com` mark below the
+  back collar (on by default; it prints only with a back design that isn't the
+  back-neck print, and pushes that design 1.4" down). It is garment data: it
+  never changes a hero's `recipeId` or lock,
+  and an unreadable layout falls back to the full back rather than failing.
 - **Unknown fields and newer `formatVersion`s are refused.**
 - Files are written sorted, 2-space indented, with a trailing newline; the
   catalog test fails if a pack was hand-edited out of that form.
