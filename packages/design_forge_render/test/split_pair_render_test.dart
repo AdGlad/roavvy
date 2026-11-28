@@ -122,4 +122,70 @@ void main() {
     expect(withGap.soft.map((f) => f.code), isNot(contains('pair_seam')),
         reason: '${withGap.toJson()}');
   });
+
+  testWidgets('Diagonal Split: brushed edge, bare channel, deterministic',
+      (tester) async {
+    const diagonal = SplitPair(
+      seam: SplitSeam.diagonal,
+      seamSlant: 0.78,
+      seamFlip: true,
+      seamGap: 0.035,
+      blockAspect: 0.66,
+      rotateFlags: true,
+      edge: SplitEdge.brush,
+      distress: 0,
+      scratches: 0,
+      fade: 0,
+      edgeWear: 0,
+      shadow: 0,
+    );
+    const w = 320, h = 400;
+    final recipe = _pair('dz', 'py', split: diagonal);
+    late RenderResult a, b;
+    late Uint8List px;
+    await tester.runAsync(() async {
+      final renderer = CanvasRenderer(assets: _resolver());
+      const target = RenderTarget(width: w, height: h);
+      a = await renderer.render(recipe, target);
+      b = await renderer.render(recipe, target);
+      px = await _rgba(a.image);
+    });
+    expect(a.imageHash, b.imageHash);
+    final layout = SplitPairLayout.of(recipe, w.toDouble(), h.toDouble())!;
+    // Layout points → image (the size class scales the art about its centre).
+    final scale = recipe.composition.sizeClass.scale;
+    int alphaAt(double x, double y) {
+      final sx = (w / 2 + (x - w / 2) * scale).round().clamp(0, w - 1);
+      final sy = (h / 2 + (y - h / 2) * scale).round().clamp(0, h - 1);
+      return px[(sy * w + sx) * 4 + 3];
+    }
+
+    // The middle of the channel is bare garment along most of the seam.
+    var bare = 0, samples = 0;
+    for (final (x, y) in layout.seamPoints.skip(8).take(32)) {
+      samples++;
+      if (alphaAt(x, y) < 40) bare++;
+    }
+    expect(bare, greaterThan(samples * 0.6), reason: 'channel $bare/$samples');
+
+    // Either side of the channel is inked.
+    final (mx, my) = layout.seamPoints[24];
+    final off = layout.blockWidth * 0.12;
+    expect(alphaAt(mx - off, my), greaterThan(200));
+    expect(alphaAt(mx + off, my), greaterThan(200));
+
+    // The block's left edge is brushed, not one straight column.
+    final edgeXs = <int>[];
+    for (var y = layout.blockTop + 30;
+        y < layout.blockTop + layout.blockHeight - 30;
+        y += 4) {
+      var x = 0;
+      while (x < w ~/ 2 && alphaAt(x.toDouble(), y) < 128) {
+        x++;
+      }
+      edgeXs.add(x);
+    }
+    edgeXs.sort();
+    expect(edgeXs.last - edgeXs.first, greaterThan(0));
+  });
 }

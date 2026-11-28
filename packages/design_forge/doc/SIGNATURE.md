@@ -125,7 +125,8 @@ Layout maths is `SplitPairLayout` (pure), shared by the renderer
 | `margin` | 0.04 | block to canvas edge |
 | `rotateFlags` | false | quarter-turn both flags (Diagonal Split) |
 | `shadow` | 0.3 | shade on A along the seam |
-| `edge` | `torn` | `clean` \| `torn` \| `brush` (brush = M208 hook, drawn torn for now) |
+| `edge` | `torn` | `clean` \| `torn` \| `brush` (M208 `BrushEdge`, stroke running down the block) |
+| `brush` | unset | `BrushStroke` for `edge: brush` (written only when set) |
 | `edgeWear`, `distress`, `distressScale`, `scratches`, `fade` | 0.6, 0.6, 0.5, 0.5, 0.15 | `WearRaster.grunge` |
 
 Shared rules (engine, not pack): the top of the block goes to the flag whose
@@ -137,9 +138,22 @@ extended to fill the half; vertical-stripe flags with no emblem (France) are
 narrowed so all stripes show; look-alike flags get `autoGap` (pair QA
 recognises a drawn channel even when `seamGap` is 0).
 
-Diagonal Split (M212) should use `seam: diagonal`, `seamSlant` ≈ 0.7–0.9
-(corner to corner), `seamGap` > 0, `rotateFlags: true`, `edge: brush` once
-`BrushEdge` is wired into `SplitPairComposer._brushEdge`.
+Diagonal Split (M212, `diagonal_split`) uses `seam: diagonal`, `seamSlant`
+0.7–0.82 with `seamFlip: true` (top-left → bottom-right, as the reference),
+`seamGap` 0.035, `rotateFlags: true`, `edge: brush`, almost no distress.
+With `edge: brush` the block outline is painted by `BrushEdge` (spikes carry
+the paint next to them), the inside keeps the composed art exactly (the
+channel and any bare garment stay bare), and the channel's sides are
+roughened by the same brush.
+
+More shared rules for turned flags (M212): a flag whose emblem sits at the
+hoist (a canton, a hoist triangle) turns so its hoist lands at the end where
+its half is widest — clockwise (hoist at the top) or anticlockwise
+(`SplitFlagPlacement.ccw`, hoist at the bottom); every other flag turns
+clockwise. On a diagonal seam a flag that must shrink is placed at the
+height that allows the largest flag (Nepal sits in the wide end). A hoist
+triangle's protected box is its middle 60% (`FlagFocus`), not the thin
+corners along the hoist.
 
 ## Resolving
 
