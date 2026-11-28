@@ -31,3 +31,22 @@ Three or more countries (M214), the Lab UI (M207) and the app (M213).
 - [ ] Round-trip, token, pair-override and swap-order (A/B ≠ B/A) tests.
 - [ ] Flag-focus table covers all 272 flags (default centre) with a test.
 - [ ] `SIGNATURE.md` documents pair packs.
+
+## As built (2026-11-28)
+
+- `SignatureRecipe.countries` (1 | 2) and `samplePairs` (`"a+b"` keys). The codec writes them only for pair packs, so every bundled pack still round-trips byte for byte and its locks are unchanged (`pair_signature_test.dart`).
+- `SignaturePair` (`a`, `b`, `key`, `swapped`, `parse`), plus `instantiatePair` / `instantiateKey`.
+- Tokens `{{countryA}}`, `{{countryA3}}`, `{{countryAName}}` and the same for `B`. Validation:
+  - a pair pack must use an A and a B token and no single tokens;
+  - a single pack refuses pair tokens, pair keys and `samplePairs`;
+  - heroes and locks must be keyed by pair in a pair pack.
+- Overrides:
+  - **country overrides** use the path segment `{slot}` (0 = A, 1 = B), so a fix only touches that country's half; paths without it apply to the whole design;
+  - **pair overrides** (`"a+b"`) apply last and may not use `{slot}`.
+- Resolver:
+  - `heroPair`, `variationPair` (seed `id|version|a+b|i`), and the key-generic `heroFor` / `variationFor`;
+  - `driftedLocks` / `lockFor` accept either kind of key;
+  - `hero` / `variation` throw `StateError` on a pair pack, and the reverse.
+- `FlagFocus.of(code)`: a kind (centre, canton, hoist, emblem, fly), a focus point, an optional `FlagBox` emblem, `windowLeft(w)` and `visibleFraction(box)`. About 200 flags are hand-set; the rest default to centre with no emblem.
+- `PairGeometry.of(recipe)`, with `FlagCrop` (`emblemVisible`, optional polygon) and `PairSeam`. It is the hook compositions use to report crops and the seam to pair QA. It returns null until M209 adds `splitPair`.
+- `SIGNATURE.md` has a "Two-country packs" section.

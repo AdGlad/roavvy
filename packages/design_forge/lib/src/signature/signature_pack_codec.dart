@@ -33,6 +33,8 @@ class SignaturePackCodec {
     'locks',
     'tokens',
     'layout',
+    'countries',
+    'samplePairs',
   };
 
   static String encode(SignatureRecipe s) {
@@ -54,6 +56,8 @@ class SignaturePackCodec {
       'locks': s.locks,
       if (s.tokens.isNotEmpty) 'tokens': s.tokens,
       if (s.layout.isNotEmpty) 'layout': s.layout,
+      if (s.isPair) 'countries': s.countries,
+      if (s.samplePairs.isNotEmpty) 'samplePairs': s.samplePairs,
     };
     return '${const JsonEncoder.withIndent('  ').convert(_sorted(json))}\n';
   }
@@ -83,7 +87,8 @@ class SignaturePackCodec {
       approvedAt: json['approvedAt'] as String?,
       notes: json['notes'] as String?,
       base: _map(json['base'], 'base'),
-      envelope: VariationEnvelope.fromJson(_map(json['envelope'] ?? {}, 'envelope')),
+      envelope:
+          VariationEnvelope.fromJson(_map(json['envelope'] ?? {}, 'envelope')),
       overrides: {
         for (final e in _map(json['overrides'] ?? {}, 'overrides').entries)
           e.key: CountryOverride.fromJson(_map(e.value, 'overrides.${e.key}')),
@@ -101,6 +106,8 @@ class SignaturePackCodec {
           e.key: e.value as String,
       },
       layout: _map(json['layout'] ?? {}, 'layout'),
+      countries: _countries(json['countries']),
+      samplePairs: _strings(json['samplePairs'], 'samplePairs'),
     );
   }
 
@@ -135,6 +142,20 @@ class SignaturePackCodec {
       notes: notes,
     );
     return draft.copyWith(locks: {country: recipe.recipeId});
+  }
+
+  static int _countries(Object? v) {
+    if (v == null) return 1;
+    if (v is num && v == v.toInt()) return v.toInt();
+    throw FormatException('"countries" must be 1 or 2 (got $v)');
+  }
+
+  static List<String> _strings(Object? v, String where) {
+    if (v == null) return const [];
+    if (v is! List || v.any((e) => e is! String)) {
+      throw FormatException('$where must be a list of strings');
+    }
+    return v.cast<String>();
   }
 
   static T _req<T>(Map<String, Object?> json, String key) {

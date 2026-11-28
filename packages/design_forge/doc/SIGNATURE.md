@@ -63,6 +63,47 @@ pack file, not code.
 - Files are written sorted, 2-space indented, with a trailing newline; the
   catalog test fails if a pack was hand-edited out of that form.
 
+## Two-country packs (ADR-185)
+
+A pack with `"countries": 2` is a **pair pack**: one design for two
+countries, A (left/top) and B (right/bottom). Order matters: `fr+jp` and
+`jp+fr` are different designs.
+
+```jsonc
+{
+  "countries": 2,                          // omitted (= 1) for every single pack
+  "samplePairs": ["us+co", "hu+us", …],    // the Lab sheet + QA set; first = default pair
+  "base": { … "content": {"flags": [{"code": "{{countryA}}"}, {"code": "{{countryB}}"}]} },
+  "overrides": {
+    "jp":    { "params": { "content.flags.{slot}.weight": 0.6 }, "reason": "…" },
+    "fr+nl": { "params": { "splitPair.seamGap": 0.02 }, "reason": "Look-alike stripes" }
+  },
+  "heroes": { "us+co": { "seed": 42 } },
+  "locks":  { "us+co": "…" }
+}
+```
+
+- **Tokens:** `{{countryA}}`, `{{countryA3}}`, `{{countryAName}}` and the same
+  for `B`. The base must use an A token and a B token, and must not use
+  `{{country}}`/`{{country3}}`/`{{countryName}}`. A single pack must not use
+  pair tokens.
+- **Keys:** heroes and locks are keyed `"a+b"` (lowercase). `samplePairs` is
+  only allowed in pair packs.
+- **Country overrides** still key on one country and apply wherever that
+  country appears. In their params, the path segment `{slot}` is replaced by
+  the country's slot (`0` for A, `1` for B), so
+  `content.flags.{slot}.weight` only changes that country's half. Paths
+  without `{slot}` change the whole design.
+- **Pair overrides** (`"a+b"`) are for one ordered pair that clashes. They
+  apply after both country overrides and may not use `{slot}`.
+- **Flag focus** (`FlagFocus.of(code)`, `design_forge/lib/src/geo/flag_focus.dart`)
+  is shared engine data, not pack data. It holds each flag's focus point and
+  emblem box in flag space, e.g. the US canton, Portugal's arms or Japan's disc.
+  A pair composition crops each half around the focus
+  (`focus.windowLeft(0.5)`), and reports what it shows through
+  `PairGeometry.of(recipe)` (`FlagCrop` per flag, plus `PairSeam`) so pair QA
+  can check it.
+
 ## Resolving
 
 ```dart
@@ -75,6 +116,19 @@ Order: base → country tokens → override → hero values / sampled envelope �
 `DesignRecipe`. Variation `i` draws each path from
 `DeterministicRng.stream(hash('id|version|cc|i'), path)`, so it is the same on
 every device and isolate, and bumping `version` reshuffles variations.
+
+Pair packs:
+
+```dart
+SignatureResolver.heroPair(pack, 'us', 'co');          // feed index 0
+SignatureResolver.variationPair(pack, 'us', 'co', 17); // key id|version|us+co|17
+SignatureResolver.heroFor(pack, 'us+co');              // by key; also 'jp' for single packs
+```
+
+Pair order: base → A/B tokens → A's override (slot 0) → B's override (slot 1)
+→ pair override → hero values / sampled envelope. `hero`/`variation` refuse a
+pair pack, and `heroPair`/`variationPair` refuse a single pack.
+`driftedLocks`/`lockFor` take either kind of key.
 
 ## Loading in a host
 
