@@ -1,0 +1,123 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "composition": {
+      "family": "splitPair",
+      "orientation": "portrait",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{countryA}}",
+          "weight": 1.0
+        },
+        {
+          "code": "{{countryB}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1,
+    "splitPair": {
+      "autoGap": 0.012,
+      "blockAspect": 0.86,
+      "distress": 0.6,
+      "distressScale": 0.5,
+      "edge": "torn",
+      "edgeWear": 0.6,
+      "fade": 0.15,
+      "margin": 0.04,
+      "rotateFlags": false,
+      "scratches": 0.5,
+      "seam": "curtain",
+      "seamCurve": 0.6,
+      "seamFlip": false,
+      "seamGap": 0.0,
+      "seamPosition": 0.5,
+      "seamSlant": 0.27,
+      "shadow": 0.3
+    }
+  },
+  "countries": 2,
+  "envelope": {
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    },
+    "splitPair.distress": {
+      "max": 0.75,
+      "min": 0.45
+    },
+    "splitPair.seamCurve": {
+      "max": 0.9,
+      "min": 0.3
+    },
+    "splitPair.seamPosition": {
+      "max": 0.53,
+      "min": 0.47
+    },
+    "splitPair.seamSlant": {
+      "max": 0.3,
+      "min": 0.18
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "curtain_split",
+  "locks": {
+    "fr+it": "27e8d9d40837ab0b",
+    "id+mc": "5759cb26febb79bd",
+    "jp+kr": "0aa5334c217e8e55",
+    "mx+pt": "02e569d1eff8161d",
+    "np+ch": "20f914a66e8abe8b",
+    "us+co": "5b2345d7bab3b098"
+  },
+  "notes": "Two flags in one grunge-distressed block, B drawn across A along a curved curtain seam (M209, ADR-185). Style refs: split-flags-c.jpg, split-two-b.jpeg (stock art, style only).",
+  "overrides": {},
+  "samplePairs": [
+    "id+mc",
+    "ro+td",
+    "nl+lu",
+    "ie+ci",
+    "fr+it",
+    "us+gb",
+    "co+ec",
+    "de+be",
+    "mx+pt",
+    "es+cr",
+    "py+dz",
+    "br+ar",
+    "sa+ae",
+    "np+ch",
+    "bt+np",
+    "co+us",
+    "hu+us",
+    "mx+us",
+    "ca+us",
+    "gr+cy",
+    "au+nz",
+    "jm+cu",
+    "ly+cy",
+    "jp+kr",
+    "pk+in",
+    "ve+pr",
+    "us+co",
+    "dz+py",
+    "gb-eng+pt",
+    "fi+se",
+    "za+gb",
+    "sc+mu"
+  ],
+  "status": "draft",
+  "title": "Curtain Split",
+  "version": 1
+}

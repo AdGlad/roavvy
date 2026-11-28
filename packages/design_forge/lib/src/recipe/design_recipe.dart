@@ -3,6 +3,7 @@ import 'captions.dart';
 import 'design_axis.dart';
 import 'brush_stroke.dart';
 import 'globe.dart';
+import 'split_pair.dart';
 import 'recipe_parts.dart';
 import 'torn_strips.dart';
 import 'watercolour.dart';
@@ -29,6 +30,10 @@ enum DesignFamily {
   /// One flag turned to portrait and torn into ragged hanging strips — see
   /// [TornStrips] (recipe type `portrait_torn_flag`).
   portraitTornFlag,
+
+  /// Two flags in one block meeting along a seam — see [SplitPair]
+  /// (Curtain Split, Diagonal Split; ADR-185).
+  splitPair,
   unknown;
 
   String get id => this == DesignFamily.unknown ? 'unknown' : name;
@@ -462,6 +467,7 @@ class DesignRecipe {
     this.globe,
     this.brushStroke,
     this.captions,
+    this.splitPair,
     this.motifs = const [],
     this.axisSeeds = const {},
     this.schemaVersion = kSchemaVersion,
@@ -506,6 +512,10 @@ class DesignRecipe {
 
   /// Text above / below the artwork; null = none.
   final Captions? captions;
+
+  /// Two flags split along a seam; read when the family is
+  /// [DesignFamily.splitPair]. Null = none.
+  final SplitPair? splitPair;
   final List<Motif> motifs;
 
   /// Per-axis re-roll seeds, keyed by [DesignAxis.key]. Empty by default: an
@@ -540,6 +550,7 @@ class DesignRecipe {
         if (globe != null) 'globe': globe!.toJson(),
         if (brushStroke != null) 'brushStroke': brushStroke!.toJson(),
         if (captions != null) 'captions': captions!.toJson(),
+        if (splitPair != null) 'splitPair': splitPair!.toJson(),
         if (motifs.isNotEmpty)
           'motifs': [for (final m in motifs) m.toJson()],
         // Omitted when empty so pre-M2 recipes keep their exact recipeId; keys
@@ -605,6 +616,7 @@ class DesignRecipe {
         globe: _obj(json['globe'], Globe.fromJson),
         brushStroke: _obj(json['brushStroke'], BrushStroke.fromJson),
         captions: _obj(json['captions'], Captions.fromJson),
+        splitPair: _obj(json['splitPair'], SplitPair.fromJson),
         motifs: [
           for (final m in (json['motifs'] as List? ?? const []))
             Motif.fromJson((m as Map).cast<String, Object?>()),
@@ -631,6 +643,7 @@ class DesignRecipe {
     Globe? globe,
     BrushStroke? brushStroke,
     Captions? captions,
+    SplitPair? splitPair,
     List<Motif>? motifs,
     Map<String, int>? axisSeeds,
     RecipeProvenance? provenance,
@@ -650,6 +663,7 @@ class DesignRecipe {
         globe: globe ?? this.globe,
         brushStroke: brushStroke ?? this.brushStroke,
         captions: captions ?? this.captions,
+        splitPair: splitPair ?? this.splitPair,
         motifs: motifs ?? this.motifs,
         axisSeeds: axisSeeds ?? this.axisSeeds,
         schemaVersion: schemaVersion,

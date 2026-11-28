@@ -6,6 +6,7 @@ import 'package:design_forge/design_forge.dart';
 import 'data_layouts.dart';
 import 'multi_flag_layout.dart';
 import 'render_stage.dart';
+import 'split_pair_composer.dart';
 import 'torn_flag_layout.dart';
 
 /// Builds the artwork layer (transparent background) from the recipe's flags.
@@ -27,6 +28,11 @@ class CompositionStage extends RenderStage {
     // artwork from the recipe's travel entries.
     if (DataLayouts.handles(recipe.composition.family)) {
       await DataLayouts.build(recipe, ctx);
+      return;
+    }
+    // Two flags split along a seam (Curtain / Diagonal Split).
+    if (SplitPairComposer.handles(recipe.composition.family)) {
+      await SplitPairComposer.build(recipe, ctx);
       return;
     }
     // The portrait torn flag builds its own strips from one flag.
