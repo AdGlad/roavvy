@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:design_forge/design_forge.dart';
 
+import '../geometry/brush_edge.dart';
 import '../geometry/wear_raster.dart';
 import '../qa/pair_qa.dart';
 import 'render_stage.dart';
@@ -19,8 +20,9 @@ import 'render_stage.dart';
 /// alike along the seam ([SplitPair.autoGap]), shade A along the seam, then
 /// wear the block ([WearRaster.grunge]) off the UI isolate.
 ///
-/// [SplitEdge.brush] is drawn as [SplitEdge.torn] until the dry-brush edge
-/// (M208 `BrushEdge`) is wired in here — the hook is [_brushEdge].
+/// [SplitEdge.brush] paints the block's outline with M208's [BrushEdge] (the
+/// stroke running down the block) and roughens the sides of the seam
+/// channel; see [_brushEdge].
 class SplitPairComposer {
   const SplitPairComposer._();
 
@@ -95,7 +97,10 @@ class SplitPairComposer {
 
     var art = await compose(gap, p.shadow);
 
-    if (p.edge == SplitEdge.brush) art = await _brushEdge(art, layout);
+    if (p.edge == SplitEdge.brush) {
+      art = await _brushEdge(art, layout, gap,
+          DeterministicRng.hashString('splitBrush:${recipe.seed}'), ctx);
+    }
 
     final worn = p.edge != SplitEdge.clean ||
         p.distress > 0 ||
@@ -125,11 +130,83 @@ class SplitPairComposer {
     ctx.artwork = art;
   }
 
-  /// Hook for the dry-brush outer edge (M208). Until then the torn grunge
-  /// edge is used.
-  static Future<ui.Image> _brushEdge(
-          ui.Image art, SplitPairLayout layout) async =>
-      art;
+  /// The dry-brush outer edge (M208 [BrushEdge]), stroke running down the
+  /// block: the block outline is brushed (spikes carry the paint next to
+  /// them), the inside keeps the composed art exactly (a seam channel or a
+  /// shrunk flag's bare garment stays bare), and the channel's sides are
+  /// roughened by the same brush.
+  static Future<ui.Image> _brushEdge(ui.Image art, SplitPairLayout layout,
+      double gap, int seed, RenderContext ctx) async {
+    final brush = layout.params.brush ?? const BrushStroke();
+    final w = art.width, h = art.height;
+    final block = ui.Rect.fromLTWH(layout.blockLeft, layout.blockTop,
+        layout.blockWidth, layout.blockHeight);
+    final data = await art.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final bytes = data!.buffer.asUint8List();
+    final reach = (math.max(w, h) * 0.2).round();
+    final extended =
+        await _decode(await _extendOffThread(bytes, w, h, reach), w, h);
+    final outline = BrushEdge.outline(
+        ui.Path()
+          ..addRRect(ui.RRect.fromRectAndRadius(
+              block, ui.Radius.circular(block.shortestSide * 0.06))),
+        brush,
+        seed,
+        vertical: true);
+
+    // The channel between the halves, its sides roughened (no lift-off
+    // spikes: it is a gap, not a stroke end).
+    ui.Path? channel;
+    if (gap > 0) {
+      final hg = gap / 2 * layout.blockWidth;
+      final pts = layout.seamPoints;
+      final poly = <ui.Offset>[
+        for (final (x, y) in pts) ui.Offset(x - hg, y),
+        for (final (x, y) in pts.reversed) ui.Offset(x + hg, y),
+      ];
+      // Run past the block's top and bottom so the brushed ends never close
+      // the channel.
+      final over = layout.blockHeight * 0.06;
+      poly[0] = poly[0].translate(0, -over);
+      poly[pts.length - 1] = poly[pts.length - 1].translate(0, over);
+      poly[pts.length] = poly[pts.length].translate(0, over);
+      poly[poly.length - 1] = poly[poly.length - 1].translate(0, -over);
+      channel = BrushEdge.outline(
+          ui.Path()..addPolygon(poly, true),
+          brush.copyWith(liftFray: 0, spill: 0, taper: 0, leadClean: 0),
+          seed ^ 0x5EA7,
+          vertical: true);
+    }
+
+    return ctx.rasterise((canvas) {
+      canvas
+        ..saveLayer(null, ui.Paint())
+        ..drawPath(
+            outline,
+            ui.Paint()
+              ..color = const ui.Color(0xFFFFFFFF)
+              ..isAntiAlias = true)
+        ..saveLayer(null, ui.Paint()..blendMode = ui.BlendMode.srcIn)
+        ..drawImage(extended, ui.Offset.zero, ui.Paint())
+        ..drawRect(block, ui.Paint()..blendMode = ui.BlendMode.clear)
+        ..drawImage(art, ui.Offset.zero, ui.Paint())
+        ..restore();
+      if (channel != null) {
+        canvas.drawPath(
+            channel,
+            ui.Paint()
+              ..blendMode = ui.BlendMode.clear
+              ..isAntiAlias = true);
+      }
+      canvas.restore();
+    });
+  }
+
+  /// [BrushEdge.extendColour] on an isolate; a static helper so the closure
+  /// captures plain data only (never a `ui.Image`).
+  static Future<Uint8List> _extendOffThread(
+          Uint8List bytes, int w, int h, int reach) =>
+      Isolate.run(() => BrushEdge.extendColour(bytes, w, h, reach));
 
   static void _draw(
       ui.Canvas canvas,
@@ -152,7 +229,11 @@ class SplitPairComposer {
       final dw = f.rotated ? f.height : f.width;
       final dh = f.rotated ? f.width : f.height;
       canvas.save();
-      if (f.rotated) {
+      if (f.rotated && f.ccw) {
+        canvas
+          ..translate(f.left, f.top + f.height)
+          ..rotate(-math.pi / 2);
+      } else if (f.rotated) {
         canvas
           ..translate(f.left + f.width, f.top)
           ..rotate(math.pi / 2);

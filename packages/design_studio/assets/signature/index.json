@@ -11,6 +11,7 @@
     "tie_dye_flag",
     "spiral_tie_dye",
     "brush_flag",
-    "curtain_split"
+    "curtain_split",
+    "diagonal_split"
   ]
 }

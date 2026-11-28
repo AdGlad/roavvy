@@ -161,4 +161,83 @@ void main() {
       }
     });
   });
+
+  group('Diagonal Split (M212)', () {
+    const diagonal = SplitPair(
+      seam: SplitSeam.diagonal,
+      seamSlant: 0.78,
+      seamFlip: true,
+      seamGap: 0.035,
+      blockAspect: 0.66,
+      rotateFlags: true,
+      edge: SplitEdge.brush,
+      brush: BrushStroke(bristles: 18, dryness: 0.6, leadClean: 0.2),
+    );
+    SplitPairLayout layout(String a, String b) =>
+        SplitPairLayout.of(_pair(a, b, split: diagonal), 800, 1000)!;
+
+    test('brush is written only when set (curtain ids unchanged)', () {
+      expect(const SplitPair().toJson().containsKey('brush'), isFalse);
+      final back = SplitPair.fromJson(diagonal.toJson());
+      expect(back.brush!.bristles, 18);
+      expect(back.brush!.leadClean, 0.2);
+      expect(back.toJson(), diagonal.toJson());
+    });
+
+    test('a canton flag turns so its hoist lands where its half is wide', () {
+      // Seam runs top-left → bottom-right: A is wide at the bottom, B at the
+      // top.
+      final usA = layout('us', 'co');
+      expect(usA.slant, lessThan(0));
+      expect(usA.flags[0].ccw, isTrue, reason: 'US as A: hoist at the bottom');
+      expect(usA.flags[1].ccw, isFalse);
+      expect(layout('co', 'us').flags[1].ccw, isFalse,
+          reason: 'US as B: hoist at the top');
+      // Plain and centred-emblem flags always turn clockwise.
+      expect(layout('dz', 'py').flags.map((f) => f.ccw), [false, false]);
+    });
+
+    test('anticlockwise flag space maps back correctly', () {
+      const f = SplitFlagPlacement(
+          slot: 0,
+          code: 'us',
+          left: 0,
+          top: 0,
+          width: 100,
+          height: 200,
+          rotated: true,
+          ccw: true,
+          region: []);
+      // The drawn bottom-left corner is the flag's top-left (the canton).
+      final (u, v) = f.toFlag((0, 200));
+      expect(u, closeTo(0, 1e-9));
+      expect(v, closeTo(0, 1e-9));
+    });
+
+    test('a shrunk flag (Nepal) sits where its half is widest', () {
+      final l = layout('np', 'ch');
+      final np = l.flags[0];
+      expect(np.width, greaterThan(l.blockWidth / 3));
+      expect(
+          np.top + np.height / 2, greaterThan(l.blockTop + l.blockHeight / 2));
+      expect(np.left, greaterThanOrEqualTo(l.blockLeft - 1));
+    });
+
+    test('every sample pair keeps ≥70% of each emblem, in both orders', () {
+      for (final key in _samplePairs) {
+        final p = SignaturePair.parse(key);
+        for (final (a, b) in [(p.a, p.b), (p.b, p.a)]) {
+          for (final slant in [0.7, 0.78, 0.82]) {
+            final g = PairGeometry.of(_pair(a, b,
+                split: SplitPair.fromJson(
+                    {...diagonal.toJson(), 'seamSlant': slant})))!;
+            for (final c in g.crops) {
+              expect(c.emblemVisible, greaterThanOrEqualTo(0.7),
+                  reason: '$a+$b slant $slant: ${c.code}');
+            }
+          }
+        }
+      }
+    });
+  });
 }

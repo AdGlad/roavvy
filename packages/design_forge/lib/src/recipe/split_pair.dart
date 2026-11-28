@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../geo/flag_focus.dart';
+import 'brush_stroke.dart';
 import 'design_recipe.dart';
 
 /// How the two flags of a [SplitPair] meet.
@@ -32,8 +33,9 @@ enum SplitEdge {
   /// Eroded, torn and speckled (grunge print).
   torn,
 
-  /// Dry-brush edge (M208 `BrushEdge`). Until a renderer supports it, it is
-  /// drawn as [torn].
+  /// Dry-brush edge (M208 `BrushEdge`), shaped by [SplitPair.brush]: the
+  /// block's outline is painted, the seam channel's sides are roughened, and
+  /// the inside stays clean (Diagonal Split, M212).
   brush;
 
   static SplitEdge fromId(String? id) {
@@ -61,7 +63,8 @@ enum SplitEdge {
 ///  * look-alike flags at the seam get an [autoGap] channel (decided by the
 ///    renderer from the pixels).
 ///
-/// Like the other new groups, [toJson] writes every field.
+/// Like the other new groups, [toJson] writes every field (except an unset
+/// [brush]).
 class SplitPair {
   const SplitPair({
     this.seam = SplitSeam.curtain,
@@ -81,6 +84,7 @@ class SplitPair {
     this.distressScale = 0.5,
     this.scratches = 0.5,
     this.fade = 0.15,
+    this.brush,
   });
 
   /// Seam shape.
@@ -139,6 +143,11 @@ class SplitPair {
   /// Worn-print colour fade (desaturate and darken slightly).
   final double fade;
 
+  /// The brush for [SplitEdge.brush] (null = [BrushStroke] defaults). Its
+  /// stroke runs down the block. Written only when set, so packs without it
+  /// keep their recipe ids.
+  final BrushStroke? brush;
+
   Map<String, Object?> toJson() => {
         'seam': seam.name,
         'seamPosition': seamPosition,
@@ -157,6 +166,7 @@ class SplitPair {
         'distressScale': distressScale,
         'scratches': scratches,
         'fade': fade,
+        if (brush != null) 'brush': brush!.toJson(),
       };
 
   factory SplitPair.fromJson(Map<String, Object?> j) {
@@ -180,6 +190,9 @@ class SplitPair {
       distressScale: n('distressScale', d.distressScale),
       scratches: n('scratches', d.scratches),
       fade: n('fade', d.fade),
+      brush: j['brush'] is Map
+          ? BrushStroke.fromJson((j['brush'] as Map).cast<String, Object?>())
+          : null,
     );
   }
 }
@@ -203,6 +216,7 @@ class SplitFlagPlacement {
     required this.height,
     required this.rotated,
     required this.region,
+    this.ccw = false,
   });
 
   final int slot;
@@ -211,8 +225,14 @@ class SplitFlagPlacement {
   /// The drawn flag's box (after any quarter turn).
   final double left, top, width, height;
 
-  /// True = the flag is turned a quarter turn clockwise (its hoist at the top).
+  /// True = the flag is turned a quarter turn: clockwise (its hoist at the
+  /// top), or anticlockwise when [ccw] (its hoist at the bottom).
   final bool rotated;
+
+  /// With [rotated]: turned anticlockwise, so the hoist lands at the bottom.
+  /// Used for a flag whose canton / hoist emblem would otherwise sit where its
+  /// half of a diagonal block is narrowest.
+  final bool ccw;
 
   /// The flag's half of the block (canvas pixels), a closed polygon.
   final List<(double, double)> region;
@@ -220,7 +240,8 @@ class SplitFlagPlacement {
   /// [p] (canvas pixels) in the flag's own normalised space.
   (double, double) toFlag((double, double) p) {
     final dx = (p.$1 - left) / width, dy = (p.$2 - top) / height;
-    return rotated ? (dy, 1 - dx) : (dx, dy);
+    if (!rotated) return (dx, dy);
+    return ccw ? (1 - dy, dx) : (dy, 1 - dx);
   }
 
   /// The visible part of the flag: [region] in flag space.
@@ -339,6 +360,7 @@ class SplitPairLayout {
         distressScale: p.distressScale,
         scratches: p.scratches,
         fade: p.fade,
+        brush: p.brush,
       ),
       flags: const [],
     );
@@ -441,6 +463,12 @@ class SplitPairLayout {
 
   SplitFlagPlacement _place(int slot, String code, FlagFocus f, double aspect) {
     final rot = params.rotateFlags;
+    // Turned flags: the hoist goes to the end of the block where this half is
+    // widest when the flag's emblem sits at the hoist (a canton, a hoist
+    // triangle); otherwise clockwise, the hoist at the top.
+    final hoistEmblem = f.emblem != null && f.focusX < 0.45;
+    final topWide = slot == 0 ? slant > 0 : slant < 0;
+    final ccw = rot && hoistEmblem && !topWide;
     // Drawn size in "units" before scaling: unrotated r×1, rotated 1×r.
     final w0 = rot ? 1.0 : aspect, h0 = rot ? aspect : 1.0;
     final bl = blockLeft, bt = blockTop, bw = blockWidth, bh = blockHeight;
@@ -452,13 +480,20 @@ class SplitPairLayout {
     var dw = s * w0, dh = s * h0;
 
     // Focus and protected box in drawn units (0..1 of the drawn box).
-    final fdx = rot ? 1 - f.focusY : f.focusX;
-    final fdy = rot ? f.focusX : f.focusY;
+    // Flag (u, v) → drawn: clockwise (1 − v, u); anticlockwise (v, 1 − u).
+    final fdx = !rot ? f.focusX : (ccw ? f.focusY : 1 - f.focusY);
+    final fdy = !rot ? f.focusY : (ccw ? 1 - f.focusX : f.focusX);
     final e = f.emblem;
-    final ex0 = e == null ? 0.0 : (rot ? 1 - e.bottom : e.left);
-    final ex1 = e == null ? 0.0 : (rot ? 1 - e.top : e.right);
-    final ey0 = e == null ? 0.0 : (rot ? e.left : e.top);
-    final ey1 = e == null ? 0.0 : (rot ? e.right : e.bottom);
+    final double ex0, ex1, ey0, ey1;
+    if (e == null) {
+      ex0 = ex1 = ey0 = ey1 = 0;
+    } else if (!rot) {
+      (ex0, ex1, ey0, ey1) = (e.left, e.right, e.top, e.bottom);
+    } else if (ccw) {
+      (ex0, ex1, ey0, ey1) = (e.top, e.bottom, 1 - e.right, 1 - e.left);
+    } else {
+      (ex0, ex1, ey0, ey1) = (1 - e.bottom, 1 - e.top, e.left, e.right);
+    }
 
     // The half's horizontal span (canvas px) at block height t.
     (double, double) spanAt(double t) {
@@ -480,6 +515,7 @@ class SplitPairLayout {
           width: dw,
           height: dh,
           rotated: rot,
+          ccw: ccw,
           region: regionOf(slot),
         );
 
@@ -551,27 +587,77 @@ class SplitPairLayout {
     if (bestCoveredVis >= 0.74) return at(bestCovered);
 
     // 3. Too wide for the half (Switzerland's cross, Nepal's pennant):
-    //    shrink the flag until the box fits the narrowest of its rows, then
-    //    re-measure those rows at the new size (they move as it shrinks).
+    //    shrink the flag until the box fits the narrowest of its rows. The
+    //    box's height is tried along the block (a diagonal half is much wider
+    //    at one end), keeping the placement that allows the largest flag;
+    //    rows are re-measured at the new size (they move as it shrinks).
     final ew = ex1 - ex0;
     var left = 0.0;
-    for (var pass = 0; pass < 4; pass++) {
-      s = math.min(s, (nr - nl) * 0.92 / (ew * w0));
-      dw = s * w0;
-      dh = s * h0;
-      top = _clamp(bt + bh / 2 - (ey0 + ey1) / 2 * dh, bt, bt + bh - dh);
-      nl = double.infinity;
-      nr = -double.infinity;
+    (double, double) narrowest(double top, double dh) {
+      var l = double.infinity, r = -double.infinity;
       for (var i = 0; i <= 8; i++) {
         final y = top + (ey0 + (ey1 - ey0) * i / 8) * dh;
-        final (l, r) = spanAt(((y - bt) / bh).clamp(0.0, 1.0));
-        if (nl == double.infinity || r - l < nr - nl) {
-          nl = l;
-          nr = r;
+        final (a, b) = spanAt(((y - bt) / bh).clamp(0.0, 1.0));
+        if (l == double.infinity || b - a < r - l) {
+          l = a;
+          r = b;
         }
       }
-      left = (nl + nr) / 2 - (ex0 + ex1) / 2 * dw;
+      return (l, r);
     }
+
+    if (params.seam != SplitSeam.diagonal) {
+      for (var pass = 0; pass < 4; pass++) {
+        s = math.min(s, (nr - nl) * 0.92 / (ew * w0));
+        dw = s * w0;
+        dh = s * h0;
+        top = _clamp(bt + bh / 2 - (ey0 + ey1) / 2 * dh, bt, bt + bh - dh);
+        (nl, nr) = narrowest(top, dh);
+        left = (nl + nr) / 2 - (ex0 + ex1) / 2 * dw;
+      }
+      return at(left);
+    }
+    // Diagonal: try the box's centre along the block; at each height find
+    // (by bisection) the largest flag whose box fits the narrowest of its
+    // rows there, and keep the height that allows the largest flag.
+    final s0 = s;
+    double topFor(double tc, double sc) {
+      final dhc = sc * h0;
+      return _clamp(bt + tc * bh - (ey0 + ey1) / 2 * dhc, bt, bt + bh - dhc);
+    }
+
+    bool fits(double tc, double sc) {
+      final (l, r) = narrowest(topFor(tc, sc), sc * h0);
+      return (r - l) * 0.92 >= sc * ew * w0;
+    }
+
+    var bestS = -1.0, bestTop = top;
+    for (var k = 0; k <= 20; k++) {
+      final tc = 0.06 + 0.88 * k / 20;
+      var lo = 0.0, hi = s0;
+      if (fits(tc, hi)) {
+        lo = hi;
+      } else {
+        for (var i = 0; i < 24; i++) {
+          final mid = (lo + hi) / 2;
+          if (fits(tc, mid)) {
+            lo = mid;
+          } else {
+            hi = mid;
+          }
+        }
+      }
+      if (lo > bestS + 1e-9) {
+        bestS = lo;
+        bestTop = topFor(tc, lo);
+      }
+    }
+    s = bestS;
+    dw = s * w0;
+    dh = s * h0;
+    top = bestTop;
+    (nl, nr) = narrowest(top, dh);
+    left = (nl + nr) / 2 - (ex0 + ex1) / 2 * dw;
     return at(left);
   }
 

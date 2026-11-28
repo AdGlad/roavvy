@@ -1,0 +1,136 @@
+{
+  "base": {
+    "assetsVersion": "0.0.1",
+    "composition": {
+      "family": "splitPair",
+      "orientation": "portrait",
+      "outlineColour": "auto",
+      "outlineWidth": 0.0,
+      "rotation": 0,
+      "sizeClass": "large"
+    },
+    "content": {
+      "flags": [
+        {
+          "code": "{{countryA}}",
+          "weight": 1.0
+        },
+        {
+          "code": "{{countryB}}",
+          "weight": 1.0
+        }
+      ]
+    },
+    "engineVersion": "0.0.1",
+    "grammarVersion": "0.0.1",
+    "schemaVersion": 1,
+    "seed": 1,
+    "splitPair": {
+      "autoGap": 0.012,
+      "blockAspect": 0.66,
+      "brush": {
+        "bristles": 18.0,
+        "centerY": 0.6,
+        "dryness": 0.6,
+        "leadClean": 0.2,
+        "liftFray": 0.45,
+        "maxAspect": 2.0,
+        "minAspect": 1.3,
+        "scale": 0.84,
+        "skew": 0.0,
+        "spill": 0.4,
+        "taper": 0.2
+      },
+      "distress": 0.03,
+      "distressScale": 0.4,
+      "edge": "brush",
+      "edgeWear": 0.3,
+      "fade": 0.05,
+      "margin": 0.04,
+      "rotateFlags": true,
+      "scratches": 0.0,
+      "seam": "diagonal",
+      "seamCurve": 0.0,
+      "seamFlip": true,
+      "seamGap": 0.035,
+      "seamPosition": 0.5,
+      "seamSlant": 0.78,
+      "shadow": 0.0
+    }
+  },
+  "countries": 2,
+  "envelope": {
+    "seed": {
+      "integer": true,
+      "max": 1000000,
+      "min": 1
+    },
+    "splitPair.brush.dryness": {
+      "max": 0.7,
+      "min": 0.45
+    },
+    "splitPair.brush.liftFray": {
+      "max": 0.6,
+      "min": 0.3
+    },
+    "splitPair.seamPosition": {
+      "max": 0.53,
+      "min": 0.47
+    },
+    "splitPair.seamSlant": {
+      "max": 0.82,
+      "min": 0.7
+    }
+  },
+  "format": "roavvy.signature_pack",
+  "formatVersion": 1,
+  "heroes": {},
+  "id": "diagonal_split",
+  "locks": {
+    "fr+it": "52d98472cce89019",
+    "id+mc": "4ceae441d3711af3",
+    "jp+kr": "7562e253fe489dcb",
+    "mx+pt": "6b122b7878483a13",
+    "np+ch": "1d9c165ba538ae99",
+    "us+co": "0fe04b55f7ad9f04"
+  },
+  "notes": "Two flags turned upright in one tall brushed block, cut corner to corner by a garment-colour channel (M212, ADR-185). Style ref: split-two.jpeg (stock art, style only).",
+  "overrides": {},
+  "samplePairs": [
+    "id+mc",
+    "ro+td",
+    "nl+lu",
+    "ie+ci",
+    "fr+it",
+    "us+gb",
+    "co+ec",
+    "de+be",
+    "mx+pt",
+    "es+cr",
+    "py+dz",
+    "br+ar",
+    "sa+ae",
+    "np+ch",
+    "bt+np",
+    "co+us",
+    "hu+us",
+    "mx+us",
+    "ca+us",
+    "gr+cy",
+    "au+nz",
+    "jm+cu",
+    "ly+cy",
+    "jp+kr",
+    "pk+in",
+    "ve+pr",
+    "us+co",
+    "dz+py",
+    "gb-eng+pt",
+    "fi+se",
+    "za+gb",
+    "sc+mu"
+  ],
+  "status": "draft",
+  "title": "Diagonal Split",
+  "version": 1
+}

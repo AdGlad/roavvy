@@ -131,8 +131,12 @@ FlagFocus _emblem(double l, double t, double w, double h) =>
 FlagFocus _fly(double l, double t, double w, double h) =>
     FlagFocus(FlagFocusKind.fly, l + w / 2, t + h / 2, FlagBox(l, t, w, h));
 
-/// A hoist triangle/chevron reaching [depth] of the width.
-FlagFocus _triangle(double depth) => _hoist(0, 0, depth, 1);
+/// A hoist triangle/chevron reaching [depth] of the width. The protected
+/// part is its middle (the apex side and the star or emblem it carries), not
+/// the thin corners along the hoist: a crop may lose those, and a flag turned
+/// upright in a narrow half (Diagonal Split, M212) could never show the
+/// whole hoist.
+FlagFocus _triangle(double depth) => _hoist(0, 0.2, depth, 0.6);
 
 /// Nordic cross: no emblem, but keep the crossing in view.
 const FlagFocus _nordic = FlagFocus(FlagFocusKind.hoist, 0.37, 0.5);
